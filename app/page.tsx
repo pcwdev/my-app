@@ -432,8 +432,8 @@ function MyActivityModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <div className="text-lg font-bold">내 흔적</div>
@@ -580,8 +580,8 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <div className="text-lg font-bold">반응</div>
@@ -785,8 +785,8 @@ function CreatePostModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="text-lg font-bold">맞냐 올리기</div>
           <button
@@ -1082,7 +1082,7 @@ export default function MatnyaApp() {
 
   if (!currentPost) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
+      <div className="min-h-[100dvh] bg-gradient-to-bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
         <div>
           <div className="text-lg font-bold">아직 글이 없음</div>
           <div className="mt-2 text-sm text-white/50">
@@ -1379,8 +1379,8 @@ export default function MatnyaApp() {
     showToast('댓글 삭제 완료')
   }
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-transparent">
+    <div className="min-h-[100dvh] bg-gradient-to-bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
         <header className="px-5 pb-3 pt-4">
           <div className="flex items-start justify-between">
             <div>
