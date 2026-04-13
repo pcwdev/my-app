@@ -1,6 +1,6 @@
 'use client'
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3,
   Flag,
@@ -13,17 +13,29 @@ import {
   X,
 } from 'lucide-react'
 
+const LIMITS = {
+  title: 32,
+  content: 220,
+  option: 12,
+  comment: 60,
+}
+
+const categories = ['연애', '직장', '돈', '인간관계', '기타']
+const categoryFilters = ['전체', ...categories]
+const ageGroups = ['10대', '20대', '30대', '40대', '50대+']
+const reportReasons = [
+  '욕설/비방',
+  '개인정보 노출',
+  '허위사실',
+  '음란/부적절',
+  '도배/광고',
+]
+const INITIAL_COMMENT_BATCH = 20
+const STORAGE_KEYS = {
+  posts: 'matnya_my_posts',
+  comments: 'matnya_my_comments',
+}
 type Side = 'left' | 'right'
-type Category = '연애' | '직장' | '돈' | '인간관계' | '기타'
-type AgeGroup = '10대' | '20대' | '30대' | '40대' | '50대+'
-type SortTab = '추천' | '인기' | '최신'
-type CommentSort = 'best' | 'latest'
-type ReportReason =
-  | '욕설/비방'
-  | '개인정보 노출'
-  | '허위사실'
-  | '음란/부적절'
-  | '도배/광고'
 
 type CommentItem = {
   id: number
@@ -37,8 +49,8 @@ type CommentItem = {
 
 type PostItem = {
   id: number
-  category: Category
-  ageGroup: AgeGroup
+  category: string
+  ageGroup: string
   title: string
   content: string
   leftLabel: string
@@ -50,73 +62,6 @@ type PostItem = {
   comments: CommentItem[]
   views: number
 }
-
-type MyPostRef = {
-  postId: number
-}
-
-type MyCommentRef = {
-  postId: number
-  commentId: number
-}
-
-type MyPostActivity = {
-  id: number
-  postId: number
-  title: string
-  category: Category
-  ageGroup: AgeGroup
-}
-
-type MyCommentActivity = {
-  id: number
-  commentId: number
-  postId: number
-  postTitle: string
-  text: string
-}
-
-type ReportModalState = {
-  open: boolean
-  type: 'post' | 'comment' | null
-  id: number | null
-  label: string
-}
-
-type CreatePostInput = {
-  category: Category
-  ageGroup: AgeGroup
-  title: string
-  content: string
-  leftLabel: string
-  rightLabel: string
-}
-
-const LIMITS = {
-  title: 32,
-  content: 220,
-  option: 12,
-  comment: 60,
-} as const
-
-const categories: Category[] = ['연애', '직장', '돈', '인간관계', '기타']
-const categoryFilters: Array<'전체' | Category> = ['전체', ...categories]
-const ageGroups: AgeGroup[] = ['10대', '20대', '30대', '40대', '50대+']
-const reportReasons: ReportReason[] = [
-  '욕설/비방',
-  '개인정보 노출',
-  '허위사실',
-  '음란/부적절',
-  '도배/광고',
-]
-
-const INITIAL_COMMENT_BATCH = 20
-
-const STORAGE_KEYS = {
-  posts: 'matnya_my_posts',
-  comments: 'matnya_my_comments',
-} as const
-
 const seedPosts: PostItem[] = [
   {
     id: 1,
@@ -276,18 +221,11 @@ function getCounterTone(
   max: number,
   warnAt = 0.7,
   dangerAt = 0.9,
-): string {
+) {
   const ratio = length / max
   if (ratio >= dangerAt) return 'text-red-300'
   if (ratio >= warnAt) return 'text-yellow-300'
   return 'text-white/35'
-}
-
-type VoteOptionProps = {
-  active: boolean
-  label: string
-  value: number
-  onClick: () => void
 }
 
 const VoteOption = React.memo(function VoteOption({
@@ -295,7 +233,12 @@ const VoteOption = React.memo(function VoteOption({
   label,
   value,
   onClick,
-}: VoteOptionProps) {
+}: {
+  active: boolean
+  label: string
+  value: number
+  onClick: () => void
+}) {
   return (
     <button
       onClick={onClick}
@@ -307,9 +250,7 @@ const VoteOption = React.memo(function VoteOption({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <span
-          className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${
-            active ? 'bg-[#4f7cff] text-white' : 'bg-white/10 text-white/90'
-          }`}
+          className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${active ? 'bg-[#4f7cff] text-white' : 'bg-white/10 text-white/90'}`}
         >
           {label}
         </span>
@@ -325,20 +266,18 @@ const VoteOption = React.memo(function VoteOption({
   )
 })
 
-type ReportModalProps = {
-  open: boolean
-  onClose: () => void
-  onSubmit: (reason: ReportReason) => void
-  targetLabel: string
-}
-
 function ReportModal({
   open,
   onClose,
   onSubmit,
   targetLabel,
-}: ReportModalProps) {
-  const [reason, setReason] = useState<ReportReason>(reportReasons[0])
+}: {
+  open: boolean
+  onClose: () => void
+  onSubmit: (reason: string) => void
+  targetLabel: string
+}) {
+  const [reason, setReason] = useState(reportReasons[0])
 
   useEffect(() => {
     if (open) setReason(reportReasons[0])
@@ -356,11 +295,7 @@ function ReportModal({
             <button
               key={item}
               onClick={() => setReason(item)}
-              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold ${
-                reason === item
-                  ? 'border-[#6d8dff]/45 bg-[#4f7cff] text-white'
-                  : 'border-white/10 bg-white/[0.05] text-white'
-              }`}
+              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold ${reason === item ? 'border-[#6d8dff]/45 bg-[#4f7cff] text-white' : 'border-white/10 bg-white/[0.05] text-white'}`}
             >
               {item}
             </button>
@@ -385,16 +320,6 @@ function ReportModal({
   )
 }
 
-type CommentCardProps = {
-  comment: CommentItem
-  onLikeComment: (commentId: number) => void
-  isLiked: boolean
-  onOpenReportComment: (commentId: number) => void
-  adminMode: boolean
-  onAdminRestoreComment: (commentId: number) => void
-  onAdminDeleteComment: (commentId: number) => void
-}
-
 const CommentCard = React.memo(function CommentCard({
   comment,
   onLikeComment,
@@ -403,16 +328,28 @@ const CommentCard = React.memo(function CommentCard({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
-}: CommentCardProps) {
+}: {
+  comment: {
+    id: number
+    author: string
+    side: 'left' | 'right'
+    text: string
+    likes: number
+    reportCount: number
+    hidden: boolean
+  }
+  onLikeComment: (commentId: number) => void
+  isLiked: boolean
+  onOpenReportComment: (commentId: number) => void
+  adminMode: boolean
+  onAdminRestoreComment: (commentId: number) => void
+  onAdminDeleteComment: (commentId: number) => void
+}) {
   if (comment.hidden && !adminMode) return null
 
   return (
     <div
-      className={`rounded-3xl border p-3 ${
-        comment.hidden
-          ? 'border-red-400/20 bg-red-400/10'
-          : 'border-white/10 bg-white/[0.04]'
-      }`}
+      className={`rounded-3xl border p-3 ${comment.hidden ? 'border-red-400/20 bg-red-400/10' : 'border-white/10 bg-white/[0.04]'}`}
     >
       <div className="mb-1 flex items-center justify-between text-xs">
         <div className="font-bold text-white">{comment.author}</div>
@@ -425,11 +362,7 @@ const CommentCard = React.memo(function CommentCard({
         {!comment.hidden && (
           <button
             onClick={() => onLikeComment(comment.id)}
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              isLiked
-                ? 'bg-[#f5f7ff] text-[#111827]'
-                : 'bg-white/[0.07] text-white/85'
-            }`}
+            className={`rounded-full px-3 py-1 text-xs font-bold ${isLiked ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/85'}`}
           >
             {isLiked ? '♥ 공감' : '♡ 공감'}
           </button>
@@ -463,15 +396,6 @@ const CommentCard = React.memo(function CommentCard({
   )
 })
 
-type MyActivityModalProps = {
-  open: boolean
-  onClose: () => void
-  myPosts: MyPostActivity[]
-  myComments: MyCommentActivity[]
-  onOpenPost: (postId: number) => void
-  onOpenComment: (postId: number) => void
-}
-
 function MyActivityModal({
   open,
   onClose,
@@ -479,8 +403,27 @@ function MyActivityModal({
   myComments,
   onOpenPost,
   onOpenComment,
-}: MyActivityModalProps) {
-  const [tab, setTab] = useState<'posts' | 'comments'>('posts')
+}: {
+  open: boolean
+  onClose: () => void
+  myPosts: Array<{
+    id: number
+    postId: number
+    title: string
+    category: string
+    ageGroup: string
+  }>
+  myComments: Array<{
+    id: number
+    commentId: number
+    postId: number
+    postTitle: string
+    text: string
+  }>
+  onOpenPost: (postId: number) => void
+  onOpenComment: (postId: number) => void
+}) {
+  const [tab, setTab] = useState('posts')
 
   useEffect(() => {
     if (open) setTab('posts')
@@ -510,28 +453,20 @@ function MyActivityModal({
           <div className="flex gap-2">
             <button
               onClick={() => setTab('posts')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                tab === 'posts'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
-              }`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${tab === 'posts' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
             >
               내가 올린 글
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                tab === 'comments'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
-              }`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${tab === 'comments' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
             >
               내가 남긴 댓글
             </button>
           </div>
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="text-sm text-white/50">아직 올린 글이 없음</div>
           )}
@@ -574,19 +509,6 @@ function MyActivityModal({
   )
 }
 
-type CommentModalProps = {
-  post: PostItem | null
-  open: boolean
-  onClose: () => void
-  onAddComment: (text: string, side: Side) => void
-  onLikeComment: (commentId: number) => void
-  likedComments: Record<number, boolean>
-  onOpenReportComment: (commentId: number) => void
-  adminMode: boolean
-  onAdminRestoreComment: (commentId: number) => void
-  onAdminDeleteComment: (commentId: number) => void
-}
-
 function CommentModal({
   post,
   open,
@@ -598,10 +520,21 @@ function CommentModal({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
-}: CommentModalProps) {
+}: {
+  post: PostItem | null
+  open: boolean
+  onClose: () => void
+  onAddComment: (text: string, side: Side) => void
+  onLikeComment: (commentId: number) => void
+  likedComments: Record<number, boolean>
+  onOpenReportComment: (commentId: number) => void
+  adminMode: boolean
+  onAdminRestoreComment: (commentId: number) => void
+  onAdminDeleteComment: (commentId: number) => void
+}) {
   const [text, setText] = useState('')
-  const [commentSide, setCommentSide] = useState<Side>('left')
-  const [sortType, setSortType] = useState<CommentSort>('best')
+  const [commentSide, setCommentSide] = useState<'left' | 'right'>('left')
+  const [sortType, setSortType] = useState<'best' | 'latest'>('best')
   const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -616,12 +549,12 @@ function CommentModal({
     if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
   }, [open, post?.id, sortType])
 
-  const sortedComments = useMemo<CommentItem[]>(() => {
+  const sortedComments = useMemo(() => {
     if (!post) return []
     return [...post.comments].sort((a, b) => b.likes - a.likes)
   }, [post])
 
-  const latestComments = useMemo<CommentItem[]>(() => {
+  const latestComments = useMemo(() => {
     if (!post) return []
     return [...post.comments].sort((a, b) => b.id - a.id)
   }, [post])
@@ -664,25 +597,17 @@ function CommentModal({
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <div className="flex gap-2">
             <button
               onClick={() => setSortType('best')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                sortType === 'best'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
-              }`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${sortType === 'best' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
             >
               베스트
             </button>
             <button
               onClick={() => setSortType('latest')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                sortType === 'latest'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
-              }`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${sortType === 'latest' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
             >
               최신
             </button>
@@ -759,25 +684,17 @@ function CommentModal({
           )}
         </div>
 
-        <div className="space-y-3 border-t border-white/10 px-5 py-4">
+        <div className="border-t border-white/10 px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-                commentSide === 'left'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
-              }`}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${commentSide === 'left' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
             >
               {post.leftLabel}
             </button>
             <button
               onClick={() => setCommentSide('right')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
-                commentSide === 'right'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
-              }`}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${commentSide === 'right' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
             >
               {post.rightLabel}
             </button>
@@ -800,12 +717,7 @@ function CommentModal({
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
               />
               <div
-                className={`mt-1 text-right text-xs ${getCounterTone(
-                  text.length,
-                  LIMITS.comment,
-                  0.7,
-                  0.9,
-                )}`}
+                className={`mt-1 text-right text-xs ${getCounterTone(text.length, LIMITS.comment, 0.7, 0.9)}`}
               >
                 {text.length}/{LIMITS.comment}
               </div>
@@ -823,15 +735,24 @@ function CommentModal({
   )
 }
 
-type CreatePostModalProps = {
+function CreatePostModal({
+  open,
+  onClose,
+  onCreate,
+}: {
   open: boolean
   onClose: () => void
-  onCreate: (input: CreatePostInput) => void
-}
-
-function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
-  const [category, setCategory] = useState<Category>('연애')
-  const [ageGroup, setAgeGroup] = useState<AgeGroup>('20대')
+  onCreate: (input: {
+    category: string
+    ageGroup: string
+    title: string
+    content: string
+    leftLabel: string
+    rightLabel: string
+  }) => void
+}) {
+  const [category, setCategory] = useState('연애')
+  const [ageGroup, setAgeGroup] = useState('20대')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [leftLabel, setLeftLabel] = useState('')
@@ -855,7 +776,6 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
       leftLabel: trimmedLeft,
       rightLabel: trimmedRight,
     })
-
     setCategory('연애')
     setAgeGroup('20대')
     setTitle('')
@@ -877,11 +797,11 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as Category)}
+              onChange={(e) => setCategory(e.target.value)}
               className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none"
             >
               {categories.map((item) => (
@@ -892,7 +812,7 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
             </select>
             <select
               value={ageGroup}
-              onChange={(e) => setAgeGroup(e.target.value as AgeGroup)}
+              onChange={(e) => setAgeGroup(e.target.value)}
               className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none"
             >
               {ageGroups.map((item) => (
@@ -912,12 +832,7 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(
-                title.length,
-                LIMITS.title,
-                0.56,
-                0.84,
-              )}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(title.length, LIMITS.title, 0.56, 0.84)}`}
             >
               {title.length}/{LIMITS.title}
             </div>
@@ -933,12 +848,7 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 flex items-center justify-between text-xs ${getCounterTone(
-                content.length,
-                LIMITS.content,
-                0.64,
-                0.82,
-              )}`}
+              className={`mt-1 flex items-center justify-between text-xs ${getCounterTone(content.length, LIMITS.content, 0.64, 0.82)}`}
             >
               <span>짧을수록 판단이 잘 갈림</span>
               <span>
@@ -956,12 +866,7 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(
-                leftLabel.length,
-                LIMITS.option,
-                0.75,
-                0.92,
-              )}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(leftLabel.length, LIMITS.option, 0.75, 0.92)}`}
             >
               {leftLabel.length}/{LIMITS.option}
             </div>
@@ -976,12 +881,7 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(
-                rightLabel.length,
-                LIMITS.option,
-                0.75,
-                0.92,
-              )}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(rightLabel.length, LIMITS.option, 0.75, 0.92)}`}
             >
               {rightLabel.length}/{LIMITS.option}
             </div>
@@ -1004,11 +904,9 @@ function CreatePostModal({ open, onClose, onCreate }: CreatePostModalProps) {
 export default function MatnyaApp() {
   const [posts, setPosts] = useState<PostItem[]>(seedPosts)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [tab, setTab] = useState<SortTab>('추천')
-  const [selectedCategory, setSelectedCategory] = useState<'전체' | Category>(
-    '전체',
-  )
-  const [votes, setVotes] = useState<Record<number, Side>>({})
+  const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
+  const [selectedCategory, setSelectedCategory] = useState<string>('전체')
+  const [votes, setVotes] = useState<Record<number, 'left' | 'right'>>({})
   const [likedComments, setLikedComments] = useState<Record<number, boolean>>(
     {},
   )
@@ -1018,14 +916,21 @@ export default function MatnyaApp() {
   const [reportedComments, setReportedComments] = useState<
     Record<number, boolean>
   >({})
-  const [myPostRefs, setMyPostRefs] = useState<MyPostRef[]>([])
-  const [myCommentRefs, setMyCommentRefs] = useState<MyCommentRef[]>([])
+  const [myPostRefs, setMyPostRefs] = useState<Array<{ postId: number }>>([])
+  const [myCommentRefs, setMyCommentRefs] = useState<
+    Array<{ postId: number; commentId: number }>
+  >([])
   const [toast, setToast] = useState('')
   const [commentOpen, setCommentOpen] = useState(false)
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
-  const [reportModal, setReportModal] = useState<ReportModalState>({
+  const [reportModal, setReportModal] = useState<{
+    open: boolean
+    type: 'post' | 'comment' | null
+    id: number | null
+    label: string
+  }>({
     open: false,
     type: null,
     id: null,
@@ -1033,8 +938,12 @@ export default function MatnyaApp() {
   })
 
   useEffect(() => {
-    setMyPostRefs(loadStoredList<MyPostRef>(STORAGE_KEYS.posts))
-    setMyCommentRefs(loadStoredList<MyCommentRef>(STORAGE_KEYS.comments))
+    setMyPostRefs(loadStoredList<{ postId: number }>(STORAGE_KEYS.posts))
+    setMyCommentRefs(
+      loadStoredList<{ postId: number; commentId: number }>(
+        STORAGE_KEYS.comments,
+      ),
+    )
   }, [])
 
   useEffect(() => {
@@ -1045,7 +954,7 @@ export default function MatnyaApp() {
     saveStoredList(STORAGE_KEYS.comments, myCommentRefs)
   }, [myCommentRefs])
 
-  const filteredPosts = useMemo<PostItem[]>(() => {
+  const filteredPosts = useMemo(() => {
     let result =
       selectedCategory === '전체'
         ? posts
@@ -1066,13 +975,7 @@ export default function MatnyaApp() {
     return result
   }, [posts, tab, selectedCategory])
 
-  useEffect(() => {
-    if (currentIndex > Math.max(filteredPosts.length - 1, 0)) {
-      setCurrentIndex(0)
-    }
-  }, [filteredPosts.length, currentIndex])
-
-  const currentPost = filteredPosts[currentIndex] || filteredPosts[0] || null
+  const currentPost: PostItem = filteredPosts[currentIndex] || filteredPosts[0]
 
   const controversialPosts = useMemo(() => {
     return [...posts]
@@ -1090,10 +993,36 @@ export default function MatnyaApp() {
       .slice(0, 3)
   }, [posts, currentPost?.id])
 
-  const myPosts = useMemo<MyPostActivity[]>(() => {
+  const myPosts = useMemo(() => {
     return myPostRefs
       .map((ref) => posts.find((post) => post.id === ref.postId))
-      .filter((post): post is PostItem => Boolean(post))
+      .filter(
+        (
+          post,
+        ): post is {
+          id: number
+          category: string
+          ageGroup: string
+          title: string
+          content: string
+          leftLabel: string
+          rightLabel: string
+          leftVotes: number
+          rightVotes: number
+          reportCount: number
+          hidden: boolean
+          comments: Array<{
+            id: number
+            author: string
+            side: 'left' | 'right'
+            text: string
+            likes: number
+            reportCount: number
+            hidden: boolean
+          }>
+          views: number
+        } => Boolean(post),
+      )
       .map((post) => ({
         id: post.id,
         postId: post.id,
@@ -1103,7 +1032,7 @@ export default function MatnyaApp() {
       }))
   }, [myPostRefs, posts])
 
-  const myComments = useMemo<MyCommentActivity[]>(() => {
+  const myComments = useMemo(() => {
     return myCommentRefs
       .map((ref) => {
         const post = posts.find((item) => item.id === ref.postId)
@@ -1118,12 +1047,22 @@ export default function MatnyaApp() {
           text: comment.text,
         }
       })
-      .filter((item): item is MyCommentActivity => Boolean(item))
+      .filter(
+        (
+          item,
+        ): item is {
+          id: number
+          commentId: number
+          postId: number
+          postTitle: string
+          text: string
+        } => Boolean(item),
+      )
   }, [myCommentRefs, posts])
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
-    window.setTimeout(() => setToast(''), 1400)
+    setTimeout(() => setToast(''), 1400)
   }, [])
 
   const randomNickname = useCallback((): string => {
@@ -1141,279 +1080,9 @@ export default function MatnyaApp() {
     return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
   }, [])
 
-  const openPostDirect = useCallback(
-    (postId: number) => {
-      const nextIndexInFiltered = filteredPosts.findIndex(
-        (p) => p.id === postId,
-      )
-      if (nextIndexInFiltered >= 0) {
-        setCurrentIndex(nextIndexInFiltered)
-        setActivityOpen(false)
-        return
-      }
-      setSelectedCategory('전체')
-      const allIndex = posts.findIndex((p) => p.id === postId)
-      if (allIndex >= 0) {
-        setCurrentIndex(allIndex)
-        setActivityOpen(false)
-      }
-    },
-    [filteredPosts, posts],
-  )
-
-  const openCommentDirect = useCallback(
-    (postId: number) => {
-      openPostDirect(postId)
-      setActivityOpen(false)
-      setTimeout(() => setCommentOpen(true), 50)
-    },
-    [openPostDirect],
-  )
-
-  const handleVote = useCallback(
-    (choice: Side) => {
-      if (!currentPost) return
-      const prevChoice = votes[currentPost.id]
-      if (prevChoice === choice) return
-
-      setPosts((prev) =>
-        prev.map((post) => {
-          if (post.id !== currentPost.id) return post
-          let { leftVotes, rightVotes } = post
-          if (prevChoice === 'left') leftVotes -= 1
-          if (prevChoice === 'right') rightVotes -= 1
-          if (choice === 'left') leftVotes += 1
-          if (choice === 'right') rightVotes += 1
-          return { ...post, leftVotes, rightVotes, views: post.views + 1 }
-        }),
-      )
-
-      setVotes((prev) => ({ ...prev, [currentPost.id]: choice }))
-      showToast('판단 반영 완료!')
-    },
-    [currentPost, votes, showToast],
-  )
-
-  const prev = () => setCurrentIndex((i) => Math.max(i - 1, 0))
-  const next = () =>
-    setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
-
-  const handleNextWithGuard = () => {
-    if (!currentPost) return
-    if (!votes[currentPost.id]) {
-      showToast('먼저 선택하고 넘어가야 함')
-      return
-    }
-    next()
-  }
-
-  const moveToPostWithGuard = (postId: number) => {
-    if (!currentPost) return
-    if (!votes[currentPost.id]) {
-      showToast('먼저 지금 글에 선택해야 이동할 수 있음')
-      return
-    }
-    const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
-    if (nextIndexInFiltered >= 0) {
-      setCurrentIndex(nextIndexInFiltered)
-      return
-    }
-    setSelectedCategory('전체')
-    const fallbackIndex = posts.findIndex((p) => p.id === postId)
-    if (fallbackIndex >= 0) setCurrentIndex(fallbackIndex)
-  }
-
-  const createPost = (input: CreatePostInput) => {
-    const nextId = posts.length ? Math.max(...posts.map((p) => p.id)) + 1 : 1
-    const newPost: PostItem = {
-      id: nextId,
-      category: input.category,
-      ageGroup: input.ageGroup,
-      title: input.title,
-      content: input.content,
-      leftLabel: input.leftLabel,
-      rightLabel: input.rightLabel,
-      leftVotes: 0,
-      rightVotes: 0,
-      reportCount: 0,
-      hidden: false,
-      comments: [],
-      views: 0,
-    }
-
-    setPosts((prev) => [newPost, ...prev])
-    setMyPostRefs((prev) => [...prev, { postId: nextId }])
-    setSelectedCategory('전체')
-    setTab('최신')
-    setCurrentIndex(0)
-    setWriteOpen(false)
-    showToast('글 올리기 완료')
-  }
-
-  const addComment = (text: string, side: Side) => {
-    if (!currentPost) return
-    const nextCommentId =
-      posts
-        .flatMap((p) => p.comments)
-        .reduce((max, c) => Math.max(max, c.id), 0) + 1
-
-    const newComment: CommentItem = {
-      id: nextCommentId,
-      author: randomNickname(),
-      side,
-      text,
-      likes: 0,
-      reportCount: 0,
-      hidden: false,
-    }
-
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === currentPost.id
-          ? { ...post, comments: [newComment, ...post.comments] }
-          : post,
-      ),
-    )
-
-    setMyCommentRefs((prev) => [
-      ...prev,
-      { postId: currentPost.id, commentId: nextCommentId },
-    ])
-    showToast('반응 등록 완료')
-  }
-
-  const likeComment = (commentId: number) => {
-    if (likedComments[commentId]) return
-
-    setLikedComments((prev) => ({ ...prev, [commentId]: true }))
-    setPosts((prev) =>
-      prev.map((post) => ({
-        ...post,
-        comments: post.comments.map((comment) =>
-          comment.id === commentId
-            ? { ...comment, likes: comment.likes + 1 }
-            : comment,
-        ),
-      })),
-    )
-  }
-
-  const openReportPost = () => {
-    if (!currentPost) return
-    setReportModal({
-      open: true,
-      type: 'post',
-      id: currentPost.id,
-      label: currentPost.title,
-    })
-  }
-
-  const openReportComment = (commentId: number) => {
-    if (!currentPost) return
-    const comment = currentPost.comments.find((item) => item.id === commentId)
-    if (!comment) return
-    setReportModal({
-      open: true,
-      type: 'comment',
-      id: commentId,
-      label: comment.text,
-    })
-  }
-
-  const submitReport = (reason: ReportReason) => {
-    const { type, id } = reportModal
-    if (!type || !id) return
-
-    if (type === 'post') {
-      if (reportedPosts[id]) {
-        showToast('이미 신고한 글임')
-      } else {
-        setReportedPosts((prev) => ({ ...prev, [id]: true }))
-        setPosts((prev) =>
-          prev.map((post) => {
-            if (post.id !== id) return post
-            const nextCount = post.reportCount + 1
-            return {
-              ...post,
-              reportCount: nextCount,
-              hidden: nextCount >= 3 ? true : post.hidden,
-            }
-          }),
-        )
-        showToast(`${reason} 신고 접수`)
-      }
-    }
-
-    if (type === 'comment') {
-      if (reportedComments[id]) {
-        showToast('이미 신고한 댓글임')
-      } else {
-        setReportedComments((prev) => ({ ...prev, [id]: true }))
-        setPosts((prev) =>
-          prev.map((post) => ({
-            ...post,
-            comments: post.comments.map((comment) => {
-              if (comment.id !== id) return comment
-              const nextCount = comment.reportCount + 1
-              return {
-                ...comment,
-                reportCount: nextCount,
-                hidden: nextCount >= 3 ? true : comment.hidden,
-              }
-            }),
-          })),
-        )
-        showToast(`${reason} 신고 접수`)
-      }
-    }
-
-    setReportModal({ open: false, type: null, id: null, label: '' })
-  }
-
-  const adminRestoreComment = (commentId: number) => {
-    setPosts((prev) =>
-      prev.map((post) => ({
-        ...post,
-        comments: post.comments.map((comment) =>
-          comment.id === commentId
-            ? { ...comment, hidden: false, reportCount: 0 }
-            : comment,
-        ),
-      })),
-    )
-    showToast('댓글 숨김 해제')
-  }
-
-  const adminDeleteComment = (commentId: number) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.comments.some((c) => c.id === commentId)
-          ? {
-              ...post,
-              comments: post.comments.filter((c) => c.id !== commentId),
-            }
-          : post,
-      ),
-    )
-    showToast('댓글 삭제 완료')
-  }
-
-  const adminRestorePost = (postId: number) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId ? { ...post, hidden: false, reportCount: 0 } : post,
-      ),
-    )
-    showToast('글 숨김 해제')
-  }
-
-  const p = currentPost
-    ? percent(currentPost.leftVotes, currentPost.rightVotes)
-    : { left: 50, right: 50 }
-
   if (!currentPost) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] px-6 text-center text-white">
+      <div className="min-h-screen bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
         <div>
           <div className="text-lg font-bold">아직 글이 없음</div>
           <div className="mt-2 text-sm text-white/50">
@@ -1424,6 +1093,291 @@ export default function MatnyaApp() {
     )
   }
 
+  const p = percent(currentPost.leftVotes, currentPost.rightVotes)
+
+  const handleVote = (choice: 'left' | 'right') => {
+    const prevChoice = votes[currentPost.id]
+    if (prevChoice === choice) return
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== currentPost.id) return post
+        let { leftVotes, rightVotes } = post
+        if (prevChoice === 'left') leftVotes -= 1
+        if (prevChoice === 'right') rightVotes -= 1
+        if (choice === 'left') leftVotes += 1
+        if (choice === 'right') rightVotes += 1
+        return { ...post, leftVotes, rightVotes }
+      }),
+    )
+
+    setVotes((prev) => ({ ...prev, [currentPost.id]: choice }))
+    showToast('판단 반영 완료!')
+  }
+
+  const prev = () => setCurrentIndex((i) => Math.max(i - 1, 0))
+  const next = () =>
+    setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
+
+  const handleNextWithGuard = () => {
+    if (!votes[currentPost.id]) {
+      showToast('먼저 선택하고 넘어가야 함')
+      return
+    }
+    next()
+  }
+
+  const moveToPostWithGuard = (postId: number) => {
+    if (!votes[currentPost.id]) {
+      showToast('먼저 지금 글에 선택해야 이동할 수 있음')
+      return
+    }
+    const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
+    if (nextIndexInFiltered >= 0) {
+      setCurrentIndex(nextIndexInFiltered)
+      return
+    }
+    const fallbackIndex = posts.findIndex((p) => p.id === postId)
+    if (fallbackIndex >= 0) {
+      setTab('추천')
+      setSelectedCategory('전체')
+      setCurrentIndex(fallbackIndex)
+    }
+  }
+
+  const openPostDirect = (postId: number) => {
+    const index = posts.findIndex((p) => p.id === postId)
+    if (index >= 0) {
+      setTab('추천')
+      setSelectedCategory('전체')
+      setCurrentIndex(index)
+      setActivityOpen(false)
+    }
+  }
+
+  const openCommentDirect = (postId: number) => {
+    const index = posts.findIndex((p) => p.id === postId)
+    if (index >= 0) {
+      setTab('추천')
+      setSelectedCategory('전체')
+      setCurrentIndex(index)
+      setActivityOpen(false)
+      setCommentOpen(true)
+    }
+  }
+
+  const addComment = (text: string, side: 'left' | 'right') => {
+    const commentId = Date.now()
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === currentPost.id
+          ? {
+              ...post,
+              comments: [
+                {
+                  id: commentId,
+                  author: randomNickname(),
+                  side,
+                  text,
+                  likes: 0,
+                  reportCount: 0,
+                  hidden: false,
+                },
+                ...post.comments,
+              ],
+            }
+          : post,
+      ),
+    )
+    setMyCommentRefs((prev) => [
+      { commentId, postId: currentPost.id },
+      ...prev.filter((item) => item.commentId !== commentId),
+    ])
+    showToast('반응 등록 완료!')
+  }
+
+  const likeComment = (commentId: number) => {
+    const already = likedComments[commentId]
+    setLikedComments((prev) => {
+      const nextLiked = { ...prev }
+      if (already) delete nextLiked[commentId]
+      else nextLiked[commentId] = true
+      return nextLiked
+    })
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === currentPost.id
+          ? {
+              ...post,
+              comments: post.comments.map((comment) =>
+                comment.id === commentId
+                  ? {
+                      ...comment,
+                      likes: already
+                        ? Math.max(0, comment.likes - 1)
+                        : comment.likes + 1,
+                    }
+                  : comment,
+              ),
+            }
+          : post,
+      ),
+    )
+  }
+
+  const openReportPost = () => {
+    if (reportedPosts[currentPost.id]) {
+      showToast('이미 신고한 글임')
+      return
+    }
+    setReportModal({
+      open: true,
+      type: 'post',
+      id: currentPost.id,
+      label: '현재 글 신고',
+    })
+  }
+
+  const openReportComment = (commentId: number) => {
+    if (reportedComments[commentId]) {
+      showToast('이미 신고한 댓글임')
+      return
+    }
+    setReportModal({
+      open: true,
+      type: 'comment',
+      id: commentId,
+      label: '댓글 신고',
+    })
+  }
+
+  const submitReport = (reason: string) => {
+    const reportId = reportModal.id
+    if (reportId == null) return
+
+    if (reportModal.type === 'post') {
+      setReportedPosts((prev) => ({ ...prev, [reportId]: true }))
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === reportId
+            ? {
+                ...p,
+                reportCount: p.reportCount + 1,
+                hidden: p.reportCount + 1 >= 3,
+              }
+            : p,
+        ),
+      )
+    }
+
+    if (reportModal.type === 'comment') {
+      setReportedComments((prev) => ({ ...prev, [reportId]: true }))
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === currentPost.id
+            ? {
+                ...p,
+                comments: p.comments.map((c) =>
+                  c.id === reportId
+                    ? {
+                        ...c,
+                        reportCount: c.reportCount + 1,
+                        hidden: c.reportCount + 1 >= 3,
+                      }
+                    : c,
+                ),
+              }
+            : p,
+        ),
+      )
+    }
+
+    setReportModal({
+      open: false,
+      type: null,
+      id: null,
+      label: '',
+    })
+
+    showToast(`${reason} 신고 접수`)
+  }
+
+  const createPost = (data: {
+    category: string
+    ageGroup: string
+    title: string
+    content: string
+    leftLabel: string
+    rightLabel: string
+  }) => {
+    const postId = Date.now()
+    const newPost = {
+      id: postId,
+      ...data,
+      leftVotes: 0,
+      rightVotes: 0,
+      reportCount: 0,
+      hidden: false,
+      comments: [],
+      views: 1,
+    }
+    setPosts((prev) => [newPost, ...prev])
+    setMyPostRefs((prev) => [
+      { postId },
+      ...prev.filter((item) => item.postId !== postId),
+    ])
+    setTab('최신')
+    setSelectedCategory('전체')
+    setCurrentIndex(0)
+    setWriteOpen(false)
+    showToast('맞냐 등록 완료!')
+  }
+
+  const adminRestorePost = () => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === currentPost.id ? { ...p, hidden: false, reportCount: 0 } : p,
+      ),
+    )
+    showToast('글 숨김 해제 완료')
+  }
+
+  const adminDeletePost = () => {
+    const nextPosts = posts.filter((p) => p.id !== currentPost.id)
+    setPosts(nextPosts)
+    setCurrentIndex(0)
+    showToast('글 삭제 완료')
+  }
+
+  const adminRestoreComment = (commentId: number) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === currentPost.id
+          ? {
+              ...p,
+              comments: p.comments.map((c) =>
+                c.id === commentId
+                  ? { ...c, hidden: false, reportCount: 0 }
+                  : c,
+              ),
+            }
+          : p,
+      ),
+    )
+    showToast('댓글 숨김 해제 완료')
+  }
+
+  const adminDeleteComment = (commentId: number) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === currentPost.id
+          ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) }
+          : p,
+      ),
+    )
+    showToast('댓글 삭제 완료')
+  }
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-transparent">
@@ -1446,11 +1400,7 @@ export default function MatnyaApp() {
               </button>
               <button
                 onClick={() => setAdminMode((v) => !v)}
-                className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                  adminMode
-                    ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.07] text-white'
-                }`}
+                className={`flex h-11 w-11 items-center justify-center rounded-full ${adminMode ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
               >
                 <Shield className="h-5 w-5" />
               </button>
@@ -1470,18 +1420,14 @@ export default function MatnyaApp() {
           </div>
 
           <div className="mt-4 flex gap-2 overflow-x-auto">
-            {(['추천', '인기', '최신'] as SortTab[]).map((label) => (
+            {(['추천', '인기', '최신'] as const).map((label) => (
               <button
                 key={label}
                 onClick={() => {
                   setTab(label)
                   setCurrentIndex(0)
                 }}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                  tab === label
-                    ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.07] text-white/80'
-                }`}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${tab === label ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
               >
                 {label}
               </button>
@@ -1496,11 +1442,7 @@ export default function MatnyaApp() {
                   setSelectedCategory(category)
                   setCurrentIndex(0)
                 }}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
-                  selectedCategory === category
-                    ? 'bg-[#4f7cff] text-white'
-                    : 'bg-white/[0.07] text-white/80'
-                }`}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${selectedCategory === category ? 'bg-[#4f7cff] text-white' : 'bg-white/[0.05] text-white/75'}`}
               >
                 {category}
               </button>
@@ -1508,141 +1450,179 @@ export default function MatnyaApp() {
           </div>
         </header>
 
-        <main className="flex-1 px-5 pb-28">
-          {currentPost.hidden && !adminMode ? (
-            <div className="rounded-[32px] border border-red-400/20 bg-red-400/10 p-6 text-center">
-              <div className="text-lg font-bold">신고 누적으로 숨김된 글</div>
-              <div className="mt-2 text-sm text-white/55">
-                관리자 모드에서만 볼 수 있음
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[#4f7cff]/20 px-3 py-1 text-xs font-bold text-[#b9c6ff]">
-                    {currentPost.category}
-                  </span>
-                  <span className="rounded-full bg-white/[0.07] px-3 py-1 text-xs font-bold text-white/70">
-                    {currentPost.ageGroup}
-                  </span>
+        <div className="mx-5 border-t border-white/10" />
+
+        <main className="flex-1 px-5 pb-3 pt-3">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${tab}-${selectedCategory}-${currentPost.id}`}
+              drag="y"
+              onDragEnd={(e, info) => {
+                if (info.offset.y < -80) handleNextWithGuard()
+                if (info.offset.y > 80) prev()
+              }}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -18 }}
+              transition={{ duration: 0.15 }}
+              className="flex h-full flex-col justify-start"
+            >
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-[#f5f7ff] px-3 py-1 text-[13px] font-bold text-[#111827]">
+                      {currentPost.category}
+                    </span>
+                    <span className="rounded-full bg-white/[0.07] px-3 py-1 text-[13px] font-bold text-white">
+                      {currentPost.ageGroup}
+                    </span>
+                    {currentPost.hidden && (
+                      <span className="rounded-full bg-red-500/20 px-3 py-1 text-[13px] font-bold text-red-300">
+                        숨김됨
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[13px] text-white/45">
+                    익명으로 판단중
+                  </div>
                 </div>
-                <div className="text-xs text-white/40">
-                  조회 {currentPost.views}
+
+                <div className="rounded-[34px] border border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.03] px-5 py-6 backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.38)]">
+                  <div className="mb-3 text-sm font-bold text-[#8b9bff]">
+                    🔥 지금{' '}
+                    {Math.max(
+                      60,
+                      Math.floor(
+                        (currentPost.leftVotes + currentPost.rightVotes) / 4,
+                      ),
+                    )}
+                    명 보는 중
+                  </div>
+                  <h1 className="text-[26px] font-extrabold leading-[1.15] tracking-tight text-white">
+                    {currentPost.hidden && !adminMode
+                      ? '신고 누적으로 숨겨진 글'
+                      : currentPost.title}
+                  </h1>
+                  <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-white/78">
+                    {currentPost.hidden && !adminMode
+                      ? '관리자 확인 전까지 숨김 처리됩니다.'
+                      : currentPost.content}
+                  </p>
+                  {adminMode && currentPost.hidden && (
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={adminRestorePost}
+                        className="rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                      >
+                        숨김 해제
+                      </button>
+                      <button
+                        onClick={adminDeletePost}
+                        className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-bold text-white"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="mt-4 text-[22px] font-extrabold leading-snug">
-                {currentPost.title}
-              </div>
-              <div className="mt-3 whitespace-pre-line text-[15px] leading-7 text-white/80">
-                {currentPost.content}
-              </div>
+              {(!currentPost.hidden || adminMode) && (
+                <div className="mt-6 space-y-4">
+                  <VoteOption
+                    active={votes[currentPost.id] === 'left'}
+                    label={currentPost.leftLabel}
+                    value={p.left}
+                    onClick={() => handleVote('left')}
+                  />
+                  <VoteOption
+                    active={votes[currentPost.id] === 'right'}
+                    label={currentPost.rightLabel}
+                    value={p.right}
+                    onClick={() => handleVote('right')}
+                  />
 
-              {adminMode && currentPost.hidden && (
-                <div className="mt-4">
-                  <button
-                    onClick={() => adminRestorePost(currentPost.id)}
-                    className="rounded-2xl bg-[#f5f7ff] px-4 py-3 text-sm font-bold text-[#111827]"
-                  >
-                    글 숨김 해제
-                  </button>
+                  {votes[currentPost.id] ? (
+                    <div className="space-y-4">
+                      <button
+                        onClick={handleNextWithGuard}
+                        className="w-full rounded-[28px] border border-[#6d8dff]/25 bg-[#6d8dff]/10 px-4 py-4 text-left transition-all"
+                      >
+                        <div className="text-xs font-bold text-[#9eb1ff]">
+                          다음 맞냐
+                        </div>
+                        <div className="mt-1 text-base font-bold text-white">
+                          {filteredPosts[
+                            Math.min(currentIndex + 1, filteredPosts.length - 1)
+                          ]?.title || '다음 글 보기'}
+                        </div>
+                        <div className="mt-1 text-xs text-white/45">
+                          눌러서 바로 이동
+                        </div>
+                      </button>
+
+                      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
+                        <div className="mb-3 text-sm font-bold text-white">
+                          지금 뜨는 논쟁 TOP3
+                        </div>
+                        <div className="space-y-2">
+                          {controversialPosts.map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => moveToPostWithGuard(item.id)}
+                              className="w-full rounded-2xl bg-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.08]"
+                            >
+                              <div className="text-sm font-semibold text-white">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-white/45">
+                                {item.total}명 참여 · 의견 팽팽
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
-
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <VoteOption
-                  active={votes[currentPost.id] === 'left'}
-                  label={currentPost.leftLabel}
-                  value={p.left}
-                  onClick={() => handleVote('left')}
-                />
-                <VoteOption
-                  active={votes[currentPost.id] === 'right'}
-                  label={currentPost.rightLabel}
-                  value={p.right}
-                  onClick={() => handleVote('right')}
-                />
-              </div>
-
-              <div className="mt-5 flex items-center justify-between">
-                <button
-                  onClick={prev}
-                  className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white"
-                >
-                  이전
-                </button>
-                <button
-                  onClick={() => setCommentOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  반응 {currentPost.comments.length}
-                </button>
-                <button
-                  onClick={handleNextWithGuard}
-                  className="rounded-2xl bg-[#f5f7ff] px-4 py-3 text-sm font-bold text-[#111827]"
-                >
-                  다음
-                </button>
-              </div>
-            </div>
-          )}
-
-          <section className="mt-6">
-            <div className="mb-3 flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-white/70" />
-              <div className="text-sm font-bold text-white/80">팽팽한 글</div>
-            </div>
-            <div className="space-y-3">
-              {controversialPosts.map((post) => {
-                const pct = percent(post.leftVotes, post.rightVotes)
-                return (
-                  <button
-                    key={post.id}
-                    onClick={() => moveToPostWithGuard(post.id)}
-                    className="w-full rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left"
-                  >
-                    <div className="flex items-center justify-between text-xs text-white/45">
-                      <span>
-                        {post.category} · {post.ageGroup}
-                      </span>
-                      <span>댓글 {post.comments.length}</span>
-                    </div>
-                    <div className="mt-2 font-bold text-white">
-                      {post.title}
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-xl bg-white/[0.05] px-3 py-2 text-white/80">
-                        {post.leftLabel} {pct.left}%
-                      </div>
-                      <div className="rounded-xl bg-white/[0.05] px-3 py-2 text-white/80">
-                        {post.rightLabel} {pct.right}%
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
+            </motion.div>
+          </AnimatePresence>
         </main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-          <div className="mx-auto flex max-w-md items-center justify-center gap-3">
+        <footer className="border-t border-white/10 px-5 pb-4 pt-3 mt-auto">
+          <div className="mb-3 flex items-center justify-between text-sm text-white/65">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <BarChart3 className="h-4 w-4" />{' '}
+                {currentPost.leftVotes + currentPost.rightVotes}
+              </div>
+              <button
+                onClick={() => setCommentOpen(true)}
+                className="flex items-center gap-1"
+              >
+                <MessageCircle className="h-4 w-4" />{' '}
+                {currentPost.comments.length}
+              </button>
+            </div>
+            <div>조회 {currentPost.views}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setActivityOpen(true)}
-              className="flex-1 rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-white"
+              onClick={prev}
+              className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
             >
-              내 흔적
+              이전 글
             </button>
             <button
-              onClick={() => setWriteOpen(true)}
-              className="flex-1 rounded-2xl bg-[#4f7cff] px-4 py-3 text-sm font-bold text-white"
+              onClick={handleNextWithGuard}
+              className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
             >
-              글 올리기
+              다음 글
             </button>
           </div>
-        </nav>
+        </footer>
 
         {toast ? (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
@@ -1670,7 +1650,6 @@ export default function MatnyaApp() {
           onClose={() => setWriteOpen(false)}
           onCreate={createPost}
         />
-
         <MyActivityModal
           open={activityOpen}
           onClose={() => setActivityOpen(false)}
@@ -1679,7 +1658,6 @@ export default function MatnyaApp() {
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
         />
-
         <ReportModal
           open={reportModal.open}
           onClose={() =>
