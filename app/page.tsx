@@ -706,24 +706,32 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 px-5 py-4">
+        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${commentSide === 'left' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                commentSide === 'left'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white'
+              }`}
             >
               {post.leftLabel}
             </button>
             <button
               onClick={() => setCommentSide('right')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${commentSide === 'right' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+                commentSide === 'right'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white'
+              }`}
             >
               {post.rightLabel}
             </button>
           </div>
 
-          <div className="flex items-start gap-2">
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 ... [webkit-overflow-scrolling:touch]">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
               <input
                 ref={inputRef}
                 value={text}
@@ -736,17 +744,23 @@ function CommentModal({
                   }
                 }}
                 placeholder="익명으로 반응 남기기"
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+                className="h-[50px] w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
               />
               <div
-                className={`mt-1 text-right text-xs ${getCounterTone(text.length, LIMITS.comment, 0.7, 0.9)}`}
+                className={`mt-1 text-right text-xs ${getCounterTone(
+                  text.length,
+                  LIMITS.comment,
+                  0.7,
+                  0.9,
+                )}`}
               >
                 {text.length}/{LIMITS.comment}
               </div>
             </div>
+
             <button
               onClick={submitComment}
-              className="flex h-[50px] w-[50px] items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
+              className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
             >
               <Send className="h-4 w-4" />
             </button>
