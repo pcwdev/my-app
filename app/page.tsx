@@ -723,7 +723,7 @@ function CommentModal({
           </div>
 
           <div className="flex items-start gap-2">
-            <div className="flex-1">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 ... [webkit-overflow-scrolling:touch]">
               <input
                 ref={inputRef}
                 value={text}
