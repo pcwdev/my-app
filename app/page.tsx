@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '@/lib/supabase'
 import {
   BarChart3,
   Flag,
@@ -943,7 +944,7 @@ function CreatePostModal({
 }
 
 export default function MatnyaApp() {
-  const [posts, setPosts] = useState<PostItem[]>(seedPosts)
+  const [posts, setPosts] = useState<PostItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
@@ -978,7 +979,59 @@ export default function MatnyaApp() {
     id: null,
     label: '',
   })
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
 
+      if (postsError) {
+        console.error('posts 불러오기 실패', postsError)
+        return
+      }
+
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (commentsError) {
+        console.error('comments 불러오기 실패', commentsError)
+        return
+      }
+
+      const merged: PostItem[] = (postsData ?? []).map((post) => ({
+        id: Number(post.id),
+        category: post.category,
+        ageGroup: post.age_group,
+        title: post.title,
+        content: post.content,
+        leftLabel: post.left_label,
+        rightLabel: post.right_label,
+        leftVotes: post.left_votes,
+        rightVotes: post.right_votes,
+        reportCount: post.report_count,
+        hidden: post.hidden,
+        views: post.views,
+        comments: (commentsData ?? [])
+          .filter((comment) => Number(comment.post_id) === Number(post.id))
+          .map((comment) => ({
+            id: Number(comment.id),
+            author: comment.author,
+            side: comment.side as 'left' | 'right',
+            text: comment.text,
+            likes: comment.likes,
+            reportCount: comment.report_count,
+            hidden: comment.hidden,
+          })),
+      }))
+
+      setPosts(merged)
+    }
+
+    fetchPosts()
+  }, [])
   useEffect(() => {
     saveStoredList(STORAGE_KEYS.posts, myPostRefs)
   }, [myPostRefs])
@@ -1199,64 +1252,52 @@ export default function MatnyaApp() {
     }
   }
 
-  const addComment = (text: string, side: 'left' | 'right') => {
-    const commentId = Date.now()
+  const addComment = async (text: string, side: 'left' | 'right') => {
+    if (!currentPost) return
+
+    const author = randomNickname()
+
+    const { data: inserted, error } = await supabase
+      .from('comments')
+      .insert({
+        post_id: currentPost.id,
+        author,
+        side,
+        text,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('댓글 등록 실패', error)
+      showToast('댓글 등록 실패')
+      return
+    }
+
+    const newComment = {
+      id: Number(inserted.id),
+      author: inserted.author,
+      side: inserted.side as 'left' | 'right',
+      text: inserted.text,
+      likes: inserted.likes,
+      reportCount: inserted.report_count,
+      hidden: inserted.hidden,
+    }
+
     setPosts((prev) =>
-      prev.map((post) =>
-        post.id === currentPost.id
-          ? {
-              ...post,
-              comments: [
-                {
-                  id: commentId,
-                  author: randomNickname(),
-                  side,
-                  text,
-                  likes: 0,
-                  reportCount: 0,
-                  hidden: false,
-                },
-                ...post.comments,
-              ],
-            }
-          : post,
+      prev.map((p) =>
+        p.id === currentPost.id
+          ? { ...p, comments: [newComment, ...p.comments] }
+          : p,
       ),
     )
+
     setMyCommentRefs((prev) => [
-      { commentId, postId: currentPost.id },
-      ...prev.filter((item) => item.commentId !== commentId),
+      { postId: currentPost.id, commentId: newComment.id },
+      ...prev,
     ])
-    showToast('반응 등록 완료!')
-  }
 
-  const likeComment = (commentId: number) => {
-    const already = likedComments[commentId]
-    setLikedComments((prev) => {
-      const nextLiked = { ...prev }
-      if (already) delete nextLiked[commentId]
-      else nextLiked[commentId] = true
-      return nextLiked
-    })
-
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === currentPost.id
-          ? {
-              ...post,
-              comments: post.comments.map((comment) =>
-                comment.id === commentId
-                  ? {
-                      ...comment,
-                      likes: already
-                        ? Math.max(0, comment.likes - 1)
-                        : comment.likes + 1,
-                    }
-                  : comment,
-              ),
-            }
-          : post,
-      ),
-    )
+    showToast('반응 등록 완료')
   }
 
   const openReportPost = () => {
@@ -1336,7 +1377,7 @@ export default function MatnyaApp() {
     showToast(`${reason} 신고 접수`)
   }
 
-  const createPost = (data: {
+  const createPost = async (data: {
     category: string
     ageGroup: string
     title: string
@@ -1344,21 +1385,45 @@ export default function MatnyaApp() {
     leftLabel: string
     rightLabel: string
   }) => {
-    const postId = Date.now()
-    const newPost = {
-      id: postId,
-      ...data,
-      leftVotes: 0,
-      rightVotes: 0,
-      reportCount: 0,
-      hidden: false,
-      comments: [],
-      views: 1,
+    const { data: inserted, error } = await supabase
+      .from('posts')
+      .insert({
+        category: data.category,
+        age_group: data.ageGroup,
+        title: data.title,
+        content: data.content,
+        left_label: data.leftLabel,
+        right_label: data.rightLabel,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('글 등록 실패', error)
+      showToast('글 등록 실패')
+      return
     }
+
+    const newPost: PostItem = {
+      id: Number(inserted.id),
+      category: inserted.category,
+      ageGroup: inserted.age_group,
+      title: inserted.title,
+      content: inserted.content,
+      leftLabel: inserted.left_label,
+      rightLabel: inserted.right_label,
+      leftVotes: inserted.left_votes,
+      rightVotes: inserted.right_votes,
+      reportCount: inserted.report_count,
+      hidden: inserted.hidden,
+      comments: [],
+      views: inserted.views,
+    }
+
     setPosts((prev) => [newPost, ...prev])
     setMyPostRefs((prev) => [
-      { postId },
-      ...prev.filter((item) => item.postId !== postId),
+      { postId: newPost.id },
+      ...prev.filter((item) => item.postId !== newPost.id),
     ])
     setTab('최신')
     setSelectedCategory('전체')
