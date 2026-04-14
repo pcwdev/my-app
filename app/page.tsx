@@ -762,10 +762,7 @@ function CommentModal({
             </div>
 
             <div className="mt-1 flex items-center justify-between px-1">
-              <div className="text-[11px] text-white/30">
-                {commentSide === 'left' ? post.leftLabel : post.rightLabel}에
-                반응 남기는 중
-              </div>
+              <div className="text-[11px] text-white/30"></div>
               <div
                 className={`text-[11px] ${getCounterTone(
                   text.length,
