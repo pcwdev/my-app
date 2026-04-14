@@ -1487,7 +1487,7 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.15 }}
-              className="flex h-full flex-col justify-start"
+              className="flex flex-col"
             >
               <div>
                 <div className="mb-4 flex items-center justify-between">
