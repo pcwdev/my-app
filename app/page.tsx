@@ -370,7 +370,7 @@ const CommentCard = React.memo(function CommentCard({
         {!comment.hidden && (
           <button
             onClick={() => onOpenReportComment(comment.id)}
-            className="text-xs text-white/40"
+            className={`rounded-full px-3 py-1 text-xs font-bold ${isLiked ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/85'}`}
           >
             <Flag className="h-3 w-3" /> 신고
           </button>
@@ -825,7 +825,7 @@ function CreatePostModal({
     <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div className="text-lg font-bold">맞냐 올리기</div>
+          <div className="text-lg font-bold">맞냐 글쓰기</div>
           <button
             onClick={onClose}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
@@ -930,7 +930,7 @@ function CreatePostModal({
             onClick={submit}
             className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-4 font-bold text-[#111827]"
           >
-            올리기
+            글쓰기
           </button>
         </div>
       </div>
