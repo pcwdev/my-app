@@ -432,7 +432,7 @@ function MyActivityModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
@@ -602,7 +602,7 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
@@ -807,7 +807,7 @@ function CreatePostModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overscroll-none bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="text-lg font-bold">맞냐 올리기</div>
