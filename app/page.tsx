@@ -1,5 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Heart } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart3,
@@ -362,17 +363,20 @@ const CommentCard = React.memo(function CommentCard({
         {!comment.hidden && (
           <button
             onClick={() => onLikeComment(comment.id)}
-            className={`rounded-full px-3 py-1 text-xs font-bold ${isLiked ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/85'}`}
+            className={`flex items-center gap-1 transition ${
+              isLiked ? 'text-[#ff4d6d]' : 'text-white/50'
+            }`}
           >
-            {isLiked ? '♥ ' : '♡ '}
+            <Heart className={`h-4 w-4 ${isLiked ? 'fill-[#ff4d6d]' : ''}`} />
+            <span>{comment.likes}</span>
           </button>
         )}
         {!comment.hidden && (
           <button
             onClick={() => onOpenReportComment(comment.id)}
-            className="text-xs text-white/40"
+            className="text-white/40 transition hover:text-white/70"
           >
-            <Flag className="h-3 w-3" /> 신고하기
+            신고
           </button>
         )}
         {adminMode && comment.hidden && (
