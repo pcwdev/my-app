@@ -1474,7 +1474,7 @@ export default function MatnyaApp() {
 
         <div className="mx-5 border-t border-white/10" />
 
-        <main className="flex-1 px-5 pb-10 pt-3">
+        <main className="px-5 pb-10 pt-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -1608,45 +1608,45 @@ export default function MatnyaApp() {
                   ) : null}
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
-          <div className="mt-6 border-t border-white/10 pt-3">
-            <div className="mb-3 flex items-center justify-between text-sm text-white/65">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <BarChart3 className="h-4 w-4" />
-                  {currentPost.leftVotes + currentPost.rightVotes}
+              <div className="mt-6 border-t border-white/10 pt-3">
+                <div className="mb-3 flex items-center justify-between text-sm text-white/65">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <BarChart3 className="h-4 w-4" />
+                      {currentPost.leftVotes + currentPost.rightVotes}
+                    </div>
+
+                    <button
+                      onClick={() => setCommentOpen(true)}
+                      className="flex items-center gap-1"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {currentPost.comments.length}
+                    </button>
+                  </div>
+
+                  <div>조회 {currentPost.views}</div>
                 </div>
 
-                <button
-                  onClick={() => setCommentOpen(true)}
-                  className="flex items-center gap-1"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  {currentPost.comments.length}
-                </button>
+                {/* 이전 / 다음 버튼 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={prev}
+                    className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
+                  >
+                    이전 글
+                  </button>
+
+                  <button
+                    onClick={handleNextWithGuard}
+                    className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
+                  >
+                    다음 글
+                  </button>
+                </div>
               </div>
-
-              <div>조회 {currentPost.views}</div>
-            </div>
-
-            {/* 이전 / 다음 버튼 */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={prev}
-                className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
-              >
-                이전 글
-              </button>
-
-              <button
-                onClick={handleNextWithGuard}
-                className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
-              >
-                다음 글
-              </button>
-            </div>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {toast ? (
