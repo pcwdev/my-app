@@ -340,7 +340,7 @@ const CommentCard = React.memo(function CommentCard({
     reportCount: number
     hidden: boolean
   }
-  onLikeComment: (commentId: number) => void
+  onLikeComment: (commentId: number) => void | Promise<void>
   isLiked: boolean
   onOpenReportComment: (commentId: number) => void
   adminMode: boolean
@@ -1299,7 +1299,39 @@ export default function MatnyaApp() {
 
     showToast('반응 등록 완료')
   }
+  const likeComment = async (commentId: number): Promise<void> => {
+    if (!currentPost) return
+    if (likedComments[commentId]) return
 
+    setLikedComments((prev) => ({ ...prev, [commentId]: true }))
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === currentPost.id
+          ? {
+              ...p,
+              comments: p.comments.map((c) =>
+                c.id === commentId ? { ...c, likes: c.likes + 1 } : c,
+              ),
+            }
+          : p,
+      ),
+    )
+
+    const targetPost = posts.find((p) => p.id === currentPost.id)
+    const targetComment = targetPost?.comments.find((c) => c.id === commentId)
+
+    if (!targetComment) return
+
+    const { error } = await supabase
+      .from('comments')
+      .update({ likes: targetComment.likes + 1 })
+      .eq('id', commentId)
+
+    if (error) {
+      console.error('댓글 공감 업데이트 실패', error)
+    }
+  }
   const openReportPost = () => {
     if (reportedPosts[currentPost.id]) {
       showToast('이미 신고한 글임')
