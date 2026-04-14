@@ -372,7 +372,7 @@ const CommentCard = React.memo(function CommentCard({
             onClick={() => onOpenReportComment(comment.id)}
             className="text-xs text-white/40"
           >
-            신고
+            <Flag className="h-3 w-3" /> 신고
           </button>
         )}
         {adminMode && comment.hidden && (
