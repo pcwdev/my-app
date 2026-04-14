@@ -1344,7 +1344,6 @@ export default function MatnyaApp() {
       label: '현재 글 신고',
     })
   }
-
   const openReportComment = (commentId: number) => {
     if (reportedComments[commentId]) {
       showToast('이미 신고한 댓글임')
