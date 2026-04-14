@@ -606,7 +606,7 @@ function CommentModal({
       <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <div className="text-lg font-bold">반응</div>
+            <div className="text-lg font-bold">댓글</div>
             <div className="text-sm text-white/45">
               {post.comments.length}개
             </div>
@@ -706,31 +706,32 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="shrink-0 border-t border-white/10 bg-[#131722]/95 px-4 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] backdrop-blur">
+          <div className="mb-2 flex items-center gap-2">
             <button
               onClick={() => setCommentSide('left')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
                 commentSide === 'left'
                   ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
+                  : 'bg-white/[0.07] text-white/75'
               }`}
             >
               {post.leftLabel}
             </button>
+
             <button
               onClick={() => setCommentSide('right')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
                 commentSide === 'right'
                   ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
+                  : 'bg-white/[0.07] text-white/75'
               }`}
             >
               {post.rightLabel}
             </button>
           </div>
 
-          <div>
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.06] px-3 py-2">
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
@@ -744,26 +745,37 @@ function CommentModal({
                   }
                 }}
                 placeholder="익명으로 반응 남기기"
-                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
+                className="h-10 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-white/35"
               />
 
               <button
                 onClick={submitComment}
-                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
+                disabled={!text.trim()}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${
+                  text.trim()
+                    ? 'bg-[#f5f7ff] text-[#111827]'
+                    : 'bg-white/[0.08] text-white/30'
+                }`}
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
 
-            <div
-              className={`mt-1 text-right text-xs ${getCounterTone(
-                text.length,
-                LIMITS.comment,
-                0.7,
-                0.9,
-              )}`}
-            >
-              {text.length}/{LIMITS.comment}
+            <div className="mt-1 flex items-center justify-between px-1">
+              <div className="text-[11px] text-white/30">
+                {commentSide === 'left' ? post.leftLabel : post.rightLabel}에
+                반응 남기는 중
+              </div>
+              <div
+                className={`text-[11px] ${getCounterTone(
+                  text.length,
+                  LIMITS.comment,
+                  0.7,
+                  0.9,
+                )}`}
+              >
+                {text.length}/{LIMITS.comment}
+              </div>
             </div>
           </div>
         </div>
