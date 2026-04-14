@@ -1495,11 +1495,6 @@ export default function MatnyaApp() {
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
-              drag="y"
-              onDragEnd={(e, info) => {
-                if (info.offset.y < -80) handleNextWithGuard()
-                if (info.offset.y > 80) prev()
-              }}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
