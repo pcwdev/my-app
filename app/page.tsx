@@ -960,32 +960,6 @@ export default function MatnyaApp() {
   })
 
   useEffect(() => {
-    const handleTouchMove = (e: TouchEvent) => {
-      const scrollTop = window.scrollY
-      const maxScroll =
-        document.documentElement.scrollHeight - window.innerHeight
-
-      // 맨 위에서 더 끌어올림 방지
-      if (scrollTop <= 0 && e.touches[0].clientY > 0) {
-        e.preventDefault()
-      }
-
-      // 맨 아래에서 더 끌어올림 방지
-      if (scrollTop >= maxScroll && e.touches[0].clientY < 0) {
-        e.preventDefault()
-      }
-    }
-
-    document.addEventListener('touchmove', handleTouchMove, {
-      passive: false,
-    })
-
-    return () => {
-      document.removeEventListener('touchmove', handleTouchMove)
-    }
-  }, [])
-
-  useEffect(() => {
     saveStoredList(STORAGE_KEYS.posts, myPostRefs)
   }, [myPostRefs])
 
