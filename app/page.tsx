@@ -706,7 +706,7 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] space-y-3">
+        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
