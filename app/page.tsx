@@ -256,7 +256,7 @@ const VoteOption = React.memo(function VoteOption({
         </span>
         <span className="text-[22px] font-extrabold text-white">{value}%</span>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="h-2.5 w-full  rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-[#6d8dff] transition-all duration-150"
           style={{ width: `${value}%` }}
