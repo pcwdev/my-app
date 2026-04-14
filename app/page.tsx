@@ -706,7 +706,7 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-3">
+        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
@@ -730,8 +730,8 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
+          <div>
+            <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
                 value={text}
@@ -744,26 +744,27 @@ function CommentModal({
                   }
                 }}
                 placeholder="익명으로 반응 남기기"
-                className="h-[50px] w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
+                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
               />
-              <div
-                className={`mt-1 text-right text-xs ${getCounterTone(
-                  text.length,
-                  LIMITS.comment,
-                  0.7,
-                  0.9,
-                )}`}
+
+              <button
+                onClick={submitComment}
+                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
               >
-                {text.length}/{LIMITS.comment}
-              </div>
+                <Send className="h-4 w-4" />
+              </button>
             </div>
 
-            <button
-              onClick={submitComment}
-              className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
+            <div
+              className={`mt-1 text-right text-xs ${getCounterTone(
+                text.length,
+                LIMITS.comment,
+                0.7,
+                0.9,
+              )}`}
             >
-              <Send className="h-4 w-4" />
-            </button>
+              {text.length}/{LIMITS.comment}
+            </div>
           </div>
         </div>
       </div>
