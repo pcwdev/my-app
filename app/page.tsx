@@ -942,6 +942,7 @@ export default function MatnyaApp() {
   const [myCommentRefs, setMyCommentRefs] = useState<
     Array<{ postId: number; commentId: number }>
   >([])
+
   const [toast, setToast] = useState('')
   const [commentOpen, setCommentOpen] = useState(false)
   const [writeOpen, setWriteOpen] = useState(false)
@@ -1391,6 +1392,8 @@ export default function MatnyaApp() {
     )
     showToast('댓글 삭제 완료')
   }
+  const isModalOpen = commentOpen || writeOpen
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
@@ -1617,25 +1620,27 @@ export default function MatnyaApp() {
             </motion.div>
           </AnimatePresence>
         </main>
-        <div className="fixed bottom-0 left-0 right-0 z-[9999]">
-          <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={prev}
-                className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
-              >
-                이전 글
-              </button>
+        {!isModalOpen && (
+          <div className="fixed bottom-0 left-0 right-0 z-[9999]">
+            <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={prev}
+                  className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
+                >
+                  이전 글
+                </button>
 
-              <button
-                onClick={handleNextWithGuard}
-                className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
-              >
-                다음 글
-              </button>
+                <button
+                  onClick={handleNextWithGuard}
+                  className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
+                >
+                  다음 글
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {toast ? (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
