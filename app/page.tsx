@@ -1403,7 +1403,7 @@ export default function MatnyaApp() {
   return (
     <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="px-5 pb-3 pt-4">
+        <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1115]/95 px-5 pb-3 pt-4 backdrop-blur">
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.28em] text-white/40">
