@@ -1474,7 +1474,7 @@ export default function MatnyaApp() {
 
         <div className="mx-5 border-t border-white/10" />
 
-        <main className="px-5 pb-24 pt-3">
+        <main className="px-5 pb-32 pt-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -1608,7 +1608,7 @@ export default function MatnyaApp() {
                   ) : null}
                 </div>
               )}
-              <div className="mt-6">
+              <div className="mt-6 border-t border-white/10 pt-3">
                 <div className="mb-3 flex items-center justify-between text-sm text-white/65">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
@@ -1627,8 +1627,9 @@ export default function MatnyaApp() {
 
                   <div>조회 {currentPost.views}</div>
                 </div>
-
-                <div className="sticky bottom-0 z-20 border-t border-white/10 bg-[#0f1115]/95 pb-3 pt-3 backdrop-blur">
+              </div>
+              <div className="fixed inset-x-0 bottom-0 z-30">
+                <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={prev}
