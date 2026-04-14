@@ -706,7 +706,7 @@ function CommentModal({
           )}
         </div>
 
-        <div className="border-t border-white/10 px-5 py-4 space-y-3">
+        <div className="shrink-0 border-t border-white/10 px-5 py-4">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
@@ -910,7 +910,7 @@ function CreatePostModal({
           </div>
         </div>
 
-        <div className="border-t border-white/10 px-5 py-4">
+        <div className="shrink-0 border-t border-white/10 px-5 py-4">
           <button
             onClick={submit}
             className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-4 font-bold text-[#111827]"
