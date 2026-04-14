@@ -466,7 +466,7 @@ function MyActivityModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div className="flex-1  px-5 py-4 space-y-3">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="text-sm text-white/50">아직 올린 글이 없음</div>
           )}
@@ -619,7 +619,7 @@ function CommentModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="flex-1  px-5 py-4 space-y-5">
           <div className="flex gap-2">
             <button
               onClick={() => setSortType('best')}
@@ -819,7 +819,7 @@ function CreatePostModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1  px-5 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <select
               value={category}
@@ -960,12 +960,29 @@ export default function MatnyaApp() {
   })
 
   useEffect(() => {
-    setMyPostRefs(loadStoredList<{ postId: number }>(STORAGE_KEYS.posts))
-    setMyCommentRefs(
-      loadStoredList<{ postId: number; commentId: number }>(
-        STORAGE_KEYS.comments,
-      ),
-    )
+    const handleTouchMove = (e: TouchEvent) => {
+      const scrollTop = window.scrollY
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight
+
+      // 맨 위에서 더 끌어올림 방지
+      if (scrollTop <= 0 && e.touches[0].clientY > 0) {
+        e.preventDefault()
+      }
+
+      // 맨 아래에서 더 끌어올림 방지
+      if (scrollTop >= maxScroll && e.touches[0].clientY < 0) {
+        e.preventDefault()
+      }
+    }
+
+    document.addEventListener('touchmove', handleTouchMove, {
+      passive: false,
+    })
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMove)
+    }
   }, [])
 
   useEffect(() => {
