@@ -466,7 +466,7 @@ function MyActivityModal({
           </div>
         </div>
 
-        <div className="flex-1  px-5 py-4 space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="text-sm text-white/50">아직 올린 글이 없음</div>
           )}
@@ -619,7 +619,7 @@ function CommentModal({
           </button>
         </div>
 
-        <div className="flex-1  px-5 py-4 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
           <div className="flex gap-2">
             <button
               onClick={() => setSortType('best')}
@@ -819,7 +819,7 @@ function CreatePostModal({
           </button>
         </div>
 
-        <div className="flex-1  px-5 py-4 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
           <div className="grid grid-cols-2 gap-3">
             <select
               value={category}
