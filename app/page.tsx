@@ -2664,27 +2664,12 @@ export default function MatnyaApp() {
         {!isModalOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-[9999]">
             <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
                   className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
                 >
                   이전 글
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!authUser) {
-                      setPendingAction('post')
-                      setAuthOpen(true)
-                      return
-                    }
-                    setWriteOpen(true)
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  글쓰기
                 </button>
 
                 <button
