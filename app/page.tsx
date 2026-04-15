@@ -241,25 +241,25 @@ const VoteOption = React.memo(function VoteOption({
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-[28px] border px-4 py-4 text-left transition-all duration-200 ${
+      className={`w-full rounded-[24px] border px-4 py-3 text-left transition-all duration-200 ${
         active
           ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.16)]'
           : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_8px_20px_rgba(15,23,42,0.04)]'
       }`}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <span
-          className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${
+          className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
             active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
           }`}
         >
           {label}
         </span>
-        <span className="text-[22px] font-extrabold text-slate-900">
+        <span className="text-[18px] font-extrabold text-slate-900">
           {value}%
         </span>
       </div>
-      <div className="h-2.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+      <div className="h-2 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
         <div
           className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
           style={{ width: `${value}%` }}
@@ -2458,10 +2458,6 @@ export default function MatnyaApp() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-[22px] border border-[#d9e4ff] bg-[#f8fbff] px-4 py-3 text-xs leading-6 text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              글쓰기/댓글쓰기는 로그인 없이 가능 · 로그인은 내 활동 저장용
-            </div>
-
             <div className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {(['추천', '인기', '최신'] as const).map((label) => (
                 <button
@@ -2470,7 +2466,7 @@ export default function MatnyaApp() {
                     setTab(label)
                     setCurrentIndex(0)
                   }}
-                  className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  className={`rounded-full px-4 py-2 text-[14px] font-bold transition ${
                     tab === label
                       ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
                       : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
@@ -2481,7 +2477,7 @@ export default function MatnyaApp() {
               ))}
             </div>
 
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="mt-3 flex flex-wrap gap-1.5 pb-1">
               {categoryFilters.map((category) => (
                 <button
                   key={category}
@@ -2489,7 +2485,7 @@ export default function MatnyaApp() {
                     setSelectedCategory(category)
                     setCurrentIndex(0)
                   }}
-                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
                     selectedCategory === category
                       ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
                       : 'border border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
@@ -2506,7 +2502,7 @@ export default function MatnyaApp() {
           <div className="mx-1 border-t border-slate-200/80" />
         </div>
 
-        <main className="px-4 pb-36 pt-4">
+        <main className="px-4 pb-32 pt-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -2514,9 +2510,9 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[34px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(249,251,255,0.99)_100%)] p-5 shadow-[0_22px_60px_rgba(15,23,42,0.10)] backdrop-blur"
+              className="rounded-[32px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(249,251,255,0.99)_100%)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.09)] backdrop-blur"
             >
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                     {currentPost.category}
@@ -2558,13 +2554,13 @@ export default function MatnyaApp() {
                 )}
               </div>
 
-              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
-                <h1 className="text-[26px] font-black leading-tight tracking-tight text-slate-900">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+                <h1 className="text-[24px] font-black leading-tight tracking-tight text-slate-900">
                   {currentPost.hidden && !adminMode
                     ? '신고 누적으로 숨겨진 글'
                     : currentPost.title}
                 </h1>
-                <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-slate-700">
+                <p className="mt-4 whitespace-pre-line text-[15px] leading-7 text-slate-700">
                   {currentPost.hidden && !adminMode
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
@@ -2572,7 +2568,7 @@ export default function MatnyaApp() {
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-6 space-y-4">
+                <div className="mt-5 space-y-3">
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
@@ -2590,7 +2586,7 @@ export default function MatnyaApp() {
                     <div className="space-y-4">
                       <button
                         onClick={handleNextWithGuard}
-                        className="w-full rounded-[28px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-4 text-left transition-all shadow-[0_12px_28px_rgba(79,124,255,0.10)]"
+                        className="w-full rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left transition-all shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
                       >
                         <div className="text-xs font-bold text-[#4f7cff]">
                           다음 맞냐
@@ -2606,7 +2602,7 @@ export default function MatnyaApp() {
                       </button>
 
                       {controversialPosts.length > 0 && (
-                        <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+                        <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                           <div className="mb-3 text-sm font-bold text-slate-900">
                             지금 뜨는 논쟁 TOP3
                           </div>
@@ -2633,7 +2629,7 @@ export default function MatnyaApp() {
                 </div>
               )}
 
-              <div className="mt-6 border-t border-slate-200 pt-3">
+              <div className="mt-5 border-t border-slate-200 pt-3">
                 <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
@@ -2659,18 +2655,18 @@ export default function MatnyaApp() {
 
         {!isModalOpen && (
           <div className="fixed bottom-4 left-0 right-0 z-[9999] px-4">
-            <div className="mx-auto max-w-md rounded-[30px] border border-slate-200/90 bg-white/92 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl shadow-[0_20px_50px_rgba(15,23,42,0.12)]">
+            <div className="mx-auto max-w-[400px] rounded-[24px] border border-slate-200/90 bg-white/94 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-xl shadow-[0_14px_30px_rgba(15,23,42,0.10)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
-                  className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
                   이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
-                  className="rounded-[24px] bg-[#4f7cff] px-4 py-4 text-sm font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.28)]"
+                  className="rounded-[20px] bg-[#4f7cff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_14px_24px_rgba(79,124,255,0.24)]"
                 >
                   다음 글
                 </button>
