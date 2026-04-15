@@ -222,9 +222,9 @@ function getCounterTone(
   dangerAt = 0.9,
 ) {
   const ratio = length / max
-  if (ratio >= dangerAt) return 'text-red-300'
-  if (ratio >= warnAt) return 'text-yellow-300'
-  return 'text-white/35'
+  if (ratio >= dangerAt) return 'text-red-500'
+  if (ratio >= warnAt) return 'text-amber-500'
+  return 'text-slate-400'
 }
 
 const VoteOption = React.memo(function VoteOption({
@@ -241,25 +241,27 @@ const VoteOption = React.memo(function VoteOption({
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-[28px] border px-4 py-4 text-left transition-all ${
+      className={`w-full rounded-[28px] border px-4 py-4 text-left transition-all duration-200 ${
         active
-          ? 'border-[#6d8dff]/45 bg-[#6d8dff]/16 shadow-[0_8px_30px_rgba(79,124,255,0.18)]'
-          : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08]'
+          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.16)]'
+          : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_8px_20px_rgba(15,23,42,0.04)]'
       }`}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <span
           className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${
-            active ? 'bg-[#4f7cff] text-white' : 'bg-white/10 text-white/90'
+            active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
           }`}
         >
           {label}
         </span>
-        <span className="text-[22px] font-extrabold text-white">{value}%</span>
+        <span className="text-[22px] font-extrabold text-slate-900">
+          {value}%
+        </span>
       </div>
-      <div className="h-2.5 w-full rounded-full bg-white/10">
+      <div className="h-2.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
         <div
-          className="h-full rounded-full bg-[#6d8dff] transition-all duration-150"
+          className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
           style={{ width: `${value}%` }}
         />
       </div>
@@ -287,10 +289,10 @@ function ReportModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-white/10 bg-[#131722] p-5 text-white shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
         <div className="mb-1 text-lg font-bold">신고하기</div>
-        <div className="mb-4 text-sm text-white/45">{targetLabel}</div>
+        <div className="mb-4 text-sm text-slate-500">{targetLabel}</div>
         <div className="space-y-2">
           {reportReasons.map((item) => (
             <button
@@ -298,8 +300,8 @@ function ReportModal({
               onClick={() => setReason(item)}
               className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold ${
                 reason === item
-                  ? 'border-[#6d8dff]/45 bg-[#4f7cff] text-white'
-                  : 'border-white/10 bg-white/[0.05] text-white'
+                  ? 'border-[#bcd0ff] bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.20)]'
+                  : 'border-slate-200/80 bg-white text-slate-900'
               }`}
             >
               {item}
@@ -309,13 +311,13 @@ function ReportModal({
         <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             onClick={onClose}
-            className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-bold"
+            className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] font-bold"
           >
             취소
           </button>
           <button
             onClick={() => onSubmit(reason)}
-            className="rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
+            className="rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
           >
             신고 접수
           </button>
@@ -337,10 +339,10 @@ function AuthOptionalModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-white/10 bg-[#131722] p-5 text-white shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
         <div className="mb-1 text-lg font-bold">로그인은 선택</div>
-        <div className="mb-4 text-sm leading-6 text-white/55">
+        <div className="mb-4 text-sm leading-6 text-slate-500">
           글쓰기와 댓글쓰기는 로그인 없이 가능.
           <br />
           로그인하면 내 활동, 포인트, 뱃지 저장용으로 쓸 수 있게 확장하기 좋음.
@@ -349,14 +351,14 @@ function AuthOptionalModal({
         <div className="space-y-3">
           <button
             onClick={onGoogleLogin}
-            className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
+            className="w-full rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
           >
             구글로 시작
           </button>
 
           <button
             onClick={onClose}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-bold text-white"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] font-bold text-slate-900"
           >
             닫기
           </button>
@@ -389,15 +391,15 @@ const CommentCard = React.memo(function CommentCard({
     <div
       className={`rounded-3xl border p-3 ${
         comment.hidden
-          ? 'border-red-400/20 bg-red-400/10'
-          : 'border-white/10 bg-white/[0.04]'
+          ? 'border-red-200 bg-red-50'
+          : 'border-slate-200 bg-white/95'
       }`}
     >
       <div className="mb-1 flex items-center justify-between text-xs">
-        <div className="font-bold text-white">{comment.author}</div>
-        <div className="text-white/40">공감 {comment.likes}</div>
+        <div className="font-bold text-slate-900">{comment.author}</div>
+        <div className="text-slate-400">공감 {comment.likes}</div>
       </div>
-      <div className="text-[14px] leading-6 text-white/80">
+      <div className="text-[14px] leading-6 text-slate-700">
         {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -405,17 +407,17 @@ const CommentCard = React.memo(function CommentCard({
           <button
             onClick={() => onLikeComment(comment.id)}
             className={`flex items-center gap-1 transition ${
-              isLiked ? 'text-[#ff4d6d]' : 'text-white/50'
+              isLiked ? 'text-[#ef4444]' : 'text-slate-500'
             }`}
           >
-            <Heart className={`h-4 w-4 ${isLiked ? 'fill-[#ff4d6d]' : ''}`} />
+            <Heart className={`h-4 w-4 ${isLiked ? 'fill-[#ef4444]' : ''}`} />
             <span>{comment.likes}</span>
           </button>
         )}
         {!comment.hidden && (
           <button
             onClick={() => onOpenReportComment(comment.id)}
-            className="text-white/40 transition hover:text-white/70"
+            className="text-slate-400 transition hover:text-slate-600"
           >
             신고
           </button>
@@ -424,13 +426,13 @@ const CommentCard = React.memo(function CommentCard({
           <>
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
-              className="rounded-full bg-[#f5f7ff] px-3 py-1 text-xs font-bold text-[#111827]"
+              className="rounded-full bg-[#4f7cff] px-3 py-1 text-xs font-bold text-slate-900"
             >
               숨김 해제
             </button>
             <button
               onClick={() => onAdminDeleteComment(comment.id)}
-              className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white"
+              className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-slate-900"
             >
               삭제
             </button>
@@ -469,29 +471,29 @@ function MyActivityModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
-        <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">내 활동</div>
-            <div className="text-sm text-white/45">
+            <div className="text-sm text-slate-500">
               로그인 계정으로 남긴 글과 댓글
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="shrink-0 px-5 pt-4">
-          <div className="mb-3 rounded-3xl border border-white/10 bg-white/[0.04] px-4 py-3">
-            <div className="text-sm font-semibold text-white">
+          <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-3">
+            <div className="text-sm font-semibold text-slate-900">
               {profile?.anonymous_name ?? '익명 유저'}
             </div>
-            <div className="mt-1 text-xs text-white/45">
+            <div className="mt-1 text-xs text-slate-500">
               로그인한 활동만 저장됨
             </div>
           </div>
@@ -501,8 +503,8 @@ function MyActivityModal({
               onClick={() => setTab('posts')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 tab === 'posts'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               내가 올린 글
@@ -511,8 +513,8 @@ function MyActivityModal({
               onClick={() => setTab('comments')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 tab === 'comments'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               내가 남긴 댓글
@@ -522,12 +524,12 @@ function MyActivityModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
-            <div className="text-sm text-white/50">
+            <div className="text-sm text-slate-500">
               로그인 후 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
-            <div className="text-sm text-white/50">
+            <div className="text-sm text-slate-500">
               로그인 후 작성한 댓글이 없음
             </div>
           )}
@@ -537,13 +539,15 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
               >
-                <div className="text-xs text-white/45">
+                <div className="text-xs text-slate-500">
                   {item.category} · {item.ageGroup}
                 </div>
-                <div className="mt-1 font-bold text-white">{item.title}</div>
-                <div className="mt-2 text-xs text-white/40">올린 글 보기</div>
+                <div className="mt-1 font-bold text-slate-900">
+                  {item.title}
+                </div>
+                <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
               </button>
             ))}
 
@@ -552,21 +556,23 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenComment(item.postId)}
-                className="w-full rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
               >
-                <div className="text-xs text-white/45">{item.postTitle}</div>
-                <div className="mt-1 text-sm text-white/85">{item.text}</div>
-                <div className="mt-2 text-xs text-white/40">
+                <div className="text-xs text-slate-500">{item.postTitle}</div>
+                <div className="mt-1 text-sm text-slate-900/85">
+                  {item.text}
+                </div>
+                <div className="mt-2 text-xs text-slate-400">
                   댓글 단 글로 이동
                 </div>
               </button>
             ))}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 px-5 py-4">
+        <div className="shrink-0 border-t border-slate-200 px-5 py-4">
           <button
             onClick={onLogout}
-            className="w-full rounded-2xl border border-red-400/20 bg-red-500/15 px-4 py-3 text-sm font-bold text-red-200"
+            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
           >
             로그아웃
           </button>
@@ -600,16 +606,16 @@ function DeletedItemsModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
-        <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">삭제 항목 관리</div>
-            <div className="text-sm text-white/45">관리자만 복구 가능</div>
+            <div className="text-sm text-slate-500">관리자만 복구 가능</div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -621,8 +627,8 @@ function DeletedItemsModal({
               onClick={() => setTab('posts')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 tab === 'posts'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               삭제된 글
@@ -631,8 +637,8 @@ function DeletedItemsModal({
               onClick={() => setTab('comments')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 tab === 'comments'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               삭제된 댓글
@@ -642,28 +648,30 @@ function DeletedItemsModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {tab === 'posts' && deletedPosts.length === 0 && (
-            <div className="text-sm text-white/50">삭제된 글이 없음</div>
+            <div className="text-sm text-slate-500">삭제된 글이 없음</div>
           )}
           {tab === 'comments' && deletedComments.length === 0 && (
-            <div className="text-sm text-white/50">삭제된 댓글이 없음</div>
+            <div className="text-sm text-slate-500">삭제된 댓글이 없음</div>
           )}
 
           {tab === 'posts' &&
             deletedPosts.map((post) => (
               <div
                 key={post.id}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+                className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
-                <div className="text-xs text-white/45">
+                <div className="text-xs text-slate-500">
                   {post.category} · {post.ageGroup}
                 </div>
-                <div className="mt-1 font-bold text-white">{post.title}</div>
-                <div className="mt-2 text-sm text-white/70 line-clamp-2">
+                <div className="mt-1 font-bold text-slate-900">
+                  {post.title}
+                </div>
+                <div className="mt-2 text-sm text-slate-600 line-clamp-2">
                   {post.content}
                 </div>
                 <button
                   onClick={() => onRestorePost(post.id)}
-                  className="mt-3 rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                  className="mt-3 rounded-2xl bg-[#4f7cff] px-4 py-2 text-sm font-bold text-slate-900"
                 >
                   글 복구
                 </button>
@@ -674,16 +682,20 @@ function DeletedItemsModal({
             deletedComments.map((comment) => (
               <div
                 key={comment.id}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+                className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
-                <div className="text-xs text-white/45">{comment.postTitle}</div>
-                <div className="mt-1 text-sm font-semibold text-white">
+                <div className="text-xs text-slate-500">
+                  {comment.postTitle}
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
                   {comment.author}
                 </div>
-                <div className="mt-2 text-sm text-white/80">{comment.text}</div>
+                <div className="mt-2 text-sm text-slate-700">
+                  {comment.text}
+                </div>
                 <button
                   onClick={() => onRestoreComment(comment.id)}
-                  className="mt-3 rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                  className="mt-3 rounded-2xl bg-[#4f7cff] px-4 py-2 text-sm font-bold text-slate-900"
                 >
                   댓글 복구
                 </button>
@@ -768,26 +780,26 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
-        <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">반응</div>
-            <div className="text-sm text-white/45">
+            <div className="text-sm text-slate-500">
               {post.comments.length}개
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/75">
-            지금은 <span className="font-bold text-white">{guestName}</span>{' '}
+          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)] text-sm text-slate-600">
+            지금은 <span className="font-bold text-slate-900">{guestName}</span>{' '}
             이름으로 바로 댓글 작성 가능
           </div>
 
@@ -796,8 +808,8 @@ function CommentModal({
               onClick={() => setSortType('best')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 sortType === 'best'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               베스트
@@ -806,8 +818,8 @@ function CommentModal({
               onClick={() => setSortType('latest')}
               className={`rounded-full px-4 py-2 text-sm font-bold ${
                 sortType === 'latest'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white/80'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
               }`}
             >
               최신
@@ -815,25 +827,25 @@ function CommentModal({
           </div>
 
           {bestComment && !bestComment.hidden && (
-            <div className="rounded-[30px] border border-[#6d8dff]/25 bg-[#6d8dff]/12 p-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#9eb1ff]">
+            <div className="rounded-[30px] border border-[#c9d8ff] bg-[#edf3ff] p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
                 <Flame className="h-4 w-4" /> 베스트 반응
               </div>
-              <div className="mb-2 text-sm font-semibold text-white">
+              <div className="mb-2 text-sm font-semibold text-slate-900">
                 {bestComment.author}
               </div>
-              <div className="text-[15px] leading-7 text-white/85">
+              <div className="text-[15px] leading-7 text-slate-900/85">
                 {bestComment.text}
               </div>
-              <div className="mt-3 text-xs text-white/45">
+              <div className="mt-3 text-xs text-slate-500">
                 공감 {bestComment.likes}
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-3">
-              <div className="mb-3 text-sm font-bold text-white">
+            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3">
+              <div className="mb-3 text-sm font-bold text-slate-900">
                 {post.leftLabel}
               </div>
               <div className="space-y-3">
@@ -852,8 +864,8 @@ function CommentModal({
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-3">
-              <div className="mb-3 text-sm font-bold text-white">
+            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3">
+              <div className="mb-3 text-sm font-bold text-slate-900">
                 {post.rightLabel}
               </div>
               <div className="space-y-3">
@@ -878,21 +890,21 @@ function CommentModal({
               onClick={() =>
                 setVisibleCount((prev) => prev + INITIAL_COMMENT_BATCH)
               }
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white"
+              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-sm font-bold text-slate-900"
             >
               반응 더보기
             </button>
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 bg-[#131722] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
               className={`rounded-2xl px-4 py-3 text-sm font-bold ${
                 commentSide === 'left'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                  : 'bg-white text-slate-900 border border-slate-200/80'
               }`}
             >
               {post.leftLabel}
@@ -901,8 +913,8 @@ function CommentModal({
               onClick={() => setCommentSide('right')}
               className={`rounded-2xl px-4 py-3 text-sm font-bold ${
                 commentSide === 'right'
-                  ? 'bg-[#f5f7ff] text-[#111827]'
-                  : 'bg-white/[0.07] text-white'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                  : 'bg-white text-slate-900 border border-slate-200/80'
               }`}
             >
               {post.rightLabel}
@@ -923,12 +935,12 @@ function CommentModal({
                   }
                 }}
                 placeholder="익명으로 바로 반응 남기기"
-                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
+                className="h-[50px] flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               <button
                 onClick={submitComment}
-                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
+                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#4f7cff] text-white shadow-[0_14px_26px_rgba(79,124,255,0.24)]"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -1005,25 +1017,25 @@ function CreatePostModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
-        <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">맞냐 글쓰기</div>
-            <div className="mt-1 text-xs text-white/45">
+            <div className="mt-1 text-xs text-slate-500">
               현재 작성자: {guestName}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/75">
+          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)] text-sm text-slate-600">
             로그인 없이 바로 글 작성 가능. 로그인은 내 활동 저장용.
           </div>
 
@@ -1031,10 +1043,10 @@ function CreatePostModal({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none"
+              className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none"
             >
               {categories.map((item) => (
-                <option key={item} value={item} className="text-black">
+                <option key={item} value={item} className="text-slate-900">
                   {item}
                 </option>
               ))}
@@ -1042,10 +1054,10 @@ function CreatePostModal({
             <select
               value={ageGroup}
               onChange={(e) => setAgeGroup(e.target.value)}
-              className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none"
+              className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none"
             >
               {ageGroups.map((item) => (
-                <option key={item} value={item} className="text-black">
+                <option key={item} value={item} className="text-slate-900">
                   {item}
                 </option>
               ))}
@@ -1058,7 +1070,7 @@ function CreatePostModal({
               maxLength={LIMITS.title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="제목"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none placeholder:text-slate-400"
             />
             <div
               className={`mt-1 text-right text-xs ${getCounterTone(
@@ -1079,7 +1091,7 @@ function CreatePostModal({
               onChange={(e) => setContent(e.target.value)}
               placeholder="상황 설명"
               rows={6}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none placeholder:text-slate-400"
             />
             <div
               className={`mt-1 flex items-center justify-between text-xs ${getCounterTone(
@@ -1102,7 +1114,7 @@ function CreatePostModal({
               maxLength={LIMITS.option}
               onChange={(e) => setLeftLabel(e.target.value)}
               placeholder="왼쪽 선택지"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none placeholder:text-slate-400"
             />
             <div
               className={`mt-1 text-right text-xs ${getCounterTone(
@@ -1122,7 +1134,7 @@ function CreatePostModal({
               maxLength={LIMITS.option}
               onChange={(e) => setRightLabel(e.target.value)}
               placeholder="오른쪽 선택지"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-slate-900 outline-none placeholder:text-slate-400"
             />
             <div
               className={`mt-1 text-right text-xs ${getCounterTone(
@@ -1137,10 +1149,10 @@ function CreatePostModal({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-white/10 px-5 py-4">
+        <div className="shrink-0 border-t border-slate-200 px-5 py-4">
           <button
             onClick={submit}
-            className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-4 font-bold text-[#111827]"
+            className="w-full rounded-2xl bg-[#4f7cff] px-4 py-4 font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.24)]"
           >
             글쓰기
           </button>
@@ -2259,10 +2271,10 @@ export default function MatnyaApp() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
+      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
         <div>
           <div className="text-lg font-bold">불러오는 중...</div>
-          <div className="mt-2 text-sm text-white/50">
+          <div className="mt-2 text-sm text-slate-500">
             글 목록을 가져오는 중
           </div>
         </div>
@@ -2272,15 +2284,15 @@ export default function MatnyaApp() {
 
   if (!currentPost) {
     return (
-      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
+      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-          <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1115]/95 px-5 pb-3 pt-4 backdrop-blur">
+          <header className="sticky top-0 z-30 border-b border-white/60 bg-white/75 px-5 pb-3 pt-4 backdrop-blur-xl supports-[backdrop-filter]:bg-white/65 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.28em] text-white/40">
+                <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
                   맞냐
                 </div>
-                <div className="mt-1 text-[23px] font-extrabold tracking-tight">
+                <div className="mt-1 text-[23px] font-extrabold tracking-tight text-slate-900">
                   이거 맞냐?
                 </div>
               </div>
@@ -2289,14 +2301,14 @@ export default function MatnyaApp() {
                 {!authUser ? (
                   <button
                     onClick={() => setAuthOpen(true)}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
                   >
                     <User className="h-5 w-5" />
                   </button>
                 ) : (
                   <button
                     onClick={() => setActivityOpen(true)}
-                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
+                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
                   >
                     <span className="text-xs font-bold">
                       {profile?.anonymous_name ?? '익명'}
@@ -2307,7 +2319,7 @@ export default function MatnyaApp() {
                 {isAdmin && (
                   <button
                     onClick={() => void handleAdminToggle()}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
                   >
                     <Shield className="h-5 w-5" />
                   </button>
@@ -2315,7 +2327,7 @@ export default function MatnyaApp() {
 
                 <button
                   onClick={() => setWriteOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
                 >
                   <Plus className="h-5 w-5" />
                 </button>
@@ -2326,7 +2338,7 @@ export default function MatnyaApp() {
           <main className="flex flex-1 items-center justify-center px-6 text-center">
             <div>
               <div className="text-lg font-bold">아직 글이 없음</div>
-              <div className="mt-2 text-sm text-white/50">
+              <div className="mt-2 text-sm text-slate-500">
                 첫 글을 올려서 흐름을 만들어봐
               </div>
             </div>
@@ -2335,7 +2347,7 @@ export default function MatnyaApp() {
 
         {toast ? (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
-            <div className="rounded-full bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827] shadow-lg">
+            <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)]">
               {toast}
             </div>
           </div>
@@ -2382,12 +2394,12 @@ export default function MatnyaApp() {
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
+    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1115]/95 px-5 pb-3 pt-4 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-white/60 bg-white/75 px-5 pb-3 pt-4 backdrop-blur-xl supports-[backdrop-filter]:bg-white/65 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.28em] text-white/40">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
                 맞냐
               </div>
               <div className="mt-1 text-[23px] font-extrabold tracking-tight">
@@ -2399,14 +2411,14 @@ export default function MatnyaApp() {
               {!authUser ? (
                 <button
                   onClick={() => setAuthOpen(true)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
+                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
                 >
                   <span className="text-xs font-bold">{guestName}</span>
                 </button>
               ) : (
                 <button
                   onClick={() => setActivityOpen(true)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
+                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
                 >
                   <span className="text-xs font-bold">
                     {profile?.anonymous_name ?? '익명'}
@@ -2419,8 +2431,8 @@ export default function MatnyaApp() {
                   onClick={() => void handleAdminToggle()}
                   className={`flex h-11 w-11 items-center justify-center rounded-full ${
                     adminMode
-                      ? 'bg-[#f5f7ff] text-[#111827]'
-                      : 'bg-white/[0.07] text-white'
+                      ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                      : 'border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
                   }`}
                 >
                   <Shield className="h-5 w-5" />
@@ -2429,21 +2441,21 @@ export default function MatnyaApp() {
 
               <button
                 onClick={openReportPost}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
               >
                 <Flag className="h-5 w-5" />
               </button>
 
               <button
                 onClick={() => setWriteOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
               >
                 <Plus className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-6 text-white/65">
+          <div className="mt-3 rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] px-4 py-3 text-xs leading-6 text-slate-600 shadow-[0_8px_24px_rgba(79,124,255,0.08)]">
             글쓰기/댓글쓰기는 로그인 없이 가능 · 로그인은 내 활동 저장용
           </div>
 
@@ -2457,8 +2469,8 @@ export default function MatnyaApp() {
                 }}
                 className={`rounded-full px-4 py-2 text-sm font-bold transition ${
                   tab === label
-                    ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.07] text-white/80'
+                    ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
+                    : 'border border-white/70 bg-white/80 text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
                 }`}
               >
                 {label}
@@ -2476,8 +2488,8 @@ export default function MatnyaApp() {
                 }}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
                   selectedCategory === category
-                    ? 'bg-[#4f7cff] text-white'
-                    : 'bg-white/[0.05] text-white/75'
+                    ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
+                    : 'border border-white/80 bg-white/85 text-slate-600 shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
                 }`}
               >
                 {category}
@@ -2486,7 +2498,7 @@ export default function MatnyaApp() {
           </div>
         </header>
 
-        <div className="mx-5 border-t border-white/10" />
+        <div className="mx-5 border-t border-slate-200" />
 
         <main className="px-5 pb-32 pt-3">
           <AnimatePresence mode="wait">
@@ -2496,14 +2508,14 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[36px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.26)]"
+              className="rounded-[36px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-white/45">
-                  <span className="rounded-full bg-white/[0.07] px-3 py-1">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                     {currentPost.category}
                   </span>
-                  <span className="rounded-full bg-white/[0.07] px-3 py-1">
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
                     {currentPost.ageGroup}
                   </span>
                 </div>
@@ -2515,7 +2527,7 @@ export default function MatnyaApp() {
                         await fetchDeletedItems()
                         setDeletedOpen(true)
                       }}
-                      className="rounded-2xl bg-[#f5f7ff] px-3 py-2 text-xs font-bold text-[#111827]"
+                      className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
                     >
                       복구 관리
                     </button>
@@ -2524,13 +2536,13 @@ export default function MatnyaApp() {
                       <>
                         <button
                           onClick={() => void adminRestorePost()}
-                          className="rounded-2xl bg-[#f5f7ff] px-3 py-2 text-xs font-bold text-[#111827]"
+                          className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
                         >
                           숨김 해제
                         </button>
                         <button
                           onClick={() => void adminDeletePost()}
-                          className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-white"
+                          className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-slate-900"
                         >
                           삭제
                         </button>
@@ -2541,12 +2553,12 @@ export default function MatnyaApp() {
               </div>
 
               <div>
-                <h1 className="text-[26px] font-black leading-tight tracking-tight text-white">
+                <h1 className="text-[26px] font-black leading-tight tracking-tight text-slate-900">
                   {currentPost.hidden && !adminMode
                     ? '신고 누적으로 숨겨진 글'
                     : currentPost.title}
                 </h1>
-                <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-white/78">
+                <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-slate-700">
                   {currentPost.hidden && !adminMode
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
@@ -2572,24 +2584,24 @@ export default function MatnyaApp() {
                     <div className="space-y-4">
                       <button
                         onClick={handleNextWithGuard}
-                        className="w-full rounded-[28px] border border-[#6d8dff]/25 bg-[#6d8dff]/10 px-4 py-4 text-left transition-all"
+                        className="w-full rounded-[28px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-4 text-left transition-all shadow-[0_12px_28px_rgba(79,124,255,0.10)]"
                       >
-                        <div className="text-xs font-bold text-[#9eb1ff]">
+                        <div className="text-xs font-bold text-[#4f7cff]">
                           다음 맞냐
                         </div>
-                        <div className="mt-1 text-base font-bold text-white">
+                        <div className="mt-1 text-base font-bold text-slate-900">
                           {filteredPosts[
                             Math.min(currentIndex + 1, filteredPosts.length - 1)
                           ]?.title || '다음 글 보기'}
                         </div>
-                        <div className="mt-1 text-xs text-white/45">
+                        <div className="mt-1 text-xs text-slate-500">
                           눌러서 바로 이동
                         </div>
                       </button>
 
                       {controversialPosts.length > 0 && (
-                        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
-                          <div className="mb-3 text-sm font-bold text-white">
+                        <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+                          <div className="mb-3 text-sm font-bold text-slate-900">
                             지금 뜨는 논쟁 TOP3
                           </div>
                           <div className="space-y-2">
@@ -2597,12 +2609,12 @@ export default function MatnyaApp() {
                               <button
                                 key={item.id}
                                 onClick={() => moveToPostWithGuard(item.id)}
-                                className="w-full rounded-2xl bg-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.08]"
+                                className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
                               >
-                                <div className="text-sm font-semibold text-white">
+                                <div className="text-sm font-semibold text-slate-900">
                                   {item.title}
                                 </div>
-                                <div className="mt-1 text-xs text-white/45">
+                                <div className="mt-1 text-xs text-slate-500">
                                   {item.total}명 참여 · 의견 팽팽
                                 </div>
                               </button>
@@ -2615,8 +2627,8 @@ export default function MatnyaApp() {
                 </div>
               )}
 
-              <div className="mt-6 border-t border-white/10 pt-3">
-                <div className="mb-3 flex items-center justify-between text-sm text-white/65">
+              <div className="mt-6 border-t border-slate-200 pt-3">
+                <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                       <BarChart3 className="h-4 w-4" />
@@ -2641,18 +2653,18 @@ export default function MatnyaApp() {
 
         {!isModalOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-[9999]">
-            <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+            <div className="mx-auto max-w-md border-t border-white/70 bg-white/80 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl shadow-[0_-12px_30px_rgba(15,23,42,0.05)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
-                  className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
+                  className="rounded-3xl border border-white/80 bg-white px-4 py-4 text-sm font-bold text-slate-900 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
                 >
                   이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
-                  className="rounded-3xl bg-[#f5f7ff] px-4 py-4 text-sm font-bold text-[#111827]"
+                  className="rounded-3xl bg-[#4f7cff] px-4 py-4 text-sm font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.28)]"
                 >
                   다음 글
                 </button>
@@ -2663,7 +2675,7 @@ export default function MatnyaApp() {
 
         {toast ? (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
-            <div className="rounded-full bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827] shadow-lg">
+            <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)]">
               {toast}
             </div>
           </div>
