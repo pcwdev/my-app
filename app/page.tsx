@@ -1142,6 +1142,7 @@ export default function MatnyaApp() {
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [reportModal, setReportModal] = useState<{
     open: boolean
     type: 'post' | 'comment' | null
@@ -1186,6 +1187,8 @@ export default function MatnyaApp() {
   }, [])
 
   const fetchAll = useCallback(async (key: string) => {
+    setLoading(true)
+
     const { data: postsData, error: postsError } = await supabase
       .from('posts')
       .select('*')
@@ -1194,6 +1197,7 @@ export default function MatnyaApp() {
 
     if (postsError) {
       console.error('posts 불러오기 실패', postsError)
+      setLoading(false)
       return
     }
 
@@ -1205,6 +1209,7 @@ export default function MatnyaApp() {
 
     if (commentsError) {
       console.error('comments 불러오기 실패', commentsError)
+      setLoading(false)
       return
     }
 
@@ -1250,6 +1255,8 @@ export default function MatnyaApp() {
       voteMap[Number(row.post_id)] = row.side
     })
     setVotes(voteMap)
+
+    setLoading(false)
   }, [])
 
   const fetchMyActivity = useCallback(async (userId: string) => {
@@ -2206,6 +2213,19 @@ export default function MatnyaApp() {
   }
 
   const isModalOpen = commentOpen || writeOpen
+
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
+        <div>
+          <div className="text-lg font-bold">불러오는 중...</div>
+          <div className="mt-2 text-sm text-white/50">
+            글 목록을 가져오는 중
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!currentPost) {
     return (
