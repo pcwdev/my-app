@@ -1754,14 +1754,19 @@ export default function MatnyaApp() {
 
   const likeComment = async (commentId: number): Promise<void> => {
     if (!currentPost) return
-    if (likedComments[commentId]) return
 
     const targetComment = currentPost.comments.find((c) => c.id === commentId)
     if (!targetComment) return
 
-    const nextLikes = targetComment.likes + 1
+    const alreadyLiked = !!likedComments[commentId]
+    const nextLikes = alreadyLiked
+      ? Math.max(0, targetComment.likes - 1)
+      : targetComment.likes + 1
 
-    setLikedComments((prev) => ({ ...prev, [commentId]: true }))
+    setLikedComments((prev) => ({
+      ...prev,
+      [commentId]: !alreadyLiked,
+    }))
 
     setPosts((prev) =>
       prev.map((p) =>
@@ -1785,7 +1790,10 @@ export default function MatnyaApp() {
       console.error('댓글 공감 업데이트 실패', error)
       showToast('공감 반영 실패')
       void fetchAll(voterKey)
+      return
     }
+
+    showToast(alreadyLiked ? '공감 취소' : '공감 반영')
   }
 
   const openReportPost = () => {
