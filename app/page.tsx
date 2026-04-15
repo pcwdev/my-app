@@ -40,6 +40,8 @@ const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
 }
 
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_MATNYA_ADMIN_PASSWORD || '1234'
+
 type Side = 'left' | 'right'
 type VoteSide = 'left' | 'right'
 
@@ -218,6 +220,72 @@ function ReportModal({
             className="rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
           >
             신고 접수
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdminPasswordModal({
+  open,
+  value,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  value: string
+  onChange: (value: string) => void
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 80)
+      return () => clearTimeout(timer)
+    }
+  }, [open])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
+      <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-white/10 bg-[#131722] p-5 text-white shadow-2xl">
+        <div className="mb-1 text-lg font-bold">관리자 인증</div>
+        <div className="mb-4 text-sm text-white/45">
+          관리자 비밀번호를 입력해
+        </div>
+
+        <input
+          ref={inputRef}
+          type="password"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              onSubmit()
+            }
+          }}
+          placeholder="비밀번호 입력"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
+        />
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-bold"
+          >
+            취소
+          </button>
+          <button
+            onClick={onSubmit}
+            className="rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
+          >
+            확인
           </button>
         </div>
       </div>
@@ -871,6 +939,8 @@ export default function MatnyaApp() {
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
+  const [adminAuthOpen, setAdminAuthOpen] = useState(false)
+  const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [reportModal, setReportModal] = useState<{
     open: boolean
     type: 'post' | 'comment' | null
@@ -903,6 +973,36 @@ export default function MatnyaApp() {
     const suffix = Math.floor(100 + Math.random() * 900)
     return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
   }, [])
+
+  const openAdminAuth = () => {
+    setAdminPasswordInput('')
+    setAdminAuthOpen(true)
+  }
+
+  const closeAdminAuth = () => {
+    setAdminPasswordInput('')
+    setAdminAuthOpen(false)
+  }
+
+  const handleAdminToggle = () => {
+    if (adminMode) {
+      setAdminMode(false)
+      showToast('관리자 모드 종료')
+      return
+    }
+    openAdminAuth()
+  }
+
+  const submitAdminPassword = () => {
+    if (adminPasswordInput.trim() === ADMIN_PASSWORD) {
+      setAdminMode(true)
+      setAdminAuthOpen(false)
+      setAdminPasswordInput('')
+      showToast('관리자 모드 활성화')
+      return
+    }
+    showToast('비밀번호 불일치')
+  }
 
   const fetchAll = useCallback(async (key: string) => {
     const { data: postsData, error: postsError } = await supabase
@@ -1727,7 +1827,7 @@ export default function MatnyaApp() {
                 <User className="h-5 w-5" />
               </button>
               <button
-                onClick={() => setAdminMode((v) => !v)}
+                onClick={handleAdminToggle}
                 className={`flex h-11 w-11 items-center justify-center rounded-full ${
                   adminMode
                     ? 'bg-[#f5f7ff] text-[#111827]'
@@ -2016,6 +2116,14 @@ export default function MatnyaApp() {
           }
           onSubmit={(reason) => void submitReport(reason)}
           targetLabel={reportModal.label}
+        />
+
+        <AdminPasswordModal
+          open={adminAuthOpen}
+          value={adminPasswordInput}
+          onChange={setAdminPasswordInput}
+          onClose={closeAdminAuth}
+          onSubmit={submitAdminPassword}
         />
       </div>
     </div>
