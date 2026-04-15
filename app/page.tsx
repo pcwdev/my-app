@@ -434,6 +434,8 @@ function MyActivityModal({
   myComments,
   onOpenPost,
   onOpenComment,
+  onLogout,
+  profile,
 }: {
   open: boolean
   onClose: () => void
@@ -441,6 +443,8 @@ function MyActivityModal({
   myComments: MyCommentItem[]
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
+  onLogout: () => void
+  profile: ProfileRow | null
 }) {
   const [tab, setTab] = useState<'posts' | 'comments'>('posts')
 
@@ -468,7 +472,16 @@ function MyActivityModal({
           </button>
         </div>
 
-        <div className="px-5 pt-4">
+        <div className="shrink-0 px-5 pt-4">
+          <div className="mb-3 rounded-3xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="text-sm font-semibold text-white">
+              {profile?.anonymous_name ?? '익명 유저'}
+            </div>
+            <div className="mt-1 text-xs text-white/45">
+              화면에는 익명 닉네임만 보여짐
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => setTab('posts')}
@@ -530,6 +543,15 @@ function MyActivityModal({
                 </div>
               </button>
             ))}
+        </div>
+
+        <div className="shrink-0 border-t border-white/10 px-5 py-4">
+          <button
+            onClick={onLogout}
+            className="w-full rounded-2xl border border-red-400/20 bg-red-500/15 px-4 py-3 text-sm font-bold text-red-200"
+          >
+            로그아웃
+          </button>
         </div>
       </div>
     </div>
@@ -1449,6 +1471,17 @@ export default function MatnyaApp() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await signOutAuth()
+      setActivityOpen(false)
+      showToast('로그아웃 완료')
+    } catch (error) {
+      console.error('로그아웃 실패', error)
+      showToast('로그아웃 실패')
+    }
+  }
+
   useEffect(() => {
     void loadAuthState()
 
@@ -2212,7 +2245,7 @@ export default function MatnyaApp() {
     showToast('댓글 복구 완료')
   }
 
-  const isModalOpen = commentOpen || writeOpen
+  const isModalOpen = commentOpen || writeOpen || activityOpen || deletedOpen
 
   if (loading) {
     return (
@@ -2229,96 +2262,39 @@ export default function MatnyaApp() {
 
   if (!currentPost) {
     return (
-      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
-        <div>
-          <div className="text-lg font-bold">아직 글이 없음</div>
-          <div className="mt-2 text-sm text-white/50">
-            선택한 카테고리에 아직 글이 없음
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const p = percent(currentPost.leftVotes, currentPost.rightVotes)
-
-  return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
-      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1115]/95 px-5 pb-3 pt-4 backdrop-blur">
-          <div className="flex items-start justify-between">
+      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
+        <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-5 py-6">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.28em] text-white/40">
-                맞냐
-              </div>
-              <div className="mt-1 text-[23px] font-extrabold tracking-tight">
-                이거 맞냐?
+              <div className="text-2xl font-black tracking-tight">맞냐</div>
+              <div className="mt-1 text-sm text-white/45">
+                익명으로 판단 받는 커뮤니티
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            {!authUser ? (
               <button
-                onClick={async () => {
-                  if (!authUser) {
-                    setAuthOpen(true)
-                    return
-                  }
-
-                  const ok = window.confirm(
-                    `${profile?.anonymous_name ?? '익명'} 계정에서 로그아웃할까?`,
-                  )
-                  if (!ok) return
-
-                  try {
-                    await signOutAuth()
-                    clearAuthLocalState()
-                    showToast('로그아웃 완료')
-                  } catch (error) {
-                    console.error(error)
-                    showToast('로그아웃 실패')
-                  }
-                }}
-                className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
+                onClick={() => setAuthOpen(true)}
+                className="rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
               >
-                {authUser ? (
-                  <span className="text-xs font-bold">
-                    {profile?.anonymous_name ?? '익명'}
-                  </span>
-                ) : (
-                  <User className="h-5 w-5" />
-                )}
+                로그인
               </button>
-
+            ) : (
               <button
-                onClick={handleAdminToggle}
-                className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                  adminMode
-                    ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.07] text-white'
-                }`}
+                onClick={() => setActivityOpen(true)}
+                className="flex items-center gap-2 rounded-2xl bg-white/[0.08] px-4 py-2 text-sm font-bold text-white"
               >
-                <Shield className="h-5 w-5" />
+                <User className="h-4 w-4" />내 활동
               </button>
+            )}
+          </div>
 
-              {adminMode && (
-                <button
-                  onClick={async () => {
-                    await fetchDeletedItems()
-                    setDeletedOpen(true)
-                  }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white text-xs font-bold"
-                >
-                  복구
-                </button>
-              )}
-
-              <button
-                onClick={openReportPost}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
-              >
-                <Flag className="h-5 w-5" />
-              </button>
-
+          <div className="flex flex-1 items-center justify-center text-center">
+            <div>
+              <div className="text-lg font-bold">아직 글이 없음</div>
+              <div className="mt-2 text-sm text-white/50">
+                첫 글을 올려서 흐름을 만들어봐
+              </div>
               <button
                 onClick={() => {
                   if (!authUser) {
@@ -2328,123 +2304,189 @@ export default function MatnyaApp() {
                   }
                   setWriteOpen(true)
                 }}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
+                className="mt-5 rounded-2xl bg-[#f5f7ff] px-5 py-3 font-bold text-[#111827]"
               >
-                <Plus className="h-5 w-5" />
+                첫 글쓰기
               </button>
             </div>
           </div>
+        </div>
 
-          <div className="mt-4 flex gap-2 overflow-x-auto">
-            {(['추천', '인기', '최신'] as const).map((label) => (
+        <AuthRequiredModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onGoogleLogin={() => void handleGoogleLogin()}
+        />
+
+        <CreatePostModal
+          open={writeOpen}
+          onClose={() => setWriteOpen(false)}
+          onCreate={(input) => void createPost(input)}
+        />
+
+        <MyActivityModal
+          open={activityOpen}
+          onClose={() => setActivityOpen(false)}
+          myPosts={myPosts}
+          myComments={myComments}
+          onOpenPost={openPostDirect}
+          onOpenComment={openCommentDirect}
+          onLogout={() => void handleLogout()}
+          profile={profile}
+        />
+      </div>
+    )
+  }
+
+  const p = percent(currentPost.leftVotes, currentPost.rightVotes)
+
+  return (
+    <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
+      <div className="mx-auto max-w-md px-5 pb-28 pt-5">
+        <header className="mb-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[28px] font-black tracking-tight text-white">
+                맞냐
+              </div>
+              <div className="mt-1 text-sm text-white/45">
+                익명으로 묻고, 바로 판단 받기
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  onClick={handleAdminToggle}
+                  className={`rounded-2xl px-3 py-2 text-xs font-bold ${
+                    adminMode
+                      ? 'bg-[#f5f7ff] text-[#111827]'
+                      : 'bg-white/[0.08] text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-4 w-4" />
+                    관리자
+                  </div>
+                </button>
+              )}
+
+              {!authUser ? (
+                <button
+                  onClick={() => setAuthOpen(true)}
+                  className="rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                >
+                  로그인
+                </button>
+              ) : (
+                <button
+                  onClick={() => setActivityOpen(true)}
+                  className="flex items-center gap-2 rounded-2xl bg-white/[0.08] px-4 py-2 text-sm font-bold text-white"
+                >
+                  <User className="h-4 w-4" />내 활동
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {(['추천', '인기', '최신'] as const).map((item) => (
               <button
-                key={label}
+                key={item}
                 onClick={() => {
-                  setTab(label)
+                  setTab(item)
                   setCurrentIndex(0)
                 }}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                  tab === label
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${
+                  tab === item
                     ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.07] text-white/80'
+                    : 'bg-white/[0.06] text-white/80'
                 }`}
               >
-                {label}
+                {item}
               </button>
             ))}
           </div>
 
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {categoryFilters.map((category) => (
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {categoryFilters.map((item) => (
               <button
-                key={category}
+                key={item}
                 onClick={() => {
-                  setSelectedCategory(category)
+                  setSelectedCategory(item)
                   setCurrentIndex(0)
                 }}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
-                  selectedCategory === category
-                    ? 'bg-[#4f7cff] text-white'
-                    : 'bg-white/[0.05] text-white/75'
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${
+                  selectedCategory === item
+                    ? 'bg-white text-[#111827]'
+                    : 'bg-white/[0.06] text-white/75'
                 }`}
               >
-                {category}
+                {item}
               </button>
             ))}
           </div>
         </header>
 
-        <div className="mx-5 border-t border-white/10" />
-
-        <main className="px-5 pb-32 pt-3">
+        <main>
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${tab}-${selectedCategory}-${currentPost.id}`}
+              key={currentPost.id}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
-              transition={{ duration: 0.15 }}
-              className="flex flex-col"
+              transition={{ duration: 0.18 }}
+              className="rounded-[36px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.26)]"
             >
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-[#f5f7ff] px-3 py-1 text-[13px] font-bold text-[#111827]">
-                      {currentPost.category}
-                    </span>
-                    <span className="rounded-full bg-white/[0.07] px-3 py-1 text-[13px] font-bold text-white">
-                      {currentPost.ageGroup}
-                    </span>
-                    {currentPost.hidden && (
-                      <span className="rounded-full bg-red-500/20 px-3 py-1 text-[13px] font-bold text-red-300">
-                        숨김됨
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[13px] text-white/45">
-                    익명으로 판단중
-                  </div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-white/45">
+                  <span className="rounded-full bg-white/[0.07] px-3 py-1">
+                    {currentPost.category}
+                  </span>
+                  <span className="rounded-full bg-white/[0.07] px-3 py-1">
+                    {currentPost.ageGroup}
+                  </span>
                 </div>
 
-                <div className="rounded-[34px] border border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.03] px-5 py-6 backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.38)]">
-                  <div className="mb-3 text-sm font-bold text-[#8b9bff]">
-                    🔥 지금{' '}
-                    {Math.max(
-                      60,
-                      Math.floor(
-                        (currentPost.leftVotes + currentPost.rightVotes) / 4,
-                      ),
-                    )}
-                    명 보는 중
-                  </div>
-                  <h1 className="text-[26px] font-extrabold leading-[1.15] tracking-tight text-white">
-                    {currentPost.hidden && !adminMode
-                      ? '신고 누적으로 숨겨진 글'
-                      : currentPost.title}
-                  </h1>
-                  <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-white/78">
-                    {currentPost.hidden && !adminMode
-                      ? '관리자 확인 전까지 숨김 처리됩니다.'
-                      : currentPost.content}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openReportPost}
+                    className="flex items-center gap-1 text-sm text-white/45 transition hover:text-white/75"
+                  >
+                    <Flag className="h-4 w-4" />
+                    신고
+                  </button>
 
                   {adminMode && currentPost.hidden && (
-                    <div className="mt-4 flex gap-2">
+                    <div className="flex gap-2">
                       <button
                         onClick={() => void adminRestorePost()}
-                        className="rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                        className="rounded-2xl bg-[#f5f7ff] px-3 py-2 text-xs font-bold text-[#111827]"
                       >
                         숨김 해제
                       </button>
                       <button
                         onClick={() => void adminDeletePost()}
-                        className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-bold text-white"
+                        className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-white"
                       >
                         삭제
                       </button>
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <h1 className="text-[26px] font-black leading-tight tracking-tight text-white">
+                  {currentPost.hidden && !adminMode
+                    ? '신고 누적으로 숨겨진 글'
+                    : currentPost.title}
+                </h1>
+                <p className="mt-5 whitespace-pre-line text-[15px] leading-8 text-white/78">
+                  {currentPost.hidden && !adminMode
+                    ? '관리자 확인 전까지 숨김 처리됩니다.'
+                    : currentPost.content}
+                </p>
               </div>
 
               {(!currentPost.hidden || adminMode) && (
@@ -2481,27 +2523,29 @@ export default function MatnyaApp() {
                         </div>
                       </button>
 
-                      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
-                        <div className="mb-3 text-sm font-bold text-white">
-                          지금 뜨는 논쟁 TOP3
+                      {controversialPosts.length > 0 && (
+                        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
+                          <div className="mb-3 text-sm font-bold text-white">
+                            지금 뜨는 논쟁 TOP3
+                          </div>
+                          <div className="space-y-2">
+                            {controversialPosts.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => moveToPostWithGuard(item.id)}
+                                className="w-full rounded-2xl bg-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.08]"
+                              >
+                                <div className="text-sm font-semibold text-white">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-white/45">
+                                  {item.total}명 참여 · 의견 팽팽
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {controversialPosts.map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => moveToPostWithGuard(item.id)}
-                              className="w-full rounded-2xl bg-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.08]"
-                            >
-                              <div className="text-sm font-semibold text-white">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-white/45">
-                                {item.total}명 참여 · 의견 팽팽
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   ) : null}
                 </div>
@@ -2541,12 +2585,27 @@ export default function MatnyaApp() {
         {!isModalOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-[9999]">
             <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={prev}
                   className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
                 >
                   이전 글
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!authUser) {
+                      setPendingAction('post')
+                      setAuthOpen(true)
+                      return
+                    }
+                    setWriteOpen(true)
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-bold text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  글쓰기
                 </button>
 
                 <button
@@ -2599,6 +2658,8 @@ export default function MatnyaApp() {
           myComments={myComments}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
+          onLogout={() => void handleLogout()}
+          profile={profile}
         />
 
         <DeletedItemsModal
@@ -2612,22 +2673,24 @@ export default function MatnyaApp() {
           }
         />
 
+        <AuthRequiredModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onGoogleLogin={() => void handleGoogleLogin()}
+        />
+
         <ReportModal
           open={reportModal.open}
           onClose={() =>
-            setReportModal({ open: false, type: null, id: null, label: '' })
+            setReportModal({
+              open: false,
+              type: null,
+              id: null,
+              label: '',
+            })
           }
           onSubmit={(reason) => void submitReport(reason)}
           targetLabel={reportModal.label}
-        />
-
-        <AuthRequiredModal
-          open={authOpen}
-          onClose={() => {
-            setAuthOpen(false)
-            setPendingAction(null)
-          }}
-          onGoogleLogin={() => void handleGoogleLogin()}
         />
       </div>
     </div>
