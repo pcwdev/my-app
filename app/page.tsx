@@ -241,10 +241,10 @@ const VoteOption = React.memo(function VoteOption({
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-[24px] border px-4 py-3 text-left transition-all duration-200 ${
+      className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
         active
-          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.16)]'
-          : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_8px_20px_rgba(15,23,42,0.04)]'
+          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
+          : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -255,11 +255,11 @@ const VoteOption = React.memo(function VoteOption({
         >
           {label}
         </span>
-        <span className="text-[18px] font-extrabold text-slate-900">
+        <span className="text-[17px] font-extrabold text-slate-900">
           {value}%
         </span>
       </div>
-      <div className="h-2 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+      <div className="h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
         <div
           className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
           style={{ width: `${value}%` }}
@@ -2286,14 +2286,14 @@ export default function MatnyaApp() {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-          <header className="sticky top-0 z-30 px-4 pt-4">
-            <div className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,255,0.98)_100%)] px-5 pb-4 pt-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          <header className="sticky top-0 z-30 px-4 pt-3.5">
+            <div className="rounded-[30px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(247,250,255,0.99)_100%)] px-4 pb-3 pt-3.5 shadow-[0_18px_46px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
                     맞냐
                   </div>
-                  <div className="mt-1 text-[23px] font-extrabold tracking-tight text-slate-900">
+                  <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
                 </div>
@@ -2302,14 +2302,14 @@ export default function MatnyaApp() {
                   {!authUser ? (
                     <button
                       onClick={() => setAuthOpen(true)}
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <User className="h-5 w-5" />
                     </button>
                   ) : (
                     <button
                       onClick={() => setActivityOpen(true)}
-                      className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                      className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <span className="text-xs font-bold">
                         {profile?.anonymous_name ?? '익명'}
@@ -2320,7 +2320,7 @@ export default function MatnyaApp() {
                   {isAdmin && (
                     <button
                       onClick={() => void handleAdminToggle()}
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <Shield className="h-5 w-5" />
                     </button>
@@ -2328,7 +2328,7 @@ export default function MatnyaApp() {
 
                   <button
                     onClick={() => setWriteOpen(true)}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_22px_rgba(79,124,255,0.26)]"
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -2398,8 +2398,8 @@ export default function MatnyaApp() {
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="sticky top-0 z-30 px-4 pt-4">
-          <div className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,255,0.98)_100%)] px-5 pb-4 pt-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <header className="sticky top-0 z-30 px-4 pt-3.5">
+          <div className="rounded-[30px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(247,250,255,0.99)_100%)] px-4 pb-3 pt-3.5 shadow-[0_18px_46px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
@@ -2414,14 +2414,14 @@ export default function MatnyaApp() {
                 {!authUser ? (
                   <button
                     onClick={() => setAuthOpen(true)}
-                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                    className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                   >
                     <span className="text-xs font-bold">{guestName}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => setActivityOpen(true)}
-                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                    className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                   >
                     <span className="text-xs font-bold">
                       {profile?.anonymous_name ?? '익명'}
@@ -2444,21 +2444,21 @@ export default function MatnyaApp() {
 
                 <button
                   onClick={openReportPost}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                 >
                   <Flag className="h-5 w-5" />
                 </button>
 
                 <button
                   onClick={() => setWriteOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_22px_rgba(79,124,255,0.26)]"
                 >
                   <Plus className="h-5 w-5" />
                 </button>
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="mt-3 flex gap-2">
               {(['추천', '인기', '최신'] as const).map((label) => (
                 <button
                   key={label}
@@ -2466,7 +2466,7 @@ export default function MatnyaApp() {
                     setTab(label)
                     setCurrentIndex(0)
                   }}
-                  className={`rounded-full px-4 py-2 text-[14px] font-bold transition ${
+                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition ${
                     tab === label
                       ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
                       : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
@@ -2477,7 +2477,7 @@ export default function MatnyaApp() {
               ))}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-1.5 pb-1">
+            <div className="mt-3 grid grid-cols-3 gap-2">
               {categoryFilters.map((category) => (
                 <button
                   key={category}
@@ -2485,7 +2485,7 @@ export default function MatnyaApp() {
                     setSelectedCategory(category)
                     setCurrentIndex(0)
                   }}
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
+                  className={`rounded-[18px] px-2.5 py-2 text-[12px] font-bold transition ${
                     selectedCategory === category
                       ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
                       : 'border border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
@@ -2502,7 +2502,7 @@ export default function MatnyaApp() {
           <div className="mx-1 border-t border-slate-200/80" />
         </div>
 
-        <main className="px-4 pb-32 pt-3">
+        <main className="px-4 pb-31 pt-2.5">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -2510,7 +2510,7 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[32px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(249,251,255,0.99)_100%)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.09)] backdrop-blur"
+              className="rounded-[30px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.985)_0%,rgba(249,251,255,1)_100%)] p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur"
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -2554,13 +2554,16 @@ export default function MatnyaApp() {
                 )}
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
-                <h1 className="text-[24px] font-black leading-tight tracking-tight text-slate-900">
+              <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_18px_rgba(15,23,42,0.03)]">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  today issue
+                </div>
+                <h1 className="text-[22px] font-black leading-tight tracking-tight text-slate-900">
                   {currentPost.hidden && !adminMode
                     ? '신고 누적으로 숨겨진 글'
                     : currentPost.title}
                 </h1>
-                <p className="mt-4 whitespace-pre-line text-[15px] leading-7 text-slate-700">
+                <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-slate-700">
                   {currentPost.hidden && !adminMode
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
@@ -2568,7 +2571,7 @@ export default function MatnyaApp() {
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-5 space-y-3">
+                <div className="mt-4 space-y-2.5">
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
@@ -2654,19 +2657,19 @@ export default function MatnyaApp() {
         </main>
 
         {!isModalOpen && (
-          <div className="fixed bottom-4 left-0 right-0 z-[9999] px-4">
-            <div className="mx-auto max-w-[400px] rounded-[24px] border border-slate-200/90 bg-white/94 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-xl shadow-[0_14px_30px_rgba(15,23,42,0.10)]">
+          <div className="fixed bottom-3 left-0 right-0 z-[9999] px-4">
+            <div className="mx-auto max-w-[392px] rounded-[22px] border border-slate-200/90 bg-white/94 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_12px_24px_rgba(15,23,42,0.10)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
-                  className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
                   이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
-                  className="rounded-[20px] bg-[#4f7cff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_14px_24px_rgba(79,124,255,0.24)]"
+                  className="rounded-[18px] bg-[#4f7cff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_22px_rgba(79,124,255,0.22)]"
                 >
                   다음 글
                 </button>
