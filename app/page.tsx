@@ -93,6 +93,14 @@ type MyCommentItem = {
   text: string
 }
 
+type DeletedCommentItem = {
+  id: number
+  postId: number
+  postTitle: string
+  author: string
+  text: string
+}
+
 function getOrCreateVoterKey(): string {
   if (typeof window === 'undefined') return 'server'
   const saved = window.localStorage.getItem(STORAGE_KEYS.voterKey)
@@ -470,6 +478,126 @@ function MyActivityModal({
                   댓글 단 글로 이동
                 </div>
               </button>
+            ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeletedItemsModal({
+  open,
+  onClose,
+  deletedPosts,
+  deletedComments,
+  onRestorePost,
+  onRestoreComment,
+}: {
+  open: boolean
+  onClose: () => void
+  deletedPosts: PostItem[]
+  deletedComments: DeletedCommentItem[]
+  onRestorePost: (postId: number) => void
+  onRestoreComment: (commentId: number) => void
+}) {
+  const [tab, setTab] = useState<'posts' | 'comments'>('posts')
+
+  useEffect(() => {
+    if (open) setTab('posts')
+  }, [open])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
+        <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div>
+            <div className="text-lg font-bold">삭제 항목 관리</div>
+            <div className="text-sm text-white/45">관리자만 복구 가능</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-5 pt-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTab('posts')}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                tab === 'posts'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
+            >
+              삭제된 글
+            </button>
+            <button
+              onClick={() => setTab('comments')}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                tab === 'comments'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
+            >
+              삭제된 댓글
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {tab === 'posts' && deletedPosts.length === 0 && (
+            <div className="text-sm text-white/50">삭제된 글이 없음</div>
+          )}
+
+          {tab === 'comments' && deletedComments.length === 0 && (
+            <div className="text-sm text-white/50">삭제된 댓글이 없음</div>
+          )}
+
+          {tab === 'posts' &&
+            deletedPosts.map((post) => (
+              <div
+                key={post.id}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+              >
+                <div className="text-xs text-white/45">
+                  {post.category} · {post.ageGroup}
+                </div>
+                <div className="mt-1 font-bold text-white">{post.title}</div>
+                <div className="mt-2 text-sm text-white/70 line-clamp-2">
+                  {post.content}
+                </div>
+                <button
+                  onClick={() => onRestorePost(post.id)}
+                  className="mt-3 rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                >
+                  글 복구
+                </button>
+              </div>
+            ))}
+
+          {tab === 'comments' &&
+            deletedComments.map((comment) => (
+              <div
+                key={comment.id}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+              >
+                <div className="text-xs text-white/45">{comment.postTitle}</div>
+                <div className="mt-1 text-sm font-semibold text-white">
+                  {comment.author}
+                </div>
+                <div className="mt-2 text-sm text-white/80">{comment.text}</div>
+                <button
+                  onClick={() => onRestoreComment(comment.id)}
+                  className="mt-3 rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
+                >
+                  댓글 복구
+                </button>
+              </div>
             ))}
         </div>
       </div>
@@ -934,6 +1062,12 @@ export default function MatnyaApp() {
   const [myPosts, setMyPosts] = useState<MyPostItem[]>([])
   const [myComments, setMyComments] = useState<MyCommentItem[]>([])
 
+  const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
+  const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
+    [],
+  )
+  const [deletedOpen, setDeletedOpen] = useState(false)
+
   const [toast, setToast] = useState('')
   const [commentOpen, setCommentOpen] = useState(false)
   const [writeOpen, setWriteOpen] = useState(false)
@@ -973,36 +1107,6 @@ export default function MatnyaApp() {
     const suffix = Math.floor(100 + Math.random() * 900)
     return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
   }, [])
-
-  const openAdminAuth = () => {
-    setAdminPasswordInput('')
-    setAdminAuthOpen(true)
-  }
-
-  const closeAdminAuth = () => {
-    setAdminPasswordInput('')
-    setAdminAuthOpen(false)
-  }
-
-  const handleAdminToggle = () => {
-    if (adminMode) {
-      setAdminMode(false)
-      showToast('관리자 모드 종료')
-      return
-    }
-    openAdminAuth()
-  }
-
-  const submitAdminPassword = () => {
-    if (adminPasswordInput.trim() === ADMIN_PASSWORD) {
-      setAdminMode(true)
-      setAdminAuthOpen(false)
-      setAdminPasswordInput('')
-      showToast('관리자 모드 활성화')
-      return
-    }
-    showToast('비밀번호 불일치')
-  }
 
   const fetchAll = useCallback(async (key: string) => {
     const { data: postsData, error: postsError } = await supabase
@@ -1150,6 +1254,122 @@ export default function MatnyaApp() {
       })),
     )
   }, [])
+
+  const fetchDeletedItems = useCallback(async () => {
+    const { data: deletedPostsData, error: deletedPostsError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('status', 'deleted')
+      .order('created_at', { ascending: false })
+
+    if (deletedPostsError) {
+      console.error('삭제된 글 불러오기 실패', deletedPostsError)
+    } else {
+      setDeletedPosts(
+        (deletedPostsData ?? []).map((post) => ({
+          id: Number(post.id),
+          category: post.category,
+          ageGroup: post.age_group,
+          title: post.title,
+          content: post.content,
+          leftLabel: post.left_label,
+          rightLabel: post.right_label,
+          leftVotes: Number(post.left_votes ?? 0),
+          rightVotes: Number(post.right_votes ?? 0),
+          reportCount: Number(post.report_count ?? 0),
+          hidden: Boolean(post.hidden ?? false),
+          views: Number(post.views ?? 0),
+          comments: [],
+        })),
+      )
+    }
+
+    const { data: deletedCommentsData, error: deletedCommentsError } =
+      await supabase
+        .from('comments')
+        .select('id, post_id, author, text')
+        .eq('status', 'deleted')
+        .order('created_at', { ascending: false })
+
+    if (deletedCommentsError) {
+      console.error('삭제된 댓글 불러오기 실패', deletedCommentsError)
+      return
+    }
+
+    const rows = (deletedCommentsData ?? []).map((comment) => ({
+      id: Number(comment.id),
+      postId: Number(comment.post_id),
+      author: comment.author,
+      text: comment.text,
+    }))
+
+    const uniquePostIds = [...new Set(rows.map((item) => item.postId))]
+
+    if (uniquePostIds.length === 0) {
+      setDeletedComments([])
+      return
+    }
+
+    const { data: postRows, error: postRowsError } = await supabase
+      .from('posts')
+      .select('id, title')
+      .in('id', uniquePostIds)
+
+    if (postRowsError) {
+      console.error('삭제 댓글 원글 조회 실패', postRowsError)
+      setDeletedComments(
+        rows.map((item) => ({
+          ...item,
+          postTitle: '삭제되었거나 찾을 수 없는 글',
+        })),
+      )
+      return
+    }
+
+    const postMap = new Map<number, string>()
+    ;(postRows ?? []).forEach((post) => {
+      postMap.set(Number(post.id), post.title)
+    })
+
+    setDeletedComments(
+      rows.map((item) => ({
+        ...item,
+        postTitle: postMap.get(item.postId) ?? '삭제되었거나 찾을 수 없는 글',
+      })),
+    )
+  }, [])
+
+  const openAdminAuth = () => {
+    setAdminPasswordInput('')
+    setAdminAuthOpen(true)
+  }
+
+  const closeAdminAuth = () => {
+    setAdminPasswordInput('')
+    setAdminAuthOpen(false)
+  }
+
+  const handleAdminToggle = () => {
+    if (adminMode) {
+      setAdminMode(false)
+      setDeletedOpen(false)
+      showToast('관리자 모드 종료')
+      return
+    }
+    openAdminAuth()
+  }
+
+  const submitAdminPassword = useCallback(() => {
+    if (adminPasswordInput.trim() === ADMIN_PASSWORD) {
+      setAdminMode(true)
+      setAdminAuthOpen(false)
+      setAdminPasswordInput('')
+      void fetchDeletedItems()
+      showToast('관리자 모드 활성화')
+      return
+    }
+    showToast('비밀번호 불일치')
+  }, [adminPasswordInput, fetchDeletedItems, showToast])
 
   useEffect(() => {
     const key = getOrCreateVoterKey()
@@ -1722,6 +1942,7 @@ export default function MatnyaApp() {
       prev.filter((item) => item.postId !== currentPost.id),
     )
     setCurrentIndex(0)
+    void fetchDeletedItems()
     showToast('글 삭제 완료')
   }
 
@@ -1786,7 +2007,71 @@ export default function MatnyaApp() {
     )
 
     setMyComments((prev) => prev.filter((item) => item.commentId !== commentId))
+    void fetchDeletedItems()
     showToast('댓글 삭제 완료')
+  }
+
+  const adminRestoreDeletedPost = async (postId: number) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        status: 'active',
+        hidden: false,
+      })
+      .eq('id', postId)
+
+    if (error) {
+      console.error('삭제 글 복구 실패', error)
+      showToast('글 복구 실패')
+      return
+    }
+
+    const restored = deletedPosts.find((p) => p.id === postId)
+    if (restored) {
+      setPosts((prev) => [restored, ...prev])
+      setDeletedPosts((prev) => prev.filter((p) => p.id !== postId))
+    }
+
+    showToast('글 복구 완료')
+  }
+
+  const adminRestoreDeletedComment = async (commentId: number) => {
+    const { data: restoredRow, error } = await supabase
+      .from('comments')
+      .update({
+        status: 'active',
+        hidden: false,
+      })
+      .eq('id', commentId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('삭제 댓글 복구 실패', error)
+      showToast('댓글 복구 실패')
+      return
+    }
+
+    const restoredComment: CommentItem = {
+      id: Number(restoredRow.id),
+      author: restoredRow.author,
+      side: (restoredRow.side as Side) ?? 'left',
+      text: restoredRow.text,
+      likes: Number(restoredRow.likes ?? 0),
+      reportCount: Number(restoredRow.report_count ?? 0),
+      hidden: Boolean(restoredRow.hidden ?? false),
+    }
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === Number(restoredRow.post_id)
+          ? { ...post, comments: [restoredComment, ...post.comments] }
+          : post,
+      ),
+    )
+
+    setDeletedComments((prev) => prev.filter((c) => c.id !== commentId))
+    showToast('댓글 복구 완료')
   }
 
   const isModalOpen = commentOpen || writeOpen
@@ -1826,6 +2111,7 @@ export default function MatnyaApp() {
               >
                 <User className="h-5 w-5" />
               </button>
+
               <button
                 onClick={handleAdminToggle}
                 className={`flex h-11 w-11 items-center justify-center rounded-full ${
@@ -1836,6 +2122,19 @@ export default function MatnyaApp() {
               >
                 <Shield className="h-5 w-5" />
               </button>
+
+              {adminMode && (
+                <button
+                  onClick={() => {
+                    void fetchDeletedItems()
+                    setDeletedOpen(true)
+                  }}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white text-xs font-bold"
+                >
+                  복구
+                </button>
+              )}
+
               <button
                 onClick={openReportPost}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
@@ -2107,6 +2406,17 @@ export default function MatnyaApp() {
           myComments={myComments}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
+        />
+
+        <DeletedItemsModal
+          open={deletedOpen}
+          onClose={() => setDeletedOpen(false)}
+          deletedPosts={deletedPosts}
+          deletedComments={deletedComments}
+          onRestorePost={(postId) => void adminRestoreDeletedPost(postId)}
+          onRestoreComment={(commentId) =>
+            void adminRestoreDeletedComment(commentId)
+          }
         />
 
         <ReportModal
