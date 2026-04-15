@@ -40,7 +40,16 @@ const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
 }
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_MATNYA_ADMIN_PASSWORD || '1234'
+const PREFIXES = [
+  '익명',
+  '판단',
+  '냉정',
+  '현실',
+  '직설',
+  '공감',
+  '한마디',
+  '썰쟁이',
+]
 
 type Side = 'left' | 'right'
 type VoteSide = 'left' | 'right'
@@ -77,6 +86,13 @@ type VoteRow = {
   side: VoteSide
 }
 
+type ProfileRow = {
+  id: string
+  email: string | null
+  anonymous_name: string
+  role: 'user' | 'admin'
+}
+
 type MyPostItem = {
   id: number
   postId: number
@@ -111,6 +127,68 @@ function getOrCreateVoterKey(): string {
 
   window.localStorage.setItem(STORAGE_KEYS.voterKey, newKey)
   return newKey
+}
+
+function makeAnonymousName() {
+  const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)]
+  const suffix = Math.floor(100 + Math.random() * 900)
+  return `${prefix}${suffix}`
+}
+
+async function signInWithGoogle() {
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : undefined
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: origin,
+    },
+  })
+
+  if (error) throw error
+}
+
+async function signOutAuth() {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+async function ensureProfile() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError) throw userError
+  if (!user) return { user: null, profile: null }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('profiles')
+    .select('id, email, anonymous_name, role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  if (existing) {
+    return { user, profile: existing as ProfileRow }
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('profiles')
+    .insert({
+      id: user.id,
+      email: user.email ?? null,
+      anonymous_name: makeAnonymousName(),
+      role: 'user',
+    })
+    .select('id, email, anonymous_name, role')
+    .single()
+
+  if (insertError) throw insertError
+
+  return { user, profile: inserted as ProfileRow }
 }
 
 function percent(
@@ -235,65 +313,38 @@ function ReportModal({
   )
 }
 
-function AdminPasswordModal({
+function AuthRequiredModal({
   open,
-  value,
-  onChange,
   onClose,
-  onSubmit,
+  onGoogleLogin,
 }: {
   open: boolean
-  value: string
-  onChange: (value: string) => void
   onClose: () => void
-  onSubmit: () => void
+  onGoogleLogin: () => void
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null)
-
-  useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 80)
-      return () => clearTimeout(timer)
-    }
-  }, [open])
-
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-white/10 bg-[#131722] p-5 text-white shadow-2xl">
-        <div className="mb-1 text-lg font-bold">관리자 인증</div>
+        <div className="mb-1 text-lg font-bold">한 번만 로그인</div>
         <div className="mb-4 text-sm text-white/45">
-          관리자 비밀번호를 입력해
+          로그인해도 화면에서는 익명 닉네임만 보여
         </div>
 
-        <input
-          ref={inputRef}
-          type="password"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              onSubmit()
-            }
-          }}
-          placeholder="비밀번호 입력"
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
-        />
+        <div className="space-y-3">
+          <button
+            onClick={onGoogleLogin}
+            className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
+          >
+            구글로 1초 시작
+          </button>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             onClick={onClose}
-            className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-bold"
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 font-bold text-white"
           >
-            취소
-          </button>
-          <button
-            onClick={onSubmit}
-            className="rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
-          >
-            확인
+            닫기
           </button>
         </div>
       </div>
@@ -1059,6 +1110,13 @@ export default function MatnyaApp() {
   >({})
   const [voterKey, setVoterKey] = useState('')
 
+  const [authUser, setAuthUser] = useState<any>(null)
+  const [profile, setProfile] = useState<ProfileRow | null>(null)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'post' | 'comment' | null>(
+    null,
+  )
+
   const [myPosts, setMyPosts] = useState<MyPostItem[]>([])
   const [myComments, setMyComments] = useState<MyCommentItem[]>([])
 
@@ -1073,8 +1131,6 @@ export default function MatnyaApp() {
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
-  const [adminAuthOpen, setAdminAuthOpen] = useState(false)
-  const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [reportModal, setReportModal] = useState<{
     open: boolean
     type: 'post' | 'comment' | null
@@ -1093,19 +1149,16 @@ export default function MatnyaApp() {
     return () => clearTimeout(timer)
   }, [])
 
-  const randomNickname = useCallback((): string => {
-    const prefixes = [
-      '익명',
-      '판단',
-      '냉정',
-      '현실',
-      '썰쟁이',
-      '한마디',
-      '직설',
-      '공감',
-    ]
-    const suffix = Math.floor(100 + Math.random() * 900)
-    return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
+  const isAdmin = profile?.role === 'admin'
+
+  const loadAuthState = useCallback(async () => {
+    try {
+      const result = await ensureProfile()
+      setAuthUser(result.user)
+      setProfile(result.profile)
+    } catch (error) {
+      console.error('auth/profile 로딩 실패', error)
+    }
   }, [])
 
   const fetchAll = useCallback(async (key: string) => {
@@ -1175,13 +1228,13 @@ export default function MatnyaApp() {
     setVotes(voteMap)
   }, [])
 
-  const fetchMyActivity = useCallback(async (key: string) => {
-    if (!key) return
+  const fetchMyActivity = useCallback(async (userId: string) => {
+    if (!userId) return
 
     const { data: myPostsData, error: myPostsError } = await supabase
       .from('posts')
       .select('id, title, category, age_group')
-      .eq('author_key', key)
+      .eq('author_key', userId)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -1202,7 +1255,7 @@ export default function MatnyaApp() {
     const { data: myCommentsData, error: myCommentsError } = await supabase
       .from('comments')
       .select('id, post_id, text')
-      .eq('author_key', key)
+      .eq('author_key', userId)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -1264,25 +1317,26 @@ export default function MatnyaApp() {
 
     if (deletedPostsError) {
       console.error('삭제된 글 불러오기 실패', deletedPostsError)
-    } else {
-      setDeletedPosts(
-        (deletedPostsData ?? []).map((post) => ({
-          id: Number(post.id),
-          category: post.category,
-          ageGroup: post.age_group,
-          title: post.title,
-          content: post.content,
-          leftLabel: post.left_label,
-          rightLabel: post.right_label,
-          leftVotes: Number(post.left_votes ?? 0),
-          rightVotes: Number(post.right_votes ?? 0),
-          reportCount: Number(post.report_count ?? 0),
-          hidden: Boolean(post.hidden ?? false),
-          views: Number(post.views ?? 0),
-          comments: [],
-        })),
-      )
+      return
     }
+
+    setDeletedPosts(
+      (deletedPostsData ?? []).map((post) => ({
+        id: Number(post.id),
+        category: post.category,
+        ageGroup: post.age_group,
+        title: post.title,
+        content: post.content,
+        leftLabel: post.left_label,
+        rightLabel: post.right_label,
+        leftVotes: Number(post.left_votes ?? 0),
+        rightVotes: Number(post.right_votes ?? 0),
+        reportCount: Number(post.report_count ?? 0),
+        hidden: Boolean(post.hidden ?? false),
+        views: Number(post.views ?? 0),
+        comments: [],
+      })),
+    )
 
     const { data: deletedCommentsData, error: deletedCommentsError } =
       await supabase
@@ -1303,12 +1357,12 @@ export default function MatnyaApp() {
       text: comment.text,
     }))
 
-    const uniquePostIds = [...new Set(rows.map((item) => item.postId))]
-
-    if (uniquePostIds.length === 0) {
+    if (rows.length === 0) {
       setDeletedComments([])
       return
     }
+
+    const uniquePostIds = [...new Set(rows.map((item) => item.postId))]
 
     const { data: postRows, error: postRowsError } = await supabase
       .from('posts')
@@ -1339,45 +1393,75 @@ export default function MatnyaApp() {
     )
   }, [])
 
-  const openAdminAuth = () => {
-    setAdminPasswordInput('')
-    setAdminAuthOpen(true)
-  }
-
-  const closeAdminAuth = () => {
-    setAdminPasswordInput('')
-    setAdminAuthOpen(false)
-  }
-
   const handleAdminToggle = () => {
+    if (!isAdmin) {
+      showToast('관리자 계정만 가능')
+      return
+    }
+
+    setAdminMode((prev) => !prev)
     if (adminMode) {
-      setAdminMode(false)
       setDeletedOpen(false)
       showToast('관리자 모드 종료')
-      return
-    }
-    openAdminAuth()
-  }
-
-  const submitAdminPassword = useCallback(() => {
-    if (adminPasswordInput.trim() === ADMIN_PASSWORD) {
-      setAdminMode(true)
-      setAdminAuthOpen(false)
-      setAdminPasswordInput('')
+    } else {
       void fetchDeletedItems()
       showToast('관리자 모드 활성화')
-      return
     }
-    showToast('비밀번호 불일치')
-  }, [adminPasswordInput, fetchDeletedItems, showToast])
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle()
+    } catch (error) {
+      console.error('구글 로그인 실패', error)
+      showToast('구글 로그인 실패')
+    }
+  }
+
+  useEffect(() => {
+    void loadAuthState()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadAuthState()
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [loadAuthState])
 
   useEffect(() => {
     const key = getOrCreateVoterKey()
     setVoterKey(key)
-
     void fetchAll(key)
-    void fetchMyActivity(key)
-  }, [fetchAll, fetchMyActivity])
+  }, [fetchAll])
+
+  useEffect(() => {
+    if (authUser?.id) {
+      void fetchMyActivity(authUser.id)
+    } else {
+      setMyPosts([])
+      setMyComments([])
+    }
+  }, [authUser?.id, fetchMyActivity])
+
+  useEffect(() => {
+    if (!authUser) return
+
+    setAuthOpen(false)
+
+    if (pendingAction === 'post') {
+      setWriteOpen(true)
+    }
+
+    if (pendingAction === 'comment') {
+      setCommentOpen(true)
+    }
+
+    setPendingAction(null)
+  }, [authUser, pendingAction])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -1578,18 +1662,21 @@ export default function MatnyaApp() {
   }
 
   const addComment = async (text: string, side: Side) => {
-    if (!currentPost || !voterKey) return
-
-    const author = randomNickname()
+    if (!authUser || !profile) {
+      setPendingAction('comment')
+      setAuthOpen(true)
+      return
+    }
+    if (!currentPost) return
 
     const { data: inserted, error } = await supabase
       .from('comments')
       .insert({
         post_id: currentPost.id,
-        author,
+        author: profile.anonymous_name,
         side,
         text,
-        author_key: voterKey,
+        author_key: authUser.id,
         status: 'active',
       })
       .select()
@@ -1833,7 +1920,11 @@ export default function MatnyaApp() {
     leftLabel: string
     rightLabel: string
   }) => {
-    if (!voterKey) return
+    if (!authUser) {
+      setPendingAction('post')
+      setAuthOpen(true)
+      return
+    }
 
     const { data: inserted, error } = await supabase
       .from('posts')
@@ -1844,7 +1935,7 @@ export default function MatnyaApp() {
         content: data.content,
         left_label: data.leftLabel,
         right_label: data.rightLabel,
-        author_key: voterKey,
+        author_key: authUser.id,
         status: 'active',
       })
       .select()
@@ -1942,7 +2033,7 @@ export default function MatnyaApp() {
       prev.filter((item) => item.postId !== currentPost.id),
     )
     setCurrentIndex(0)
-    void fetchDeletedItems()
+    await fetchDeletedItems()
     showToast('글 삭제 완료')
   }
 
@@ -2007,7 +2098,7 @@ export default function MatnyaApp() {
     )
 
     setMyComments((prev) => prev.filter((item) => item.commentId !== commentId))
-    void fetchDeletedItems()
+    await fetchDeletedItems()
     showToast('댓글 삭제 완료')
   }
 
@@ -2104,12 +2195,39 @@ export default function MatnyaApp() {
                 이거 맞냐?
               </div>
             </div>
+
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setActivityOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
+                onClick={async () => {
+                  if (!authUser) {
+                    setAuthOpen(true)
+                    return
+                  }
+
+                  const ok = window.confirm(
+                    `${profile?.anonymous_name ?? '익명'} 계정에서 로그아웃할까?`,
+                  )
+                  if (!ok) return
+
+                  try {
+                    await signOutAuth()
+                    setAdminMode(false)
+                    setDeletedOpen(false)
+                    showToast('로그아웃 완료')
+                  } catch (error) {
+                    console.error(error)
+                    showToast('로그아웃 실패')
+                  }
+                }}
+                className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
               >
-                <User className="h-5 w-5" />
+                {authUser ? (
+                  <span className="text-xs font-bold">
+                    {profile?.anonymous_name ?? '익명'}
+                  </span>
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </button>
 
               <button
@@ -2125,8 +2243,8 @@ export default function MatnyaApp() {
 
               {adminMode && (
                 <button
-                  onClick={() => {
-                    void fetchDeletedItems()
+                  onClick={async () => {
+                    await fetchDeletedItems()
                     setDeletedOpen(true)
                   }}
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white text-xs font-bold"
@@ -2141,8 +2259,16 @@ export default function MatnyaApp() {
               >
                 <Flag className="h-5 w-5" />
               </button>
+
               <button
-                onClick={() => setWriteOpen(true)}
+                onClick={() => {
+                  if (!authUser) {
+                    setPendingAction('post')
+                    setAuthOpen(true)
+                    return
+                  }
+                  setWriteOpen(true)
+                }}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
               >
                 <Plus className="h-5 w-5" />
@@ -2428,12 +2554,13 @@ export default function MatnyaApp() {
           targetLabel={reportModal.label}
         />
 
-        <AdminPasswordModal
-          open={adminAuthOpen}
-          value={adminPasswordInput}
-          onChange={setAdminPasswordInput}
-          onClose={closeAdminAuth}
-          onSubmit={submitAdminPassword}
+        <AuthRequiredModal
+          open={authOpen}
+          onClose={() => {
+            setAuthOpen(false)
+            setPendingAction(null)
+          }}
+          onGoogleLogin={() => void handleGoogleLogin()}
         />
       </div>
     </div>
