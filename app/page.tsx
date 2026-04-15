@@ -2271,7 +2271,7 @@ export default function MatnyaApp() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
+      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
         <div>
           <div className="text-lg font-bold">불러오는 중...</div>
           <div className="mt-2 text-sm text-slate-500">
@@ -2284,53 +2284,55 @@ export default function MatnyaApp() {
 
   if (!currentPost) {
     return (
-      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900">
+      <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-          <header className="sticky top-0 z-30 border-b border-white/60 bg-white/75 px-5 pb-3 pt-4 backdrop-blur-xl supports-[backdrop-filter]:bg-white/65 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
-                  맞냐
+          <header className="sticky top-0 z-30 px-4 pt-4">
+            <div className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,255,0.98)_100%)] px-5 pb-4 pt-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
+                    맞냐
+                  </div>
+                  <div className="mt-1 text-[23px] font-extrabold tracking-tight text-slate-900">
+                    이거 맞냐?
+                  </div>
                 </div>
-                <div className="mt-1 text-[23px] font-extrabold tracking-tight text-slate-900">
-                  이거 맞냐?
+
+                <div className="flex items-center gap-2">
+                  {!authUser ? (
+                    <button
+                      onClick={() => setAuthOpen(true)}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                    >
+                      <User className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActivityOpen(true)}
+                      className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                    >
+                      <span className="text-xs font-bold">
+                        {profile?.anonymous_name ?? '익명'}
+                      </span>
+                    </button>
+                  )}
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => void handleAdminToggle()}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                    >
+                      <Shield className="h-5 w-5" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setWriteOpen(true)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!authUser ? (
-                  <button
-                    onClick={() => setAuthOpen(true)}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-                  >
-                    <User className="h-5 w-5" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setActivityOpen(true)}
-                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-                  >
-                    <span className="text-xs font-bold">
-                      {profile?.anonymous_name ?? '익명'}
-                    </span>
-                  </button>
-                )}
-
-                {isAdmin && (
-                  <button
-                    onClick={() => void handleAdminToggle()}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-                  >
-                    <Shield className="h-5 w-5" />
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setWriteOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
               </div>
             </div>
           </header>
@@ -2394,113 +2396,117 @@ export default function MatnyaApp() {
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
 
   return (
-    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.12),_transparent_32%),linear-gradient(180deg,#f8fbff_0%,#f4f7fb_42%,#eef3f8_100%)] text-slate-900">
+    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="sticky top-0 z-30 border-b border-white/60 bg-white/75 px-5 pb-3 pt-4 backdrop-blur-xl supports-[backdrop-filter]:bg-white/65 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
-                맞냐
+        <header className="sticky top-0 z-30 px-4 pt-4">
+          <div className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,255,0.98)_100%)] px-5 pb-4 pt-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
+                  맞냐
+                </div>
+                <div className="mt-1 text-[23px] font-extrabold tracking-tight">
+                  이거 맞냐?
+                </div>
               </div>
-              <div className="mt-1 text-[23px] font-extrabold tracking-tight">
-                이거 맞냐?
+
+              <div className="flex items-center gap-2">
+                {!authUser ? (
+                  <button
+                    onClick={() => setAuthOpen(true)}
+                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                  >
+                    <span className="text-xs font-bold">{guestName}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActivityOpen(true)}
+                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                  >
+                    <span className="text-xs font-bold">
+                      {profile?.anonymous_name ?? '익명'}
+                    </span>
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <button
+                    onClick={() => void handleAdminToggle()}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                      adminMode
+                        ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                        : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
+                    }`}
+                  >
+                    <Shield className="h-5 w-5" />
+                  </button>
+                )}
+
+                <button
+                  onClick={openReportPost}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+                >
+                  <Flag className="h-5 w-5" />
+                </button>
+
+                <button
+                  onClick={() => setWriteOpen(true)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {!authUser ? (
-                <button
-                  onClick={() => setAuthOpen(true)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-                >
-                  <span className="text-xs font-bold">{guestName}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setActivityOpen(true)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-full border border-white/80 bg-white/85 px-3 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-                >
-                  <span className="text-xs font-bold">
-                    {profile?.anonymous_name ?? '익명'}
-                  </span>
-                </button>
-              )}
+            <div className="mt-4 rounded-[22px] border border-[#d9e4ff] bg-[#f8fbff] px-4 py-3 text-xs leading-6 text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              글쓰기/댓글쓰기는 로그인 없이 가능 · 로그인은 내 활동 저장용
+            </div>
 
-              {isAdmin && (
+            <div className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {(['추천', '인기', '최신'] as const).map((label) => (
                 <button
-                  onClick={() => void handleAdminToggle()}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                    adminMode
-                      ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                      : 'border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
+                  key={label}
+                  onClick={() => {
+                    setTab(label)
+                    setCurrentIndex(0)
+                  }}
+                  className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                    tab === label
+                      ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
+                      : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
                   }`}
                 >
-                  <Shield className="h-5 w-5" />
+                  {label}
                 </button>
-              )}
-
-              <button
-                onClick={openReportPost}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/85 text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-              >
-                <Flag className="h-5 w-5" />
-              </button>
-
-              <button
-                onClick={() => setWriteOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)]"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
+              ))}
             </div>
-          </div>
 
-          <div className="mt-3 rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] px-4 py-3 text-xs leading-6 text-slate-600 shadow-[0_8px_24px_rgba(79,124,255,0.08)]">
-            글쓰기/댓글쓰기는 로그인 없이 가능 · 로그인은 내 활동 저장용
-          </div>
-
-          <div className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {(['추천', '인기', '최신'] as const).map((label) => (
-              <button
-                key={label}
-                onClick={() => {
-                  setTab(label)
-                  setCurrentIndex(0)
-                }}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                  tab === label
-                    ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
-                    : 'border border-white/70 bg-white/80 text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {categoryFilters.map((category) => (
-              <button
-                key={category}
-                onClick={() => {
-                  setSelectedCategory(category)
-                  setCurrentIndex(0)
-                }}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
-                  selectedCategory === category
-                    ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
-                    : 'border border-white/80 bg-white/85 text-slate-600 shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {categoryFilters.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => {
+                    setSelectedCategory(category)
+                    setCurrentIndex(0)
+                  }}
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
+                    selectedCategory === category
+                      ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
+                      : 'border border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
         </header>
 
-        <div className="mx-5 border-t border-slate-200" />
+        <div className="px-4">
+          <div className="mx-1 border-t border-slate-200/80" />
+        </div>
 
-        <main className="px-5 pb-32 pt-3">
+        <main className="px-4 pb-36 pt-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -2508,7 +2514,7 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[36px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur"
+              className="rounded-[34px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(249,251,255,0.99)_100%)] p-5 shadow-[0_22px_60px_rgba(15,23,42,0.10)] backdrop-blur"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -2552,7 +2558,7 @@ export default function MatnyaApp() {
                 )}
               </div>
 
-              <div>
+              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
                 <h1 className="text-[26px] font-black leading-tight tracking-tight text-slate-900">
                   {currentPost.hidden && !adminMode
                     ? '신고 누적으로 숨겨진 글'
@@ -2652,19 +2658,19 @@ export default function MatnyaApp() {
         </main>
 
         {!isModalOpen && (
-          <div className="fixed bottom-0 left-0 right-0 z-[9999]">
-            <div className="mx-auto max-w-md border-t border-white/70 bg-white/80 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl shadow-[0_-12px_30px_rgba(15,23,42,0.05)]">
+          <div className="fixed bottom-4 left-0 right-0 z-[9999] px-4">
+            <div className="mx-auto max-w-md rounded-[30px] border border-slate-200/90 bg-white/92 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl shadow-[0_20px_50px_rgba(15,23,42,0.12)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
-                  className="rounded-3xl border border-white/80 bg-white px-4 py-4 text-sm font-bold text-slate-900 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                  className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
                   이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
-                  className="rounded-3xl bg-[#4f7cff] px-4 py-4 text-sm font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.28)]"
+                  className="rounded-[24px] bg-[#4f7cff] px-4 py-4 text-sm font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.28)]"
                 >
                   다음 글
                 </button>
