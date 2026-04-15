@@ -1,12 +1,11 @@
 'use client'
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Heart } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
 import {
   BarChart3,
   Flag,
   Flame,
+  Heart,
   MessageCircle,
   Plus,
   Send,
@@ -14,6 +13,8 @@ import {
   User,
   X,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '@/lib/supabase'
 
 const LIMITS = {
   title: 32,
@@ -33,11 +34,14 @@ const reportReasons = [
   '도배/광고',
 ]
 const INITIAL_COMMENT_BATCH = 20
+const REPORT_HIDE_THRESHOLD = 3
+
 const STORAGE_KEYS = {
-  posts: 'matnya_my_posts',
-  comments: 'matnya_my_comments',
+  voterKey: 'matnya_voter_key',
 }
+
 type Side = 'left' | 'right'
+type VoteSide = 'left' | 'right'
 
 type CommentItem = {
   id: number
@@ -64,146 +68,39 @@ type PostItem = {
   comments: CommentItem[]
   views: number
 }
-const seedPosts: PostItem[] = [
-  {
-    id: 1,
-    category: '연애',
-    ageGroup: '20대',
-    title: '소개팅 밥값 내가 다 냈는데 다음 약속이 없음',
-    content:
-      '소개팅에서 분위기는 괜찮았는데 계산할 때 상대가 가만히 있길래 그냥 내가 다 냈어. 집 가서 잘 들어갔냐고까지 했는데 그 뒤로 텀이 길고 다음 약속 얘기도 없음. 내가 호구였던 건지 궁금함.',
-    leftLabel: '내가 손해봄',
-    rightLabel: '원래 그럴 수 있음',
-    leftVotes: 182,
-    rightVotes: 61,
-    reportCount: 0,
-    hidden: false,
-    comments: [
-      {
-        id: 101,
-        author: '익명20',
-        side: 'left',
-        text: '다음 약속 얘기 없으면 관심 낮은 편 같음.',
-        likes: 18,
-        reportCount: 0,
-        hidden: false,
-      },
-      {
-        id: 102,
-        author: '연애냉정파',
-        side: 'left',
-        text: '한 번 정도는 가능하지만 반복되면 손절임.',
-        likes: 11,
-        reportCount: 0,
-        hidden: false,
-      },
-      {
-        id: 103,
-        author: '현실주의자',
-        side: 'right',
-        text: '첫 만남에서 한 번 내는 건 흔한 일이라 과하게 해석할 수도 있음.',
-        likes: 6,
-        reportCount: 0,
-        hidden: false,
-      },
-    ],
-    views: 2431,
-  },
-  {
-    id: 2,
-    category: '직장',
-    ageGroup: '30대',
-    title: '퇴근 10분 전에 일 던지는 상사 정상임?',
-    content:
-      '매번 퇴근 10분 전에 급한 척 업무를 던짐. 진짜 급한 건 아닌데 본인은 퇴근하고 나는 남아서 정리함. 이번 주만 세 번째인데 내가 예민한 건지 모르겠음.',
-    leftLabel: '상사가 이상함',
-    rightLabel: '직장은 원래 그럼',
-    leftVotes: 391,
-    rightVotes: 44,
-    reportCount: 0,
-    hidden: false,
-    comments: [
-      {
-        id: 201,
-        author: '칼퇴수호자',
-        side: 'left',
-        text: '한두 번이면 몰라도 반복이면 습관임.',
-        likes: 27,
-        reportCount: 0,
-        hidden: false,
-      },
-      {
-        id: 202,
-        author: '현실직장인',
-        side: 'left',
-        text: '선 넘으면 말해야 됨.',
-        likes: 9,
-        reportCount: 0,
-        hidden: false,
-      },
-      {
-        id: 203,
-        author: '버텨보자',
-        side: 'right',
-        text: '바쁜 시즌이면 어느 정도는 감수해야 할 때도 있음.',
-        likes: 4,
-        reportCount: 0,
-        hidden: false,
-      },
-    ],
-    views: 5022,
-  },
-  {
-    id: 3,
-    category: '돈',
-    ageGroup: '40대',
-    title: '월 350인데 차 바꾸는 거 무리인가',
-    content:
-      '지금 타는 차는 9년 됐고 수리비가 슬슬 많이 나와. 월 실수령 350 정도고 대출은 없는데 아이 교육비가 부담됨. 그래도 바꾸는 게 맞는지 고민됨.',
-    leftLabel: '바꿔도 됨',
-    rightLabel: '더 타는 게 맞음',
-    leftVotes: 118,
-    rightVotes: 209,
-    reportCount: 0,
-    hidden: false,
-    comments: [
-      {
-        id: 301,
-        author: '가계부장인',
-        side: 'right',
-        text: '고장 잦지 않으면 버티는 게 이득.',
-        likes: 14,
-        reportCount: 0,
-        hidden: false,
-      },
-      {
-        id: 302,
-        author: '차덕후',
-        side: 'left',
-        text: '수리비 누적되면 바꾸는 것도 합리적임.',
-        likes: 8,
-        reportCount: 0,
-        hidden: false,
-      },
-    ],
-    views: 1670,
-  },
-]
 
-function loadStoredList<T>(key: string): T[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(key)
-    const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? (parsed as T[]) : []
-  } catch {
-    return []
-  }
+type VoteRow = {
+  post_id: number
+  voter_key: string
+  side: VoteSide
 }
 
-function saveStoredList<T>(key: string, value: T[]): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(key, JSON.stringify(value))
+type MyPostItem = {
+  id: number
+  postId: number
+  title: string
+  category: string
+  ageGroup: string
+}
+
+type MyCommentItem = {
+  id: number
+  commentId: number
+  postId: number
+  postTitle: string
+  text: string
+}
+
+function getOrCreateVoterKey(): string {
+  if (typeof window === 'undefined') return 'server'
+  const saved = window.localStorage.getItem(STORAGE_KEYS.voterKey)
+  if (saved) return saved
+
+  const newKey =
+    'vk_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+
+  window.localStorage.setItem(STORAGE_KEYS.voterKey, newKey)
+  return newKey
 }
 
 function percent(
@@ -252,13 +149,15 @@ const VoteOption = React.memo(function VoteOption({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <span
-          className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${active ? 'bg-[#4f7cff] text-white' : 'bg-white/10 text-white/90'}`}
+          className={`inline-flex rounded-xl px-2 py-1 text-[13px] font-bold ${
+            active ? 'bg-[#4f7cff] text-white' : 'bg-white/10 text-white/90'
+          }`}
         >
           {label}
         </span>
         <span className="text-[22px] font-extrabold text-white">{value}%</span>
       </div>
-      <div className="h-2.5 w-full  rounded-full bg-white/10">
+      <div className="h-2.5 w-full rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-[#6d8dff] transition-all duration-150"
           style={{ width: `${value}%` }}
@@ -297,7 +196,11 @@ function ReportModal({
             <button
               key={item}
               onClick={() => setReason(item)}
-              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold ${reason === item ? 'border-[#6d8dff]/45 bg-[#4f7cff] text-white' : 'border-white/10 bg-white/[0.05] text-white'}`}
+              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-bold ${
+                reason === item
+                  ? 'border-[#6d8dff]/45 bg-[#4f7cff] text-white'
+                  : 'border-white/10 bg-white/[0.05] text-white'
+              }`}
             >
               {item}
             </button>
@@ -331,15 +234,7 @@ const CommentCard = React.memo(function CommentCard({
   onAdminRestoreComment,
   onAdminDeleteComment,
 }: {
-  comment: {
-    id: number
-    author: string
-    side: 'left' | 'right'
-    text: string
-    likes: number
-    reportCount: number
-    hidden: boolean
-  }
+  comment: CommentItem
   onLikeComment: (commentId: number) => void | Promise<void>
   isLiked: boolean
   onOpenReportComment: (commentId: number) => void
@@ -351,7 +246,11 @@ const CommentCard = React.memo(function CommentCard({
 
   return (
     <div
-      className={`rounded-3xl border p-3 ${comment.hidden ? 'border-red-400/20 bg-red-400/10' : 'border-white/10 bg-white/[0.04]'}`}
+      className={`rounded-3xl border p-3 ${
+        comment.hidden
+          ? 'border-red-400/20 bg-red-400/10'
+          : 'border-white/10 bg-white/[0.04]'
+      }`}
     >
       <div className="mb-1 flex items-center justify-between text-xs">
         <div className="font-bold text-white">{comment.author}</div>
@@ -411,24 +310,12 @@ function MyActivityModal({
 }: {
   open: boolean
   onClose: () => void
-  myPosts: Array<{
-    id: number
-    postId: number
-    title: string
-    category: string
-    ageGroup: string
-  }>
-  myComments: Array<{
-    id: number
-    commentId: number
-    postId: number
-    postTitle: string
-    text: string
-  }>
+  myPosts: MyPostItem[]
+  myComments: MyCommentItem[]
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
 }) {
-  const [tab, setTab] = useState('posts')
+  const [tab, setTab] = useState<'posts' | 'comments'>('posts')
 
   useEffect(() => {
     if (open) setTab('posts')
@@ -458,13 +345,21 @@ function MyActivityModal({
           <div className="flex gap-2">
             <button
               onClick={() => setTab('posts')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${tab === 'posts' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                tab === 'posts'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
             >
               내가 올린 글
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${tab === 'comments' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                tab === 'comments'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
             >
               내가 남긴 댓글
             </button>
@@ -526,32 +421,10 @@ function CommentModal({
   onAdminRestoreComment,
   onAdminDeleteComment,
 }: {
-  post: {
-    id: number
-    category: string
-    ageGroup: string
-    title: string
-    content: string
-    leftLabel: string
-    rightLabel: string
-    leftVotes: number
-    rightVotes: number
-    reportCount: number
-    hidden: boolean
-    comments: Array<{
-      id: number
-      author: string
-      side: 'left' | 'right'
-      text: string
-      likes: number
-      reportCount: number
-      hidden: boolean
-    }>
-    views: number
-  } | null
+  post: PostItem | null
   open: boolean
   onClose: () => void
-  onAddComment: (text: string, side: 'left' | 'right') => void
+  onAddComment: (text: string, side: Side) => void
   onLikeComment: (commentId: number) => void
   likedComments: Record<number, boolean>
   onOpenReportComment: (commentId: number) => void
@@ -560,7 +433,7 @@ function CommentModal({
   onAdminDeleteComment: (commentId: number) => void
 }) {
   const [text, setText] = useState('')
-  const [commentSide, setCommentSide] = useState<'left' | 'right'>('left')
+  const [commentSide, setCommentSide] = useState<Side>('left')
   const [sortType, setSortType] = useState<'best' | 'latest'>('best')
   const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -628,13 +501,21 @@ function CommentModal({
           <div className="flex gap-2">
             <button
               onClick={() => setSortType('best')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${sortType === 'best' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                sortType === 'best'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
             >
               베스트
             </button>
             <button
               onClick={() => setSortType('latest')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${sortType === 'latest' ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${
+                sortType === 'latest'
+                  ? 'bg-[#f5f7ff] text-[#111827]'
+                  : 'bg-white/[0.07] text-white/80'
+              }`}
             >
               최신
             </button>
@@ -807,6 +688,7 @@ function CreatePostModal({
     const trimmedContent = content.trim()
     const trimmedLeft = leftLabel.trim()
     const trimmedRight = rightLabel.trim()
+
     if (!trimmedTitle || !trimmedContent || !trimmedLeft || !trimmedRight)
       return
 
@@ -818,6 +700,7 @@ function CreatePostModal({
       leftLabel: trimmedLeft,
       rightLabel: trimmedRight,
     })
+
     setCategory('연애')
     setAgeGroup('20대')
     setTitle('')
@@ -874,7 +757,12 @@ function CreatePostModal({
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(title.length, LIMITS.title, 0.56, 0.84)}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(
+                title.length,
+                LIMITS.title,
+                0.56,
+                0.84,
+              )}`}
             >
               {title.length}/{LIMITS.title}
             </div>
@@ -890,7 +778,12 @@ function CreatePostModal({
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 flex items-center justify-between text-xs ${getCounterTone(content.length, LIMITS.content, 0.64, 0.82)}`}
+              className={`mt-1 flex items-center justify-between text-xs ${getCounterTone(
+                content.length,
+                LIMITS.content,
+                0.64,
+                0.82,
+              )}`}
             >
               <span>짧을수록 판단이 잘 갈림</span>
               <span>
@@ -908,7 +801,12 @@ function CreatePostModal({
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(leftLabel.length, LIMITS.option, 0.75, 0.92)}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(
+                leftLabel.length,
+                LIMITS.option,
+                0.75,
+                0.92,
+              )}`}
             >
               {leftLabel.length}/{LIMITS.option}
             </div>
@@ -923,7 +821,12 @@ function CreatePostModal({
               className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-white outline-none placeholder:text-white/35"
             />
             <div
-              className={`mt-1 text-right text-xs ${getCounterTone(rightLabel.length, LIMITS.option, 0.75, 0.92)}`}
+              className={`mt-1 text-right text-xs ${getCounterTone(
+                rightLabel.length,
+                LIMITS.option,
+                0.75,
+                0.92,
+              )}`}
             >
               {rightLabel.length}/{LIMITS.option}
             </div>
@@ -948,7 +851,7 @@ export default function MatnyaApp() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
-  const [votes, setVotes] = useState<Record<number, 'left' | 'right'>>({})
+  const [votes, setVotes] = useState<Record<number, VoteSide>>({})
   const [likedComments, setLikedComments] = useState<Record<number, boolean>>(
     {},
   )
@@ -958,10 +861,10 @@ export default function MatnyaApp() {
   const [reportedComments, setReportedComments] = useState<
     Record<number, boolean>
   >({})
-  const [myPostRefs, setMyPostRefs] = useState<Array<{ postId: number }>>([])
-  const [myCommentRefs, setMyCommentRefs] = useState<
-    Array<{ postId: number; commentId: number }>
-  >([])
+  const [voterKey, setVoterKey] = useState('')
+
+  const [myPosts, setMyPosts] = useState<MyPostItem[]>([])
+  const [myComments, setMyComments] = useState<MyCommentItem[]>([])
 
   const [toast, setToast] = useState('')
   const [commentOpen, setCommentOpen] = useState(false)
@@ -979,66 +882,182 @@ export default function MatnyaApp() {
     id: null,
     label: '',
   })
-  useEffect(() => {
-    const fetchPosts = async () => {
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false })
 
-      if (postsError) {
-        console.error('posts 불러오기 실패', postsError)
-        return
-      }
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    const timer = setTimeout(() => setToast(''), 1400)
+    return () => clearTimeout(timer)
+  }, [])
 
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('comments')
-        .select('*')
-        .order('created_at', { ascending: false })
+  const randomNickname = useCallback((): string => {
+    const prefixes = [
+      '익명',
+      '판단',
+      '냉정',
+      '현실',
+      '썰쟁이',
+      '한마디',
+      '직설',
+      '공감',
+    ]
+    const suffix = Math.floor(100 + Math.random() * 900)
+    return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
+  }, [])
 
-      if (commentsError) {
-        console.error('comments 불러오기 실패', commentsError)
-        return
-      }
+  const fetchAll = useCallback(async (key: string) => {
+    const { data: postsData, error: postsError } = await supabase
+      .from('posts')
+      .select('*')
+      .neq('status', 'deleted')
+      .order('created_at', { ascending: false })
 
-      const merged: PostItem[] = (postsData ?? []).map((post) => ({
-        id: Number(post.id),
-        category: post.category,
-        ageGroup: post.age_group,
-        title: post.title,
-        content: post.content,
-        leftLabel: post.left_label,
-        rightLabel: post.right_label,
-        leftVotes: post.left_votes,
-        rightVotes: post.right_votes,
-        reportCount: post.report_count,
-        hidden: post.hidden,
-        views: post.views,
-        comments: (commentsData ?? [])
-          .filter((comment) => Number(comment.post_id) === Number(post.id))
-          .map((comment) => ({
-            id: Number(comment.id),
-            author: comment.author,
-            side: comment.side as 'left' | 'right',
-            text: comment.text,
-            likes: comment.likes,
-            reportCount: comment.report_count,
-            hidden: comment.hidden,
-          })),
-      }))
-
-      setPosts(merged)
+    if (postsError) {
+      console.error('posts 불러오기 실패', postsError)
+      return
     }
 
-    fetchPosts()
+    const { data: commentsData, error: commentsError } = await supabase
+      .from('comments')
+      .select('*')
+      .neq('status', 'deleted')
+      .order('created_at', { ascending: false })
+
+    if (commentsError) {
+      console.error('comments 불러오기 실패', commentsError)
+      return
+    }
+
+    const { data: voteRows, error: votesError } = await supabase
+      .from('votes')
+      .select('post_id, voter_key, side')
+      .eq('voter_key', key)
+
+    if (votesError) {
+      console.error('votes 불러오기 실패', votesError)
+    }
+
+    const merged: PostItem[] = (postsData ?? []).map((post) => ({
+      id: Number(post.id),
+      category: post.category,
+      ageGroup: post.age_group,
+      title: post.title,
+      content: post.content,
+      leftLabel: post.left_label,
+      rightLabel: post.right_label,
+      leftVotes: Number(post.left_votes ?? 0),
+      rightVotes: Number(post.right_votes ?? 0),
+      reportCount: Number(post.report_count ?? 0),
+      hidden: Boolean(post.hidden ?? false),
+      views: Number(post.views ?? 0),
+      comments: (commentsData ?? [])
+        .filter((comment) => Number(comment.post_id) === Number(post.id))
+        .map((comment) => ({
+          id: Number(comment.id),
+          author: comment.author,
+          side: comment.side as Side,
+          text: comment.text,
+          likes: Number(comment.likes ?? 0),
+          reportCount: Number(comment.report_count ?? 0),
+          hidden: Boolean(comment.hidden ?? false),
+        })),
+    }))
+
+    setPosts(merged)
+
+    const voteMap: Record<number, VoteSide> = {}
+    ;(voteRows ?? []).forEach((row: VoteRow) => {
+      voteMap[Number(row.post_id)] = row.side
+    })
+    setVotes(voteMap)
   }, [])
-  useEffect(() => {
-    saveStoredList(STORAGE_KEYS.posts, myPostRefs)
-  }, [myPostRefs])
+
+  const fetchMyActivity = useCallback(async (key: string) => {
+    if (!key) return
+
+    const { data: myPostsData, error: myPostsError } = await supabase
+      .from('posts')
+      .select('id, title, category, age_group')
+      .eq('author_key', key)
+      .neq('status', 'deleted')
+      .order('created_at', { ascending: false })
+
+    if (myPostsError) {
+      console.error('내 글 불러오기 실패', myPostsError)
+    } else {
+      setMyPosts(
+        (myPostsData ?? []).map((post) => ({
+          id: Number(post.id),
+          postId: Number(post.id),
+          title: post.title,
+          category: post.category,
+          ageGroup: post.age_group,
+        })),
+      )
+    }
+
+    const { data: myCommentsData, error: myCommentsError } = await supabase
+      .from('comments')
+      .select('id, post_id, text')
+      .eq('author_key', key)
+      .neq('status', 'deleted')
+      .order('created_at', { ascending: false })
+
+    if (myCommentsError) {
+      console.error('내 댓글 불러오기 실패', myCommentsError)
+      return
+    }
+
+    const commentRows = (myCommentsData ?? []).map((comment) => ({
+      id: Number(comment.id),
+      commentId: Number(comment.id),
+      postId: Number(comment.post_id),
+      text: comment.text,
+    }))
+
+    const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
+
+    if (uniquePostIds.length === 0) {
+      setMyComments([])
+      return
+    }
+
+    const { data: commentPostsData, error: commentPostsError } = await supabase
+      .from('posts')
+      .select('id, title')
+      .in('id', uniquePostIds)
+
+    if (commentPostsError) {
+      console.error('댓글 대상 글 불러오기 실패', commentPostsError)
+      setMyComments(
+        commentRows.map((comment) => ({
+          ...comment,
+          postTitle: '삭제되었거나 찾을 수 없는 글',
+        })),
+      )
+      return
+    }
+
+    const postTitleMap = new Map<number, string>()
+    ;(commentPostsData ?? []).forEach((post) => {
+      postTitleMap.set(Number(post.id), post.title)
+    })
+
+    setMyComments(
+      commentRows.map((comment) => ({
+        ...comment,
+        postTitle:
+          postTitleMap.get(comment.postId) ?? '삭제되었거나 찾을 수 없는 글',
+      })),
+    )
+  }, [])
 
   useEffect(() => {
-    saveStoredList(STORAGE_KEYS.comments, myCommentRefs)
-  }, [myCommentRefs])
+    const key = getOrCreateVoterKey()
+    setVoterKey(key)
+
+    void fetchAll(key)
+    void fetchMyActivity(key)
+  }, [fetchAll, fetchMyActivity])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -1061,11 +1080,19 @@ export default function MatnyaApp() {
     return result
   }, [posts, tab, selectedCategory])
 
-  const currentPost: PostItem = filteredPosts[currentIndex] || filteredPosts[0]
+  useEffect(() => {
+    if (currentIndex > 0 && currentIndex >= filteredPosts.length) {
+      setCurrentIndex(Math.max(filteredPosts.length - 1, 0))
+    }
+  }, [filteredPosts.length, currentIndex])
+
+  const currentPost: PostItem | null =
+    filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
   const controversialPosts = useMemo(() => {
+    if (!currentPost) return []
     return [...posts]
-      .filter((post) => post.id !== currentPost?.id)
+      .filter((post) => post.id !== currentPost.id)
       .map((post) => {
         const total = post.leftVotes + post.rightVotes
         const diff = Math.abs(post.leftVotes - post.rightVotes)
@@ -1077,127 +1104,101 @@ export default function MatnyaApp() {
       })
       .sort((a, b) => a.controversyScore - b.controversyScore)
       .slice(0, 3)
-  }, [posts, currentPost?.id])
+  }, [posts, currentPost])
 
-  const myPosts = useMemo(() => {
-    return myPostRefs
-      .map((ref) => posts.find((post) => post.id === ref.postId))
-      .filter(
-        (
-          post,
-        ): post is {
-          id: number
-          category: string
-          ageGroup: string
-          title: string
-          content: string
-          leftLabel: string
-          rightLabel: string
-          leftVotes: number
-          rightVotes: number
-          reportCount: number
-          hidden: boolean
-          comments: Array<{
-            id: number
-            author: string
-            side: 'left' | 'right'
-            text: string
-            likes: number
-            reportCount: number
-            hidden: boolean
-          }>
-          views: number
-        } => Boolean(post),
+  useEffect(() => {
+    if (!currentPost?.id) return
+
+    const viewedKey = `viewed_post_${currentPost.id}`
+    const alreadyViewed =
+      typeof window !== 'undefined' ? sessionStorage.getItem(viewedKey) : '1'
+
+    if (alreadyViewed) return
+
+    const increaseView = async () => {
+      const nextViews = (currentPost.views ?? 0) + 1
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === currentPost.id ? { ...p, views: nextViews } : p,
+        ),
       )
-      .map((post) => ({
-        id: post.id,
-        postId: post.id,
-        title: post.title,
-        category: post.category,
-        ageGroup: post.ageGroup,
-      }))
-  }, [myPostRefs, posts])
 
-  const myComments = useMemo(() => {
-    return myCommentRefs
-      .map((ref) => {
-        const post = posts.find((item) => item.id === ref.postId)
-        if (!post) return null
-        const comment = post.comments.find((item) => item.id === ref.commentId)
-        if (!comment) return null
-        return {
-          id: ref.commentId,
-          commentId: ref.commentId,
-          postId: post.id,
-          postTitle: post.title,
-          text: comment.text,
-        }
-      })
-      .filter(
-        (
-          item,
-        ): item is {
-          id: number
-          commentId: number
-          postId: number
-          postTitle: string
-          text: string
-        } => Boolean(item),
-      )
-  }, [myCommentRefs, posts])
+      const { error } = await supabase
+        .from('posts')
+        .update({ views: nextViews })
+        .eq('id', currentPost.id)
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 1400)
-  }, [])
+      if (error) {
+        console.error('조회수 증가 실패', error)
+      } else if (typeof window !== 'undefined') {
+        sessionStorage.setItem(viewedKey, '1')
+      }
+    }
 
-  const randomNickname = useCallback((): string => {
-    const prefixes = [
-      '익명',
-      '판단',
-      '냉정',
-      '현실',
-      '썰쟁이',
-      '한마디',
-      '직설',
-      '공감',
-    ]
-    const suffix = Math.floor(100 + Math.random() * 900)
-    return `${prefixes[Math.floor(Math.random() * prefixes.length)]}${suffix}`
-  }, [])
+    void increaseView()
+  }, [currentPost?.id])
 
-  if (!currentPost) {
-    return (
-      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
-        <div>
-          <div className="text-lg font-bold">아직 글이 없음</div>
-          <div className="mt-2 text-sm text-white/50">
-            선택한 카테고리에 아직 글이 없음
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const handleVote = async (choice: VoteSide) => {
+    if (!currentPost || !voterKey) return
 
-  const p = percent(currentPost.leftVotes, currentPost.rightVotes)
-
-  const handleVote = (choice: 'left' | 'right') => {
     const prevChoice = votes[currentPost.id]
     if (prevChoice === choice) return
 
+    const nextLeft =
+      currentPost.leftVotes +
+      (prevChoice === 'left' ? -1 : 0) +
+      (choice === 'left' ? 1 : 0)
+
+    const nextRight =
+      currentPost.rightVotes +
+      (prevChoice === 'right' ? -1 : 0) +
+      (choice === 'right' ? 1 : 0)
+
     setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== currentPost.id) return post
-        let { leftVotes, rightVotes } = post
-        if (prevChoice === 'left') leftVotes -= 1
-        if (prevChoice === 'right') rightVotes -= 1
-        if (choice === 'left') leftVotes += 1
-        if (choice === 'right') rightVotes += 1
-        return { ...post, leftVotes, rightVotes }
-      }),
+      prev.map((post) =>
+        post.id === currentPost.id
+          ? {
+              ...post,
+              leftVotes: nextLeft,
+              rightVotes: nextRight,
+            }
+          : post,
+      ),
+    )
+    setVotes((prev) => ({ ...prev, [currentPost.id]: choice }))
+
+    const { error: voteError } = await supabase.from('votes').upsert(
+      {
+        post_id: currentPost.id,
+        voter_key: voterKey,
+        side: choice,
+      },
+      { onConflict: 'post_id,voter_key' },
     )
 
-    setVotes((prev) => ({ ...prev, [currentPost.id]: choice }))
+    if (voteError) {
+      console.error('투표 저장 실패', voteError)
+      showToast('투표 저장 실패')
+      void fetchAll(voterKey)
+      return
+    }
+
+    const { error: postError } = await supabase
+      .from('posts')
+      .update({
+        left_votes: nextLeft,
+        right_votes: nextRight,
+      })
+      .eq('id', currentPost.id)
+
+    if (postError) {
+      console.error('게시글 투표수 업데이트 실패', postError)
+      showToast('투표 반영 실패')
+      void fetchAll(voterKey)
+      return
+    }
+
     showToast('판단 반영 완료!')
   }
 
@@ -1206,6 +1207,7 @@ export default function MatnyaApp() {
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
 
   const handleNextWithGuard = () => {
+    if (!currentPost) return
     if (!votes[currentPost.id]) {
       showToast('먼저 선택하고 넘어가야 함')
       return
@@ -1214,15 +1216,18 @@ export default function MatnyaApp() {
   }
 
   const moveToPostWithGuard = (postId: number) => {
+    if (!currentPost) return
     if (!votes[currentPost.id]) {
       showToast('먼저 지금 글에 선택해야 이동할 수 있음')
       return
     }
+
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
       setCurrentIndex(nextIndexInFiltered)
       return
     }
+
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
       setTab('추천')
@@ -1252,8 +1257,8 @@ export default function MatnyaApp() {
     }
   }
 
-  const addComment = async (text: string, side: 'left' | 'right') => {
-    if (!currentPost) return
+  const addComment = async (text: string, side: Side) => {
+    if (!currentPost || !voterKey) return
 
     const author = randomNickname()
 
@@ -1264,6 +1269,8 @@ export default function MatnyaApp() {
         author,
         side,
         text,
+        author_key: voterKey,
+        status: 'active',
       })
       .select()
       .single()
@@ -1274,14 +1281,14 @@ export default function MatnyaApp() {
       return
     }
 
-    const newComment = {
+    const newComment: CommentItem = {
       id: Number(inserted.id),
       author: inserted.author,
-      side: inserted.side as 'left' | 'right',
+      side: inserted.side as Side,
       text: inserted.text,
-      likes: inserted.likes,
-      reportCount: inserted.report_count,
-      hidden: inserted.hidden,
+      likes: Number(inserted.likes ?? 0),
+      reportCount: Number(inserted.report_count ?? 0),
+      hidden: Boolean(inserted.hidden ?? false),
     }
 
     setPosts((prev) =>
@@ -1292,16 +1299,28 @@ export default function MatnyaApp() {
       ),
     )
 
-    setMyCommentRefs((prev) => [
-      { postId: currentPost.id, commentId: newComment.id },
+    setMyComments((prev) => [
+      {
+        id: newComment.id,
+        commentId: newComment.id,
+        postId: currentPost.id,
+        postTitle: currentPost.title,
+        text: newComment.text,
+      },
       ...prev,
     ])
 
     showToast('반응 등록 완료')
   }
+
   const likeComment = async (commentId: number): Promise<void> => {
     if (!currentPost) return
     if (likedComments[commentId]) return
+
+    const targetComment = currentPost.comments.find((c) => c.id === commentId)
+    if (!targetComment) return
+
+    const nextLikes = targetComment.likes + 1
 
     setLikedComments((prev) => ({ ...prev, [commentId]: true }))
 
@@ -1311,28 +1330,27 @@ export default function MatnyaApp() {
           ? {
               ...p,
               comments: p.comments.map((c) =>
-                c.id === commentId ? { ...c, likes: c.likes + 1 } : c,
+                c.id === commentId ? { ...c, likes: nextLikes } : c,
               ),
             }
           : p,
       ),
     )
 
-    const targetPost = posts.find((p) => p.id === currentPost.id)
-    const targetComment = targetPost?.comments.find((c) => c.id === commentId)
-
-    if (!targetComment) return
-
     const { error } = await supabase
       .from('comments')
-      .update({ likes: targetComment.likes + 1 })
+      .update({ likes: nextLikes })
       .eq('id', commentId)
 
     if (error) {
       console.error('댓글 공감 업데이트 실패', error)
+      showToast('공감 반영 실패')
+      void fetchAll(voterKey)
     }
   }
+
   const openReportPost = () => {
+    if (!currentPost) return
     if (reportedPosts[currentPost.id]) {
       showToast('이미 신고한 글임')
       return
@@ -1344,6 +1362,7 @@ export default function MatnyaApp() {
       label: '현재 글 신고',
     })
   }
+
   const openReportComment = (commentId: number) => {
     if (reportedComments[commentId]) {
       showToast('이미 신고한 댓글임')
@@ -1357,26 +1376,102 @@ export default function MatnyaApp() {
     })
   }
 
-  const submitReport = (reason: string) => {
+  const submitReport = async (reason: string) => {
     const reportId = reportModal.id
-    if (reportId == null) return
+    if (reportId == null || !voterKey || !reportModal.type) return
 
-    if (reportModal.type === 'post') {
+    const targetType = reportModal.type
+
+    const { error: insertReportError } = await supabase.from('reports').insert({
+      target_type: targetType,
+      target_id: reportId,
+      reporter_key: voterKey,
+      reason,
+    })
+
+    if (insertReportError) {
+      const message = String(insertReportError.message || '')
+      const details = String(insertReportError.details || '')
+
+      if (
+        insertReportError.code === '23505' ||
+        message.includes('duplicate') ||
+        details.includes('already exists')
+      ) {
+        showToast(
+          targetType === 'post' ? '이미 신고한 글임' : '이미 신고한 댓글임',
+        )
+        return
+      }
+
+      console.error('신고 저장 실패', insertReportError)
+      showToast('신고 저장 실패')
+      return
+    }
+
+    const { count: latestReportCount, error: countError } = await supabase
+      .from('reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('target_type', targetType)
+      .eq('target_id', reportId)
+
+    if (countError) {
+      console.error('신고 수 조회 실패', countError)
+      showToast('신고 반영 실패')
+      return
+    }
+
+    const safeReportCount = Number(latestReportCount ?? 0)
+    const nextHidden = safeReportCount >= REPORT_HIDE_THRESHOLD
+
+    if (targetType === 'post') {
+      const { error: updatePostError } = await supabase
+        .from('posts')
+        .update({
+          report_count: safeReportCount,
+          hidden: nextHidden,
+          status: nextHidden ? 'hidden' : 'active',
+        })
+        .eq('id', reportId)
+
+      if (updatePostError) {
+        console.error('게시글 신고 반영 실패', updatePostError)
+        showToast('신고 반영 실패')
+        return
+      }
+
       setReportedPosts((prev) => ({ ...prev, [reportId]: true }))
       setPosts((prev) =>
         prev.map((p) =>
           p.id === reportId
             ? {
                 ...p,
-                reportCount: p.reportCount + 1,
-                hidden: p.reportCount + 1 >= 3,
+                reportCount: safeReportCount,
+                hidden: nextHidden,
               }
             : p,
         ),
       )
     }
 
-    if (reportModal.type === 'comment') {
+    if (targetType === 'comment') {
+      if (!currentPost) return
+
+      const { error: updateCommentError } = await supabase
+        .from('comments')
+        .update({
+          report_count: safeReportCount,
+          hidden: nextHidden,
+          status: nextHidden ? 'hidden' : 'active',
+        })
+        .eq('id', reportId)
+
+      if (updateCommentError) {
+        console.error('댓글 신고 반영 실패', updateCommentError)
+        showToast('신고 반영 실패')
+        return
+      }
+
       setReportedComments((prev) => ({ ...prev, [reportId]: true }))
       setPosts((prev) =>
         prev.map((p) =>
@@ -1387,8 +1482,8 @@ export default function MatnyaApp() {
                   c.id === reportId
                     ? {
                         ...c,
-                        reportCount: c.reportCount + 1,
-                        hidden: c.reportCount + 1 >= 3,
+                        reportCount: safeReportCount,
+                        hidden: nextHidden,
                       }
                     : c,
                 ),
@@ -1405,7 +1500,9 @@ export default function MatnyaApp() {
       label: '',
     })
 
-    showToast(`${reason} 신고 접수`)
+    showToast(
+      nextHidden ? `${reason} 신고 접수 · 숨김 처리됨` : `${reason} 신고 접수`,
+    )
   }
 
   const createPost = async (data: {
@@ -1416,6 +1513,8 @@ export default function MatnyaApp() {
     leftLabel: string
     rightLabel: string
   }) => {
+    if (!voterKey) return
+
     const { data: inserted, error } = await supabase
       .from('posts')
       .insert({
@@ -1425,6 +1524,8 @@ export default function MatnyaApp() {
         content: data.content,
         left_label: data.leftLabel,
         right_label: data.rightLabel,
+        author_key: voterKey,
+        status: 'active',
       })
       .select()
       .single()
@@ -1443,19 +1544,27 @@ export default function MatnyaApp() {
       content: inserted.content,
       leftLabel: inserted.left_label,
       rightLabel: inserted.right_label,
-      leftVotes: inserted.left_votes,
-      rightVotes: inserted.right_votes,
-      reportCount: inserted.report_count,
-      hidden: inserted.hidden,
+      leftVotes: Number(inserted.left_votes ?? 0),
+      rightVotes: Number(inserted.right_votes ?? 0),
+      reportCount: Number(inserted.report_count ?? 0),
+      hidden: Boolean(inserted.hidden ?? false),
       comments: [],
-      views: inserted.views,
+      views: Number(inserted.views ?? 0),
     }
 
     setPosts((prev) => [newPost, ...prev])
-    setMyPostRefs((prev) => [
-      { postId: newPost.id },
+
+    setMyPosts((prev) => [
+      {
+        id: newPost.id,
+        postId: newPost.id,
+        title: newPost.title,
+        category: newPost.category,
+        ageGroup: newPost.ageGroup,
+      },
       ...prev.filter((item) => item.postId !== newPost.id),
     ])
+
     setTab('최신')
     setSelectedCategory('전체')
     setCurrentIndex(0)
@@ -1463,7 +1572,24 @@ export default function MatnyaApp() {
     showToast('맞냐 등록 완료!')
   }
 
-  const adminRestorePost = () => {
+  const adminRestorePost = async () => {
+    if (!currentPost) return
+
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        hidden: false,
+        report_count: 0,
+        status: 'active',
+      })
+      .eq('id', currentPost.id)
+
+    if (error) {
+      console.error('글 숨김 해제 실패', error)
+      showToast('숨김 해제 실패')
+      return
+    }
+
     setPosts((prev) =>
       prev.map((p) =>
         p.id === currentPost.id ? { ...p, hidden: false, reportCount: 0 } : p,
@@ -1472,14 +1598,51 @@ export default function MatnyaApp() {
     showToast('글 숨김 해제 완료')
   }
 
-  const adminDeletePost = () => {
+  const adminDeletePost = async () => {
+    if (!currentPost) return
+
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        status: 'deleted',
+        hidden: true,
+      })
+      .eq('id', currentPost.id)
+
+    if (error) {
+      console.error('글 삭제 실패', error)
+      showToast('글 삭제 실패')
+      return
+    }
+
     const nextPosts = posts.filter((p) => p.id !== currentPost.id)
     setPosts(nextPosts)
+    setMyPosts((prev) => prev.filter((item) => item.postId !== currentPost.id))
+    setMyComments((prev) =>
+      prev.filter((item) => item.postId !== currentPost.id),
+    )
     setCurrentIndex(0)
     showToast('글 삭제 완료')
   }
 
-  const adminRestoreComment = (commentId: number) => {
+  const adminRestoreComment = async (commentId: number) => {
+    if (!currentPost) return
+
+    const { error } = await supabase
+      .from('comments')
+      .update({
+        hidden: false,
+        report_count: 0,
+        status: 'active',
+      })
+      .eq('id', commentId)
+
+    if (error) {
+      console.error('댓글 숨김 해제 실패', error)
+      showToast('댓글 숨김 해제 실패')
+      return
+    }
+
     setPosts((prev) =>
       prev.map((p) =>
         p.id === currentPost.id
@@ -1497,7 +1660,23 @@ export default function MatnyaApp() {
     showToast('댓글 숨김 해제 완료')
   }
 
-  const adminDeleteComment = (commentId: number) => {
+  const adminDeleteComment = async (commentId: number) => {
+    if (!currentPost) return
+
+    const { error } = await supabase
+      .from('comments')
+      .update({
+        status: 'deleted',
+        hidden: true,
+      })
+      .eq('id', commentId)
+
+    if (error) {
+      console.error('댓글 삭제 실패', error)
+      showToast('댓글 삭제 실패')
+      return
+    }
+
     setPosts((prev) =>
       prev.map((p) =>
         p.id === currentPost.id
@@ -1505,9 +1684,27 @@ export default function MatnyaApp() {
           : p,
       ),
     )
+
+    setMyComments((prev) => prev.filter((item) => item.commentId !== commentId))
     showToast('댓글 삭제 완료')
   }
+
   const isModalOpen = commentOpen || writeOpen
+
+  if (!currentPost) {
+    return (
+      <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white flex items-center justify-center px-6 text-center">
+        <div>
+          <div className="text-lg font-bold">아직 글이 없음</div>
+          <div className="mt-2 text-sm text-white/50">
+            선택한 카테고리에 아직 글이 없음
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const p = percent(currentPost.leftVotes, currentPost.rightVotes)
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-b from-[#121620] via-[#0f1115] to-[#0a0c12] text-white">
@@ -1531,7 +1728,11 @@ export default function MatnyaApp() {
               </button>
               <button
                 onClick={() => setAdminMode((v) => !v)}
-                className={`flex h-11 w-11 items-center justify-center rounded-full ${adminMode ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white'}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                  adminMode
+                    ? 'bg-[#f5f7ff] text-[#111827]'
+                    : 'bg-white/[0.07] text-white'
+                }`}
               >
                 <Shield className="h-5 w-5" />
               </button>
@@ -1558,7 +1759,11 @@ export default function MatnyaApp() {
                   setTab(label)
                   setCurrentIndex(0)
                 }}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${tab === label ? 'bg-[#f5f7ff] text-[#111827]' : 'bg-white/[0.07] text-white/80'}`}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  tab === label
+                    ? 'bg-[#f5f7ff] text-[#111827]'
+                    : 'bg-white/[0.07] text-white/80'
+                }`}
               >
                 {label}
               </button>
@@ -1573,7 +1778,11 @@ export default function MatnyaApp() {
                   setSelectedCategory(category)
                   setCurrentIndex(0)
                 }}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${selectedCategory === category ? 'bg-[#4f7cff] text-white' : 'bg-white/[0.05] text-white/75'}`}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
+                  selectedCategory === category
+                    ? 'bg-[#4f7cff] text-white'
+                    : 'bg-white/[0.05] text-white/75'
+                }`}
               >
                 {category}
               </button>
@@ -1634,16 +1843,17 @@ export default function MatnyaApp() {
                       ? '관리자 확인 전까지 숨김 처리됩니다.'
                       : currentPost.content}
                   </p>
+
                   {adminMode && currentPost.hidden && (
                     <div className="mt-4 flex gap-2">
                       <button
-                        onClick={adminRestorePost}
+                        onClick={() => void adminRestorePost()}
                         className="rounded-2xl bg-[#f5f7ff] px-4 py-2 text-sm font-bold text-[#111827]"
                       >
                         숨김 해제
                       </button>
                       <button
-                        onClick={adminDeletePost}
+                        onClick={() => void adminDeletePost()}
                         className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-bold text-white"
                       >
                         삭제
@@ -1659,13 +1869,13 @@ export default function MatnyaApp() {
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
                     value={p.left}
-                    onClick={() => handleVote('left')}
+                    onClick={() => void handleVote('left')}
                   />
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
-                    onClick={() => handleVote('right')}
+                    onClick={() => void handleVote('right')}
                   />
 
                   {votes[currentPost.id] ? (
@@ -1712,6 +1922,7 @@ export default function MatnyaApp() {
                   ) : null}
                 </div>
               )}
+
               <div className="mt-6 border-t border-white/10 pt-3">
                 <div className="mb-3 flex items-center justify-between text-sm text-white/65">
                   <div className="flex items-center gap-4">
@@ -1735,6 +1946,7 @@ export default function MatnyaApp() {
             </motion.div>
           </AnimatePresence>
         </main>
+
         {!isModalOpen && (
           <div className="fixed bottom-0 left-0 right-0 z-[9999]">
             <div className="mx-auto max-w-md border-t border-white/10 bg-[#0f1115]/95 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
@@ -1769,20 +1981,25 @@ export default function MatnyaApp() {
           post={currentPost}
           open={commentOpen}
           onClose={() => setCommentOpen(false)}
-          onAddComment={addComment}
-          onLikeComment={likeComment}
+          onAddComment={(text, side) => void addComment(text, side)}
+          onLikeComment={(commentId) => void likeComment(commentId)}
           likedComments={likedComments}
           onOpenReportComment={openReportComment}
           adminMode={adminMode}
-          onAdminRestoreComment={adminRestoreComment}
-          onAdminDeleteComment={adminDeleteComment}
+          onAdminRestoreComment={(commentId) =>
+            void adminRestoreComment(commentId)
+          }
+          onAdminDeleteComment={(commentId) =>
+            void adminDeleteComment(commentId)
+          }
         />
 
         <CreatePostModal
           open={writeOpen}
           onClose={() => setWriteOpen(false)}
-          onCreate={createPost}
+          onCreate={(input) => void createPost(input)}
         />
+
         <MyActivityModal
           open={activityOpen}
           onClose={() => setActivityOpen(false)}
@@ -1791,12 +2008,13 @@ export default function MatnyaApp() {
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
         />
+
         <ReportModal
           open={reportModal.open}
           onClose={() =>
             setReportModal({ open: false, type: null, id: null, label: '' })
           }
-          onSubmit={submitReport}
+          onSubmit={(reason) => void submitReport(reason)}
           targetLabel={reportModal.label}
         />
       </div>
