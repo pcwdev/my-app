@@ -39,6 +39,7 @@ const REPORT_HIDE_THRESHOLD = 3
 
 const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
+  guestName: 'matnya_guest_name',
 }
 
 const PREFIXES = [
@@ -134,6 +135,16 @@ function makeAnonymousName() {
   const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)]
   const suffix = Math.floor(100 + Math.random() * 900)
   return `${prefix}${suffix}`
+}
+
+function getOrCreateGuestName() {
+  if (typeof window === 'undefined') return '익명000'
+  const saved = window.localStorage.getItem(STORAGE_KEYS.guestName)
+  if (saved) return saved
+
+  const newName = makeAnonymousName()
+  window.localStorage.setItem(STORAGE_KEYS.guestName, newName)
+  return newName
 }
 
 async function signInWithGoogle() {
@@ -314,7 +325,7 @@ function ReportModal({
   )
 }
 
-function AuthRequiredModal({
+function AuthOptionalModal({
   open,
   onClose,
   onGoogleLogin,
@@ -328,9 +339,11 @@ function AuthRequiredModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-white/10 bg-[#131722] p-5 text-white shadow-2xl">
-        <div className="mb-1 text-lg font-bold">한 번만 로그인</div>
-        <div className="mb-4 text-sm text-white/45">
-          로그인해도 화면에서는 익명 닉네임만 보여
+        <div className="mb-1 text-lg font-bold">로그인은 선택</div>
+        <div className="mb-4 text-sm leading-6 text-white/55">
+          글쓰기와 댓글쓰기는 로그인 없이 가능.
+          <br />
+          로그인하면 내 활동, 포인트, 뱃지 저장용으로 쓸 수 있게 확장하기 좋음.
         </div>
 
         <div className="space-y-3">
@@ -338,7 +351,7 @@ function AuthRequiredModal({
             onClick={onGoogleLogin}
             className="w-full rounded-2xl bg-[#f5f7ff] px-4 py-3 font-bold text-[#111827]"
           >
-            구글로 1초 시작
+            구글로 시작
           </button>
 
           <button
@@ -460,9 +473,9 @@ function MyActivityModal({
       <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <div className="text-lg font-bold">내 흔적</div>
+            <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-white/45">
-              내가 올린 글과 남긴 댓글
+              로그인 계정으로 남긴 글과 댓글
             </div>
           </div>
           <button
@@ -479,7 +492,7 @@ function MyActivityModal({
               {profile?.anonymous_name ?? '익명 유저'}
             </div>
             <div className="mt-1 text-xs text-white/45">
-              로그인해도 화면에는 익명 닉네임만 보여짐
+              로그인한 활동만 저장됨
             </div>
           </div>
 
@@ -509,10 +522,14 @@ function MyActivityModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
-            <div className="text-sm text-white/50">아직 올린 글이 없음</div>
+            <div className="text-sm text-white/50">
+              로그인 후 작성한 글이 없음
+            </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
-            <div className="text-sm text-white/50">아직 남긴 댓글이 없음</div>
+            <div className="text-sm text-white/50">
+              로그인 후 작성한 댓글이 없음
+            </div>
           )}
 
           {tab === 'posts' &&
@@ -689,7 +706,7 @@ function CommentModal({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
-  isLoggedIn,
+  guestName,
 }: {
   post: PostItem | null
   open: boolean
@@ -701,7 +718,7 @@ function CommentModal({
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
-  isLoggedIn: boolean
+  guestName: string
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -710,11 +727,11 @@ function CommentModal({
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (open && isLoggedIn) {
+    if (open) {
       const timer = setTimeout(() => inputRef.current?.focus(), 80)
       return () => clearTimeout(timer)
     }
-  }, [open, isLoggedIn])
+  }, [open])
 
   useEffect(() => {
     if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
@@ -744,7 +761,6 @@ function CommentModal({
   const hasMoreComments = baseComments.length > visibleCount
 
   const submitComment = () => {
-    if (!isLoggedIn) return
     const trimmed = text.trim()
     if (!trimmed) return
     onAddComment(trimmed, commentSide)
@@ -770,6 +786,11 @@ function CommentModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/75">
+            지금은 <span className="font-bold text-white">{guestName}</span>{' '}
+            이름으로 바로 댓글 작성 가능
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => setSortType('best')}
@@ -894,7 +915,6 @@ function CommentModal({
                 ref={inputRef}
                 value={text}
                 maxLength={LIMITS.comment}
-                disabled={!isLoggedIn}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -902,20 +922,13 @@ function CommentModal({
                     submitComment()
                   }
                 }}
-                placeholder={
-                  isLoggedIn ? '익명으로 반응 남기기' : '댓글은 로그인 후 가능'
-                }
-                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35 disabled:cursor-not-allowed disabled:text-white/35"
+                placeholder="익명으로 바로 반응 남기기"
+                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
               />
 
               <button
                 onClick={submitComment}
-                disabled={!isLoggedIn}
-                className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl ${
-                  isLoggedIn
-                    ? 'bg-[#f5f7ff] text-[#111827]'
-                    : 'bg-white/[0.08] text-white/35'
-                }`}
+                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -942,6 +955,7 @@ function CreatePostModal({
   open,
   onClose,
   onCreate,
+  guestName,
 }: {
   open: boolean
   onClose: () => void
@@ -953,6 +967,7 @@ function CreatePostModal({
     leftLabel: string
     rightLabel: string
   }) => void
+  guestName: string
 }) {
   const [category, setCategory] = useState('연애')
   const [ageGroup, setAgeGroup] = useState('20대')
@@ -993,7 +1008,12 @@ function CreatePostModal({
     <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[#131722] pb-[env(safe-area-inset-bottom)] text-white">
         <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div className="text-lg font-bold">맞냐 글쓰기</div>
+          <div>
+            <div className="text-lg font-bold">맞냐 글쓰기</div>
+            <div className="mt-1 text-xs text-white/45">
+              현재 작성자: {guestName}
+            </div>
+          </div>
           <button
             onClick={onClose}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.07]"
@@ -1003,6 +1023,10 @@ function CreatePostModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/75">
+            로그인 없이 바로 글 작성 가능. 로그인은 내 활동 저장용.
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <select
               value={category}
@@ -1146,9 +1170,7 @@ export default function MatnyaApp() {
   const [authUser, setAuthUser] = useState<any>(null)
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
-  const [pendingAction, setPendingAction] = useState<'post' | 'comment' | null>(
-    null,
-  )
+  const [guestName, setGuestName] = useState('익명000')
 
   const [myPosts, setMyPosts] = useState<MyPostItem[]>([])
   const [myComments, setMyComments] = useState<MyCommentItem[]>([])
@@ -1193,10 +1215,8 @@ export default function MatnyaApp() {
     setDeletedOpen(false)
     setMyPosts([])
     setMyComments([])
-    setWriteOpen(false)
     setCommentOpen(false)
     setActivityOpen(false)
-    setPendingAction(null)
   }, [])
 
   const loadAuthState = useCallback(async () => {
@@ -1480,7 +1500,6 @@ export default function MatnyaApp() {
       setWriteOpen(false)
       setDeletedOpen(false)
       setAuthOpen(false)
-      setPendingAction(null)
 
       await signOutAuth()
 
@@ -1498,6 +1517,7 @@ export default function MatnyaApp() {
   }
 
   useEffect(() => {
+    setGuestName(getOrCreateGuestName())
     void loadAuthState()
 
     const {
@@ -1528,22 +1548,6 @@ export default function MatnyaApp() {
       setMyComments([])
     }
   }, [authUser?.id, fetchMyActivity])
-
-  useEffect(() => {
-    if (!authUser) return
-
-    setAuthOpen(false)
-
-    if (pendingAction === 'post') {
-      setWriteOpen(true)
-    }
-
-    if (pendingAction === 'comment') {
-      setCommentOpen(true)
-    }
-
-    setPendingAction(null)
-  }, [authUser, pendingAction])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -1739,31 +1743,23 @@ export default function MatnyaApp() {
       setSelectedCategory('전체')
       setCurrentIndex(index)
       setActivityOpen(false)
-      if (!authUser) {
-        setPendingAction('comment')
-        setAuthOpen(true)
-        return
-      }
       setCommentOpen(true)
     }
   }
 
   const addComment = async (text: string, side: Side) => {
-    if (!authUser || !profile) {
-      setPendingAction('comment')
-      setAuthOpen(true)
-      return
-    }
     if (!currentPost) return
+
+    const authorName = profile?.anonymous_name ?? guestName
 
     const { data: inserted, error } = await supabase
       .from('comments')
       .insert({
         post_id: currentPost.id,
-        author: profile.anonymous_name,
+        author: authorName,
         side,
         text,
-        author_key: authUser.id,
+        author_key: authUser?.id ?? null,
         status: 'active',
       })
       .select()
@@ -1793,16 +1789,18 @@ export default function MatnyaApp() {
       ),
     )
 
-    setMyComments((prev) => [
-      {
-        id: newComment.id,
-        commentId: newComment.id,
-        postId: currentPost.id,
-        postTitle: currentPost.title,
-        text: newComment.text,
-      },
-      ...prev,
-    ])
+    if (authUser) {
+      setMyComments((prev) => [
+        {
+          id: newComment.id,
+          commentId: newComment.id,
+          postId: currentPost.id,
+          postTitle: currentPost.title,
+          text: newComment.text,
+        },
+        ...prev,
+      ])
+    }
 
     showToast('반응 등록 완료')
   }
@@ -2015,12 +2013,6 @@ export default function MatnyaApp() {
     leftLabel: string
     rightLabel: string
   }) => {
-    if (!authUser) {
-      setPendingAction('post')
-      setAuthOpen(true)
-      return
-    }
-
     const { data: inserted, error } = await supabase
       .from('posts')
       .insert({
@@ -2030,7 +2022,7 @@ export default function MatnyaApp() {
         content: data.content,
         left_label: data.leftLabel,
         right_label: data.rightLabel,
-        author_key: authUser.id,
+        author_key: authUser?.id ?? null,
         status: 'active',
       })
       .select()
@@ -2060,16 +2052,18 @@ export default function MatnyaApp() {
 
     setPosts((prev) => [newPost, ...prev])
 
-    setMyPosts((prev) => [
-      {
-        id: newPost.id,
-        postId: newPost.id,
-        title: newPost.title,
-        category: newPost.category,
-        ageGroup: newPost.ageGroup,
-      },
-      ...prev.filter((item) => item.postId !== newPost.id),
-    ])
+    if (authUser) {
+      setMyPosts((prev) => [
+        {
+          id: newPost.id,
+          postId: newPost.id,
+          title: newPost.title,
+          category: newPost.category,
+          ageGroup: newPost.ageGroup,
+        },
+        ...prev.filter((item) => item.postId !== newPost.id),
+      ])
+    }
 
     setTab('최신')
     setSelectedCategory('전체')
@@ -2292,19 +2286,10 @@ export default function MatnyaApp() {
               </div>
 
               <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <button
-                    onClick={() => void handleAdminToggle()}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
-                  >
-                    <Shield className="h-5 w-5" />
-                  </button>
-                )}
-
                 {!authUser ? (
                   <button
                     onClick={() => setAuthOpen(true)}
-                    className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
                   >
                     <User className="h-5 w-5" />
                   </button>
@@ -2319,15 +2304,17 @@ export default function MatnyaApp() {
                   </button>
                 )}
 
+                {isAdmin && (
+                  <button
+                    onClick={() => void handleAdminToggle()}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07] text-white"
+                  >
+                    <Shield className="h-5 w-5" />
+                  </button>
+                )}
+
                 <button
-                  onClick={() => {
-                    if (!authUser) {
-                      setPendingAction('post')
-                      setAuthOpen(true)
-                      return
-                    }
-                    setWriteOpen(true)
-                  }}
+                  onClick={() => setWriteOpen(true)}
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
                 >
                   <Plus className="h-5 w-5" />
@@ -2340,7 +2327,7 @@ export default function MatnyaApp() {
             <div>
               <div className="text-lg font-bold">아직 글이 없음</div>
               <div className="mt-2 text-sm text-white/50">
-                선택한 카테고리에 아직 글이 없음
+                첫 글을 올려서 흐름을 만들어봐
               </div>
             </div>
           </main>
@@ -2358,6 +2345,7 @@ export default function MatnyaApp() {
           open={writeOpen}
           onClose={() => setWriteOpen(false)}
           onCreate={(input) => void createPost(input)}
+          guestName={profile?.anonymous_name ?? guestName}
         />
 
         <MyActivityModal
@@ -2382,7 +2370,7 @@ export default function MatnyaApp() {
           }
         />
 
-        <AuthRequiredModal
+        <AuthOptionalModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
           onGoogleLogin={() => void handleGoogleLogin()}
@@ -2413,7 +2401,7 @@ export default function MatnyaApp() {
                   onClick={() => setAuthOpen(true)}
                   className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white/[0.07] px-3 text-white"
                 >
-                  <User className="h-5 w-5" />
+                  <span className="text-xs font-bold">{guestName}</span>
                 </button>
               ) : (
                 <button
@@ -2447,19 +2435,16 @@ export default function MatnyaApp() {
               </button>
 
               <button
-                onClick={() => {
-                  if (!authUser) {
-                    setPendingAction('post')
-                    setAuthOpen(true)
-                    return
-                  }
-                  setWriteOpen(true)
-                }}
+                onClick={() => setWriteOpen(true)}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-sm"
               >
                 <Plus className="h-5 w-5" />
               </button>
             </div>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-6 text-white/65">
+            글쓰기/댓글쓰기는 로그인 없이 가능 · 로그인은 내 활동 저장용
           </div>
 
           <div className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -2639,14 +2624,7 @@ export default function MatnyaApp() {
                     </div>
 
                     <button
-                      onClick={() => {
-                        if (!authUser) {
-                          setPendingAction('comment')
-                          setAuthOpen(true)
-                          return
-                        }
-                        setCommentOpen(true)
-                      }}
+                      onClick={() => setCommentOpen(true)}
                       className="flex items-center gap-1"
                     >
                       <MessageCircle className="h-4 w-4" />
@@ -2706,13 +2684,14 @@ export default function MatnyaApp() {
           onAdminDeleteComment={(commentId) =>
             void adminDeleteComment(commentId)
           }
-          isLoggedIn={!!authUser}
+          guestName={profile?.anonymous_name ?? guestName}
         />
 
         <CreatePostModal
           open={writeOpen}
           onClose={() => setWriteOpen(false)}
           onCreate={(input) => void createPost(input)}
+          guestName={profile?.anonymous_name ?? guestName}
         />
 
         <MyActivityModal
@@ -2737,7 +2716,7 @@ export default function MatnyaApp() {
           }
         />
 
-        <AuthRequiredModal
+        <AuthOptionalModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
           onGoogleLogin={() => void handleGoogleLogin()}
