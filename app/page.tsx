@@ -667,6 +667,7 @@ function CommentModal({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
+  isLoggedIn,
 }: {
   post: PostItem | null
   open: boolean
@@ -678,6 +679,7 @@ function CommentModal({
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
+  isLoggedIn: boolean
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -686,11 +688,11 @@ function CommentModal({
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (open && isLoggedIn) {
       const timer = setTimeout(() => inputRef.current?.focus(), 80)
       return () => clearTimeout(timer)
     }
-  }, [open])
+  }, [open, isLoggedIn])
 
   useEffect(() => {
     if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
@@ -720,6 +722,7 @@ function CommentModal({
   const hasMoreComments = baseComments.length > visibleCount
 
   const submitComment = () => {
+    if (!isLoggedIn) return
     const trimmed = text.trim()
     if (!trimmed) return
     onAddComment(trimmed, commentSide)
@@ -869,6 +872,7 @@ function CommentModal({
                 ref={inputRef}
                 value={text}
                 maxLength={LIMITS.comment}
+                disabled={!isLoggedIn}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -876,13 +880,20 @@ function CommentModal({
                     submitComment()
                   }
                 }}
-                placeholder="익명으로 반응 남기기"
-                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35"
+                placeholder={
+                  isLoggedIn ? '익명으로 반응 남기기' : '댓글은 로그인 후 가능'
+                }
+                className="h-[50px] flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-white outline-none placeholder:text-white/35 disabled:cursor-not-allowed disabled:text-white/35"
               />
 
               <button
                 onClick={submitComment}
-                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#f5f7ff] text-[#111827]"
+                disabled={!isLoggedIn}
+                className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl ${
+                  isLoggedIn
+                    ? 'bg-[#f5f7ff] text-[#111827]'
+                    : 'bg-white/[0.08] text-white/35'
+                }`}
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -1150,6 +1161,19 @@ export default function MatnyaApp() {
   }, [])
 
   const isAdmin = profile?.role === 'admin'
+
+  const clearAuthLocalState = useCallback(() => {
+    setAuthUser(null)
+    setProfile(null)
+    setAdminMode(false)
+    setDeletedOpen(false)
+    setMyPosts([])
+    setMyComments([])
+    setWriteOpen(false)
+    setCommentOpen(false)
+    setActivityOpen(false)
+    setPendingAction(null)
+  }, [])
 
   const loadAuthState = useCallback(async () => {
     try {
@@ -1423,14 +1447,17 @@ export default function MatnyaApp() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        clearAuthLocalState()
+      }
       void loadAuthState()
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [loadAuthState])
+  }, [clearAuthLocalState, loadAuthState])
 
   useEffect(() => {
     const key = getOrCreateVoterKey()
@@ -1657,6 +1684,11 @@ export default function MatnyaApp() {
       setSelectedCategory('전체')
       setCurrentIndex(index)
       setActivityOpen(false)
+      if (!authUser) {
+        setPendingAction('comment')
+        setAuthOpen(true)
+        return
+      }
       setCommentOpen(true)
     }
   }
@@ -2211,8 +2243,7 @@ export default function MatnyaApp() {
 
                   try {
                     await signOutAuth()
-                    setAdminMode(false)
-                    setDeletedOpen(false)
+                    clearAuthLocalState()
                     showToast('로그아웃 완료')
                   } catch (error) {
                     console.error(error)
@@ -2457,7 +2488,14 @@ export default function MatnyaApp() {
                     </div>
 
                     <button
-                      onClick={() => setCommentOpen(true)}
+                      onClick={() => {
+                        if (!authUser) {
+                          setPendingAction('comment')
+                          setAuthOpen(true)
+                          return
+                        }
+                        setCommentOpen(true)
+                      }}
                       className="flex items-center gap-1"
                     >
                       <MessageCircle className="h-4 w-4" />
@@ -2517,6 +2555,7 @@ export default function MatnyaApp() {
           onAdminDeleteComment={(commentId) =>
             void adminDeleteComment(commentId)
           }
+          isLoggedIn={!!authUser}
         />
 
         <CreatePostModal
