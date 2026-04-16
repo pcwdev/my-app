@@ -2512,6 +2512,10 @@ export default function MatnyaApp() {
     window.history.replaceState({}, '', url.toString())
   }, [])
 
+  const endSharedEntryMode = useCallback(() => {
+    setSharedEntryActive(false)
+  }, [])
+
   useEffect(() => {
     if (shareId) void loadShareSession()
   }, [shareId, loadShareSession])
@@ -2549,6 +2553,12 @@ export default function MatnyaApp() {
 
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
+
+  useEffect(() => {
+    if (!shareId || !sharedPostId || !currentPost) return
+    if (Number(currentPost.id) !== Number(sharedPostId)) return
+    void loadShareStats()
+  }, [shareId, sharedPostId, currentPost?.id, loadShareStats])
 
   useEffect(() => {
     if (!currentPost) {
@@ -2591,7 +2601,7 @@ export default function MatnyaApp() {
   }, [currentPost, currentActorKey])
 
   useEffect(() => {
-    if (!sharedPostId || posts.length === 0) return
+    if (!sharedEntryActive || !sharedPostId || posts.length === 0) return
 
     const filteredIndex = filteredPosts.findIndex(
       (post) => post.id === sharedPostId,
@@ -2607,7 +2617,7 @@ export default function MatnyaApp() {
       setSelectedCategory('전체')
       setCurrentIndex(allIndex)
     }
-  }, [sharedPostId, posts, filteredPosts])
+  }, [sharedEntryActive, sharedPostId, posts, filteredPosts])
 
   const createShareSession = useCallback(
     async (choice: VoteSide) => {
@@ -2823,12 +2833,12 @@ export default function MatnyaApp() {
   }
 
   const prev = () => {
-    clearShareMode()
+    endSharedEntryMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
-    clearShareMode()
+    endSharedEntryMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
 
@@ -2850,14 +2860,14 @@ export default function MatnyaApp() {
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
-      clearShareMode()
+      endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
-      clearShareMode()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2867,7 +2877,7 @@ export default function MatnyaApp() {
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      clearShareMode()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2878,7 +2888,7 @@ export default function MatnyaApp() {
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      clearShareMode()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
