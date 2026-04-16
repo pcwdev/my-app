@@ -3892,6 +3892,13 @@ export default function MatnyaApp() {
                             친구 더 보내기
                           </button>
                         </div>
+                      ) : votes[currentPost.id] ? (
+                        <button
+                          onClick={() => void shareCurrentPost()}
+                          className="w-full rounded-[20px] border border-yellow-200 bg-[linear-gradient(135deg,#fff7cc_0%,#fde68a_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.16)]"
+                        >
+                          친구한테 보내기
+                        </button>
                       ) : null}
                     </div>
                   ) : null}
