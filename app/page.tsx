@@ -80,6 +80,7 @@ type PostItem = {
   rightVotes: number
   reportCount: number
   hidden: boolean
+  authorKey?: string | null
   comments: CommentItem[]
   views: number
 }
@@ -331,6 +332,61 @@ function normalizeStats(row?: Partial<UserStatsRow> | null): UserStatsRow {
     posts_count: Number(row?.posts_count ?? 0),
     likes_received: Number(row?.likes_received ?? 0),
     created_at: row?.created_at,
+  }
+}
+
+type StoredPostSignal = {
+  meaningful: boolean
+  viewedAt: number
+  commentsCount: number
+  votesTotal: number
+}
+
+type RevisitMeta = {
+  label: string
+}
+
+const POST_SIGNAL_STORAGE_KEY = 'matnya_post_signals_v1'
+
+function readStoredPostSignal(postId: number): StoredPostSignal | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(POST_SIGNAL_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Record<string, StoredPostSignal>
+    return parsed[String(postId)] ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeStoredPostSignal(
+  postId: number,
+  patch: Partial<StoredPostSignal>,
+) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const raw = window.localStorage.getItem(POST_SIGNAL_STORAGE_KEY)
+    const parsed = raw
+      ? (JSON.parse(raw) as Record<string, StoredPostSignal>)
+      : {}
+    const prev = parsed[String(postId)] ?? {
+      meaningful: false,
+      viewedAt: 0,
+      commentsCount: 0,
+      votesTotal: 0,
+    }
+
+    parsed[String(postId)] = {
+      ...prev,
+      ...patch,
+    }
+
+    window.localStorage.setItem(POST_SIGNAL_STORAGE_KEY, JSON.stringify(parsed))
+  } catch {
+    // noop
   }
 }
 
@@ -1700,8 +1756,13 @@ export default function MatnyaApp() {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
+  const [justCreatedPostId, setJustCreatedPostId] = useState<number | null>(
+    null,
+  )
 
   const featuredBadge = badges[0] ?? null
+  const currentActorKey = authUser?.id ?? voterKey ?? null
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
   const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
@@ -1768,6 +1829,20 @@ export default function MatnyaApp() {
     }
   }, [])
 
+  const markPostMeaningful = useCallback(
+    (post: PostItem | null | undefined) => {
+      if (!post) return
+
+      writeStoredPostSignal(post.id, {
+        meaningful: true,
+        viewedAt: Date.now(),
+        commentsCount: post.comments.length,
+        votesTotal: post.leftVotes + post.rightVotes,
+      })
+    },
+    [],
+  )
+
   const fetchAll = useCallback(async (key: string) => {
     setLoading(true)
 
@@ -1816,6 +1891,7 @@ export default function MatnyaApp() {
       rightVotes: Number(post.right_votes ?? 0),
       reportCount: Number(post.report_count ?? 0),
       hidden: Boolean(post.hidden ?? false),
+      authorKey: post.author_key ?? null,
       views: Number(post.views ?? 0),
       comments: (commentsData ?? [])
         .filter((comment) => Number(comment.post_id) === Number(post.id))
@@ -2436,10 +2512,6 @@ export default function MatnyaApp() {
     window.history.replaceState({}, '', url.toString())
   }, [])
 
-  const leaveSharedEntryMode = useCallback(() => {
-    setSharedEntryActive(false)
-  }, [])
-
   useEffect(() => {
     if (shareId) void loadShareSession()
   }, [shareId, loadShareSession])
@@ -2479,7 +2551,47 @@ export default function MatnyaApp() {
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
   useEffect(() => {
-    if (!sharedEntryActive || !sharedPostId || posts.length === 0) return
+    if (!currentPost) {
+      setRevisitMeta(null)
+      return
+    }
+
+    const savedSignal = readStoredPostSignal(currentPost.id)
+    const isOwnPost =
+      !!currentActorKey &&
+      !!currentPost.authorKey &&
+      String(currentPost.authorKey) === String(currentActorKey)
+
+    if (!savedSignal?.meaningful || isOwnPost) {
+      setRevisitMeta(null)
+      return
+    }
+
+    const currentVotesTotal = currentPost.leftVotes + currentPost.rightVotes
+    const commentsDiff = Math.max(
+      0,
+      currentPost.comments.length - Number(savedSignal.commentsCount ?? 0),
+    )
+    const votesDiff = Math.max(
+      0,
+      currentVotesTotal - Number(savedSignal.votesTotal ?? 0),
+    )
+
+    if (commentsDiff > 0) {
+      setRevisitMeta({ label: `봤던 글 · 댓글 +${commentsDiff}` })
+      return
+    }
+
+    if (votesDiff > 0) {
+      setRevisitMeta({ label: `봤던 글 · 참여 +${votesDiff}` })
+      return
+    }
+
+    setRevisitMeta({ label: '다시 보는 글' })
+  }, [currentPost, currentActorKey])
+
+  useEffect(() => {
+    if (!sharedPostId || posts.length === 0) return
 
     const filteredIndex = filteredPosts.findIndex(
       (post) => post.id === sharedPostId,
@@ -2495,7 +2607,7 @@ export default function MatnyaApp() {
       setSelectedCategory('전체')
       setCurrentIndex(allIndex)
     }
-  }, [sharedEntryActive, sharedPostId, posts, filteredPosts])
+  }, [sharedPostId, posts, filteredPosts])
 
   const createShareSession = useCallback(
     async (choice: VoteSide) => {
@@ -2615,10 +2727,6 @@ export default function MatnyaApp() {
   const handleVote = async (choice: VoteSide) => {
     if (!currentPost || !voterKey) return
 
-    if (sharedEntryActive && sharedPostId && currentPost.id !== sharedPostId) {
-      setSharedEntryActive(false)
-    }
-
     const prevChoice = votes[currentPost.id]
     if (prevChoice === choice) return
 
@@ -2706,16 +2814,20 @@ export default function MatnyaApp() {
       },
       prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
     )
+
+    markPostMeaningful({
+      ...currentPost,
+      leftVotes: nextLeft,
+      rightVotes: nextRight,
+    })
   }
 
   const prev = () => {
-    leaveSharedEntryMode()
     clearShareMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
-    leaveSharedEntryMode()
     clearShareMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
@@ -2738,7 +2850,6 @@ export default function MatnyaApp() {
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
-      leaveSharedEntryMode()
       clearShareMode()
       setCurrentIndex(nextIndexInFiltered)
       return
@@ -2746,7 +2857,6 @@ export default function MatnyaApp() {
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
-      leaveSharedEntryMode()
       clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -2757,7 +2867,6 @@ export default function MatnyaApp() {
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      leaveSharedEntryMode()
       clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -2769,7 +2878,6 @@ export default function MatnyaApp() {
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      leaveSharedEntryMode()
       clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -3098,6 +3206,7 @@ export default function MatnyaApp() {
       rightVotes: Number(inserted.right_votes ?? 0),
       reportCount: Number(inserted.report_count ?? 0),
       hidden: Boolean(inserted.hidden ?? false),
+      authorKey: inserted.author_key ?? null,
       comments: [],
       views: Number(inserted.views ?? 0),
     }
@@ -3117,10 +3226,16 @@ export default function MatnyaApp() {
       ])
     }
 
+    clearShareMode()
     setTab('최신')
     setSelectedCategory('전체')
     setCurrentIndex(0)
+    setJustCreatedPostId(newPost.id)
     setWriteOpen(false)
+    setCommentOpen(false)
+    setActivityOpen(false)
+    markPostMeaningful(newPost)
+    showToast('내가 쓴 글 등록 완료')
 
     await updateProgress(
       {
@@ -3445,6 +3560,11 @@ export default function MatnyaApp() {
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
   const levelInfo = getLevelInfo(stats.points)
+  const isOwnCurrentPost =
+    !!currentActorKey &&
+    !!currentPost.authorKey &&
+    String(currentPost.authorKey) === String(currentActorKey)
+
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
@@ -3628,11 +3748,23 @@ export default function MatnyaApp() {
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
                 </p>
-                {sharedEntryActive && (
-                  <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                    🔗 공유 링크로 들어온 논쟁
-                  </div>
-                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {sharedEntryActive && (
+                    <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                      🔗 공유 링크로 들어온 논쟁
+                    </div>
+                  )}
+                  {isOwnCurrentPost && (
+                    <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
+                      ✍️ 내가 쓴 글 · 첫 반응 기다리는 중
+                    </div>
+                  )}
+                  {!isOwnCurrentPost && revisitMeta && (
+                    <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600">
+                      👀 {revisitMeta.label}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {(!currentPost.hidden || adminMode) && (
@@ -3788,7 +3920,10 @@ export default function MatnyaApp() {
                     </div>
 
                     <button
-                      onClick={() => setCommentOpen(true)}
+                      onClick={() => {
+                        markPostMeaningful(currentPost)
+                        setCommentOpen(true)
+                      }}
                       className="flex items-center gap-1"
                     >
                       <MessageCircle className="h-4 w-4" />
