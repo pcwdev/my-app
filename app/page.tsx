@@ -7,6 +7,7 @@ import {
   Flame,
   Heart,
   MessageCircle,
+  MoreHorizontal,
   Plus,
   Send,
   Shield,
@@ -232,41 +233,25 @@ const VoteOption = React.memo(function VoteOption({
   label,
   value,
   onClick,
-  side,
 }: {
   active: boolean
   label: string
   value: number
   onClick: () => void
-  side: 'left' | 'right'
 }) {
-  const isLeft = side === 'left'
-
-  const activeWrapClass = isLeft
-    ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
-    : 'border-violet-200 bg-[linear-gradient(180deg,#faf7ff_0%,#f2ebff_100%)] shadow-[0_14px_26px_rgba(124,58,237,0.14)]'
-
-  const activeBadgeClass = isLeft
-    ? 'bg-[#4f7cff] text-white'
-    : 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] text-white'
-
-  const barClass = isLeft
-    ? 'bg-[#4f7cff] shadow-[0_4px_12px_rgba(79,124,255,0.28)]'
-    : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] shadow-[0_4px_12px_rgba(124,58,237,0.26)]'
-
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
+      className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
         active
-          ? activeWrapClass
+          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
           : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <span
           className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
-            active ? activeBadgeClass : 'bg-slate-100 text-slate-700'
+            active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
           }`}
         >
           {label}
@@ -277,7 +262,7 @@ const VoteOption = React.memo(function VoteOption({
       </div>
       <div className="h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
         <div
-          className={`h-full rounded-full transition-all duration-150 ${barClass}`}
+          className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
           style={{ width: `${value}%` }}
         />
       </div>
@@ -405,6 +390,8 @@ const CommentCard = React.memo(function CommentCard({
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
   if (comment.hidden && !adminMode) return null
 
   const isLeft = comment.side === 'left'
@@ -412,6 +399,11 @@ const CommentCard = React.memo(function CommentCard({
   const sideBadgeClass = isLeft
     ? 'border-blue-200 bg-blue-50/90 text-blue-700'
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
+
+  const handleReportClick = () => {
+    setMenuOpen(false)
+    onOpenReportComment(comment.id)
+  }
 
   return (
     <div
@@ -444,42 +436,60 @@ const CommentCard = React.memo(function CommentCard({
               </span>
             </div>
           </div>
-          <div className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">
-            공감 {comment.likes}
-          </div>
         </div>
 
         <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-700">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs">
-          {!comment.hidden && (
-            <button
-              onClick={() => onLikeComment(comment.id)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
-                isLiked
-                  ? 'border-rose-200 bg-rose-50 text-rose-600'
-                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <Heart
-                className={`h-3.5 w-3.5 ${isLiked ? 'fill-[#ef4444]' : ''}`}
-              />
-              <span>공감</span>
-              <span>{comment.likes}</span>
-            </button>
-          )}
-          {!comment.hidden && (
-            <button
-              onClick={() => onOpenReportComment(comment.id)}
-              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-            >
-              신고
-            </button>
-          )}
-          {adminMode && comment.hidden && (
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+          {!comment.hidden ? (
             <>
+              <button
+                onClick={() => onLikeComment(comment.id)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
+                  isLiked
+                    ? 'border-rose-200 bg-rose-50 text-rose-600'
+                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <Heart
+                  className={`h-3.5 w-3.5 ${isLiked ? 'fill-[#ef4444]' : ''}`}
+                />
+                <span>{comment.likes}</span>
+              </button>
+
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                  aria-label="댓글 메뉴"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 top-10 z-20 min-w-[112px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.12)]">
+                    <button
+                      onClick={handleReportClick}
+                      className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      신고하기
+                    </button>
+                    <button
+                      onClick={() => setMenuOpen(false)}
+                      className="block w-full border-t border-slate-100 px-4 py-3 text-left text-[13px] font-semibold text-slate-500 transition hover:bg-slate-50"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+
+          {adminMode && comment.hidden && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => onAdminRestoreComment(comment.id)}
                 className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
@@ -492,7 +502,7 @@ const CommentCard = React.memo(function CommentCard({
               >
                 삭제
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -893,22 +903,11 @@ function CommentModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           {bestComment && !bestComment.hidden && (
-            <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
+            <div className="overflow-hidden rounded-[28px] border border-[#d8e3ff] bg-[linear-gradient(180deg,#ffffff_0%,#edf3ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.12)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#60a5fa_0%,#4f7cff_55%,#7c9cff_100%)]" />
               <div className="p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
-                      BEST COMMENT
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
-                      <Flame className="h-4 w-4 text-amber-500" /> 지금 가장
-                      공감받는 반응
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    공감 {bestComment.likes}
-                  </div>
+                <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
+                  <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
                 </div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span
@@ -926,8 +925,11 @@ function CommentModal({
                     {bestComment.author}
                   </span>
                 </div>
-                <div className="text-[15px] leading-6 tracking-[-0.01em] text-slate-800">
+                <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-800">
                   {bestComment.text}
+                </div>
+                <div className="mt-3 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                  공감 {bestComment.likes}
                 </div>
               </div>
             </div>
@@ -2639,27 +2641,19 @@ export default function MatnyaApp() {
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2.5">
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
                     value={p.left}
-                    side="left"
                     onClick={() => void handleVote('left')}
                   />
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
-                    side="right"
                     onClick={() => void handleVote('right')}
                   />
-
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3.5 py-2 text-[12px] text-slate-500 shadow-[0_6px_16px_rgba(15,23,42,0.03)]">
-                    {votes[currentPost.id]
-                      ? '선택 완료. 이제 퍼센트와 댓글 흐름을 보면서 분위기를 확인해봐.'
-                      : '먼저 한쪽을 선택하면 결과와 다음 글 흐름이 더 재밌게 보임.'}
-                  </div>
 
                   {votes[currentPost.id] ? (
                     <div className="space-y-4">
