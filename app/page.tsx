@@ -2778,6 +2778,74 @@ export default function MatnyaApp() {
     [currentPost, voterKey, syncShareUrl],
   )
 
+  const resolveTargetShareSessionId = useCallback(
+    async (choice: VoteSide) => {
+      if (!currentPost) return null
+
+      let targetShareId = activeCurrentShareSessionId
+      let targetOwnerKey = activeCurrentShareOwnerKey ?? null
+
+      if (!targetShareId && shareId) {
+        const linkedSession = await loadShareSessionById(shareId)
+        if (
+          linkedSession &&
+          Number(linkedSession.postId) === Number(currentPost.id)
+        ) {
+          targetShareId = linkedSession.id
+          targetOwnerKey = linkedSession.ownerKey ?? null
+          setShareId(linkedSession.id)
+          setSharedPostId(currentPost.id)
+          setShareOwnerKey(linkedSession.ownerKey ?? null)
+        }
+      }
+
+      if (!targetShareId && currentPost.id) {
+        const ownedSession = await loadLatestOwnedShareSessionForPost(
+          currentPost.id,
+        )
+        if (ownedSession) {
+          targetShareId = ownedSession.id
+          targetOwnerKey = ownedSession.ownerKey ?? null
+        }
+      }
+
+      if (!targetShareId) {
+        const hasIncomingSharedLink =
+          !!shareId &&
+          !!sharedPostId &&
+          Number(sharedPostId) === Number(currentPost.id)
+
+        if (hasIncomingSharedLink) {
+          console.error('공유 링크 세션을 찾지 못해 응답 저장을 중단함', {
+            shareId,
+            sharedPostId,
+            currentPostId: currentPost.id,
+          })
+          return null
+        }
+
+        targetShareId = await createShareSession(choice)
+        targetOwnerKey = voterKey
+      }
+
+      return {
+        id: targetShareId,
+        ownerKey: targetOwnerKey,
+      }
+    },
+    [
+      activeCurrentShareOwnerKey,
+      activeCurrentShareSessionId,
+      createShareSession,
+      currentPost,
+      loadLatestOwnedShareSessionForPost,
+      loadShareSessionById,
+      shareId,
+      sharedPostId,
+      voterKey,
+    ],
+  )
+
   const shareCurrentPost = useCallback(async () => {
     if (!currentPost) return
 
@@ -2930,13 +2998,13 @@ ${shareUrl}`)
       return
     }
 
-    let activeShareId = activeCurrentShareSessionId
+    const resolvedShareSession = await resolveTargetShareSessionId(choice)
+    const activeShareId = resolvedShareSession?.id ?? null
+    const activeShareOwnerKey = resolvedShareSession?.ownerKey ?? null
 
-    if (!activeShareId) {
-      activeShareId = await createShareSession(choice)
-    } else if (
-      !activeCurrentShareOwnerKey ||
-      String(activeCurrentShareOwnerKey) !== String(voterKey)
+    if (
+      activeShareId &&
+      (!activeShareOwnerKey || String(activeShareOwnerKey) !== String(voterKey))
     ) {
       const { error: shareResponseError } = await supabase
         .from('share_responses')
@@ -2951,8 +3019,9 @@ ${shareUrl}`)
 
       if (shareResponseError) {
         console.error('share response 저장 실패', shareResponseError)
+        showToast('친구 반응 저장 실패')
       } else {
-        void loadShareStatsBySessionId(activeShareId)
+        await loadShareStatsBySessionId(activeShareId)
       }
     }
 
