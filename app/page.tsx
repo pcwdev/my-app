@@ -3840,6 +3840,15 @@ export default function MatnyaApp() {
                         </div>
                       )}
 
+                      {!isViewingSharedPost ? (
+                        <button
+                          onClick={() => void shareCurrentPost()}
+                          className="w-full rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                        >
+                          친구한테 보내기
+                        </button>
+                      ) : null}
+
                       {isViewingSharedPost ? (
                         <div className="rounded-[24px] border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] p-4 shadow-[0_12px_26px_rgba(245,158,11,0.10)]">
                           <div className="flex items-start justify-between gap-3">
@@ -3892,13 +3901,6 @@ export default function MatnyaApp() {
                             친구 더 보내기
                           </button>
                         </div>
-                      ) : votes[currentPost.id] ? (
-                        <button
-                          onClick={() => void shareCurrentPost()}
-                          className="w-full rounded-[20px] border border-yellow-200 bg-[linear-gradient(135deg,#fff7cc_0%,#fde68a_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.16)]"
-                        >
-                          친구한테 보내기
-                        </button>
                       ) : null}
                     </div>
                   ) : null}
