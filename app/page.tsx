@@ -1709,6 +1709,7 @@ export default function MatnyaApp() {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const [hasRespondedToShare, setHasRespondedToShare] = useState(false)
   const [lastShareTotal, setLastShareTotal] = useState(0)
 
   const featuredBadge = badges[0] ?? null
@@ -2437,6 +2438,7 @@ export default function MatnyaApp() {
     setShareOwnerKey(null)
     setShareStats({ left: 0, right: 0 })
     setSharedEntryActive(false)
+    setHasRespondedToShare(false)
 
     if (typeof window === 'undefined') return
 
@@ -2453,6 +2455,43 @@ export default function MatnyaApp() {
   useEffect(() => {
     if (shareId) void loadShareStats()
   }, [shareId, loadShareStats])
+
+  useEffect(() => {
+    if (!shareId || !voterKey) {
+      setHasRespondedToShare(false)
+      return
+    }
+
+    if (shareOwnerKey && String(shareOwnerKey) === String(voterKey)) {
+      setHasRespondedToShare(true)
+      return
+    }
+
+    let cancelled = false
+
+    const loadMyShareResponse = async () => {
+      const { data, error } = await supabase
+        .from('share_responses')
+        .select('id')
+        .eq('share_id', shareId)
+        .eq('responder_key', voterKey)
+        .maybeSingle()
+
+      if (error) {
+        console.error('내 share response 조회 실패', error)
+        if (!cancelled) setHasRespondedToShare(false)
+        return
+      }
+
+      if (!cancelled) setHasRespondedToShare(!!data)
+    }
+
+    void loadMyShareResponse()
+
+    return () => {
+      cancelled = true
+    }
+  }, [shareId, voterKey, shareOwnerKey])
 
   useEffect(() => {
     if (!shareId) return
@@ -2722,6 +2761,7 @@ export default function MatnyaApp() {
       if (shareResponseError) {
         console.error('share response 저장 실패', shareResponseError)
       } else {
+        setHasRespondedToShare(true)
         void loadShareStats()
       }
     }
@@ -2736,18 +2776,22 @@ export default function MatnyaApp() {
   }
 
   const prev = () => {
-    clearShareMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
-    clearShareMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
 
   const handleNextWithGuard = () => {
     if (!currentPost) return
-    if (!votes[currentPost.id]) {
+    const currentDisplayVote =
+      sharedEntryActive &&
+      currentPost.id === sharedPostId &&
+      !hasRespondedToShare
+        ? undefined
+        : votes[currentPost.id]
+    if (!currentDisplayVote) {
       showToast('먼저 선택하고 넘어가야 함')
       return
     }
@@ -2756,21 +2800,25 @@ export default function MatnyaApp() {
 
   const moveToPostWithGuard = (postId: number) => {
     if (!currentPost) return
-    if (!votes[currentPost.id]) {
+    const currentDisplayVote =
+      sharedEntryActive &&
+      currentPost.id === sharedPostId &&
+      !hasRespondedToShare
+        ? undefined
+        : votes[currentPost.id]
+    if (!currentDisplayVote) {
       showToast('먼저 지금 글에 선택해야 이동할 수 있음')
       return
     }
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
-      clearShareMode()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
-      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2780,7 +2828,6 @@ export default function MatnyaApp() {
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2791,7 +2838,6 @@ export default function MatnyaApp() {
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -3468,6 +3514,12 @@ export default function MatnyaApp() {
   const levelInfo = getLevelInfo(stats.points)
   const totalVotes = currentPost.leftVotes + currentPost.rightVotes
   const shareTotal = shareStats.left + shareStats.right
+  const isViewingSharedPost =
+    sharedEntryActive && currentPost.id === sharedPostId
+  const displayVote =
+    isViewingSharedPost && !hasRespondedToShare
+      ? undefined
+      : votes[currentPost.id]
   const liveNow = Math.max(
     3,
     Math.round(
@@ -3475,7 +3527,7 @@ export default function MatnyaApp() {
         totalVotes * 0.08 +
         currentPost.views * 0.018 +
         shareTotal * 1.6 +
-        (sharedEntryActive ? 2 : 0),
+        (isViewingSharedPost ? 2 : 0),
     ),
   )
   const voteGap = Math.abs(p.left - p.right)
@@ -3702,7 +3754,7 @@ export default function MatnyaApp() {
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
                 </p>
-                {sharedEntryActive && (
+                {isViewingSharedPost && (
                   <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                     🔗 공유 링크로 들어온 논쟁
                   </div>
@@ -3712,19 +3764,19 @@ export default function MatnyaApp() {
               {(!currentPost.hidden || adminMode) && (
                 <div className="mt-4 space-y-2.5">
                   <VoteOption
-                    active={votes[currentPost.id] === 'left'}
+                    active={displayVote === 'left'}
                     label={currentPost.leftLabel}
                     value={p.left}
                     onClick={() => void handleVote('left')}
                   />
                   <VoteOption
-                    active={votes[currentPost.id] === 'right'}
+                    active={displayVote === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
                     onClick={() => void handleVote('right')}
                   />
 
-                  {votes[currentPost.id] ? (
+                  {displayVote ? (
                     <div className="space-y-4">
                       <button
                         onClick={handleNextWithGuard}
