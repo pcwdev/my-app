@@ -60,6 +60,7 @@ type VoteSide = 'left' | 'right'
 type CommentItem = {
   id: number
   author: string
+  authorKey?: string | null
   side: Side
   text: string
   likes: number
@@ -144,6 +145,12 @@ type UserBadgeRow = {
 type AuthorMeta = {
   level: number
   badgeName: string | null
+}
+
+function getAuthorMetaKey(author: string, authorKey?: string | null) {
+  return authorKey && String(authorKey).trim()
+    ? `key:${String(authorKey).trim()}`
+    : `name:${(author || '').trim()}`
 }
 
 const LEVELS = [
@@ -460,20 +467,38 @@ function getFallbackAuthorMeta(author: string): AuthorMeta {
 }
 
 function resolveAuthorMeta(
-  author: string,
+  comment: Pick<CommentItem, 'author' | 'authorKey'>,
   map: Record<string, AuthorMeta>,
   currentUserName?: string,
   currentUserLevel?: number,
   currentFeaturedBadge?: string | null,
+  currentActorKey?: string | null,
 ): AuthorMeta {
-  if (currentUserName && author === currentUserName) {
+  const metaKey = getAuthorMetaKey(comment.author, comment.authorKey)
+
+  if (
+    currentActorKey &&
+    comment.authorKey &&
+    String(comment.authorKey) === String(currentActorKey)
+  ) {
     return {
       level: currentUserLevel ?? 1,
       badgeName: currentFeaturedBadge ?? null,
     }
   }
 
-  return map[author] ?? getFallbackAuthorMeta(author)
+  if (
+    !comment.authorKey &&
+    currentUserName &&
+    comment.author === currentUserName
+  ) {
+    return {
+      level: currentUserLevel ?? 1,
+      badgeName: currentFeaturedBadge ?? null,
+    }
+  }
+
+  return map[metaKey] ?? getFallbackAuthorMeta(comment.author)
 }
 
 const VoteOption = React.memo(function VoteOption({
@@ -1117,6 +1142,7 @@ function CommentModal({
   featuredBadge,
   currentUserLevel,
   authorMetaMap,
+  currentActorKey,
 }: {
   post: PostItem | null
   open: boolean
@@ -1132,6 +1158,7 @@ function CommentModal({
   featuredBadge?: string | null
   currentUserLevel?: number
   authorMetaMap: Record<string, AuthorMeta>
+  currentActorKey?: string | null
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1176,11 +1203,15 @@ function CommentModal({
   const bestComment = sortedComments.find((c) => !c.hidden) || sortedComments[0]
   const bestCommentMeta = bestComment
     ? resolveAuthorMeta(
-        bestComment.author,
+        {
+          author: bestComment.author,
+          authorKey: bestComment.authorKey ?? null,
+        },
         authorMetaMap,
         guestName,
         currentUserLevel,
         featuredBadge,
+        currentActorKey,
       )
     : null
   const hasMoreComments = filteredVisibleComments.length > visibleCount
@@ -1323,11 +1354,12 @@ function CommentModal({
                 onAdminRestoreComment={onAdminRestoreComment}
                 onAdminDeleteComment={onAdminDeleteComment}
                 authorMeta={resolveAuthorMeta(
-                  comment.author,
+                  comment,
                   authorMetaMap,
                   guestName,
                   currentUserLevel,
                   featuredBadge,
+                  currentActorKey,
                 )}
               />
             ))}
@@ -1785,6 +1817,7 @@ export default function MatnyaApp() {
         .map((comment) => ({
           id: Number(comment.id),
           author: comment.author,
+          authorKey: comment.author_key ?? null,
           side: comment.side as Side,
           text: comment.text,
           likes: Number(comment.likes ?? 0),
@@ -2115,80 +2148,98 @@ export default function MatnyaApp() {
 
   const loadAuthorMeta = useCallback(async () => {
     const allComments = posts.flatMap((post) => post.comments)
-    const uniqueAuthors = [
-      ...new Set(allComments.map((comment) => comment.author).filter(Boolean)),
-    ]
 
-    if (uniqueAuthors.length === 0) {
+    if (allComments.length === 0) {
       setAuthorMetaMap({})
       return
     }
 
     const baseMap: Record<string, AuthorMeta> = {}
-    uniqueAuthors.forEach((author) => {
-      baseMap[author] = getFallbackAuthorMeta(author)
-    })
+    const userIdKeys = new Set<string>()
+    const voterKeys = new Set<string>()
 
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, anonymous_name')
-      .in('anonymous_name', uniqueAuthors)
+    allComments.forEach((comment) => {
+      const metaKey = getAuthorMetaKey(comment.author, comment.authorKey)
+      baseMap[metaKey] = getFallbackAuthorMeta(comment.author)
 
-    if (profilesError) {
-      console.error('작성자 프로필 조회 실패', profilesError)
-      setAuthorMetaMap(baseMap)
-      return
-    }
+      const rawKey = String(comment.authorKey ?? '').trim()
+      if (!rawKey) return
 
-    const matchedProfiles = profilesData ?? []
-    const userIds = matchedProfiles.map((profile) => profile.id)
-
-    if (userIds.length === 0) {
-      setAuthorMetaMap(baseMap)
-      return
-    }
-
-    const { data: statsRows, error: statsError } = await supabase
-      .from('user_stats')
-      .select('user_id, level')
-      .in('user_id', userIds)
-
-    if (statsError) {
-      console.error('작성자 레벨 조회 실패', statsError)
-    }
-
-    const { data: badgeRows, error: badgeError } = await supabase
-      .from('user_badges')
-      .select('user_id, badge_name, created_at')
-      .in('user_id', userIds)
-      .order('created_at', { ascending: false })
-
-    if (badgeError) {
-      console.error('작성자 뱃지 조회 실패', badgeError)
-    }
-
-    const levelByUserId = new Map<string, number>()
-    ;(statsRows ?? []).forEach((row: any) => {
-      levelByUserId.set(String(row.user_id), Number(row.level ?? 1))
-    })
-
-    const badgeByUserId = new Map<string, string>()
-    ;(badgeRows ?? []).forEach((row: any) => {
-      const key = String(row.user_id)
-      if (!badgeByUserId.has(key)) {
-        badgeByUserId.set(key, String(row.badge_name))
+      if (rawKey.startsWith('vk_') || rawKey.startsWith('seed_vk_')) {
+        voterKeys.add(rawKey)
+      } else {
+        userIdKeys.add(rawKey)
       }
     })
 
-    matchedProfiles.forEach((profile: any) => {
-      const author = String(profile.anonymous_name)
-      baseMap[author] = {
-        level:
-          levelByUserId.get(String(profile.id)) ?? baseMap[author]?.level ?? 1,
-        badgeName:
-          badgeByUserId.get(String(profile.id)) ??
-          baseMap[author]?.badgeName ??
-          null,
+    const userIds = [...userIdKeys]
+    const guestKeys = [...voterKeys]
+
+    const [statsByUserRes, statsByGuestRes, badgesByUserRes, badgesByGuestRes] =
+      await Promise.all([
+        userIds.length > 0
+          ? supabase
+              .from('user_stats')
+              .select('user_id, level')
+              .in('user_id', userIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        guestKeys.length > 0
+          ? supabase
+              .from('user_stats')
+              .select('voter_key, level')
+              .in('voter_key', guestKeys)
+          : Promise.resolve({ data: [], error: null } as any),
+        userIds.length > 0
+          ? supabase
+              .from('user_badges')
+              .select('user_id, badge_name, created_at')
+              .in('user_id', userIds)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+        guestKeys.length > 0
+          ? supabase
+              .from('user_badges')
+              .select('voter_key, badge_name, created_at')
+              .in('voter_key', guestKeys)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+      ])
+
+    if (statsByUserRes.error)
+      console.error('작성자 레벨(user_id) 조회 실패', statsByUserRes.error)
+    if (statsByGuestRes.error)
+      console.error('작성자 레벨(voter_key) 조회 실패', statsByGuestRes.error)
+    if (badgesByUserRes.error)
+      console.error('작성자 뱃지(user_id) 조회 실패', badgesByUserRes.error)
+    if (badgesByGuestRes.error)
+      console.error('작성자 뱃지(voter_key) 조회 실패', badgesByGuestRes.error)
+
+    const levelByKey = new Map<string, number>()
+    ;(statsByUserRes.data ?? []).forEach((row: any) => {
+      if (row.user_id)
+        levelByKey.set(`key:${String(row.user_id)}`, Number(row.level ?? 1))
+    })
+    ;(statsByGuestRes.data ?? []).forEach((row: any) => {
+      if (row.voter_key)
+        levelByKey.set(`key:${String(row.voter_key)}`, Number(row.level ?? 1))
+    })
+
+    const badgeByKey = new Map<string, string>()
+    ;(badgesByUserRes.data ?? []).forEach((row: any) => {
+      const key = row.user_id ? `key:${String(row.user_id)}` : ''
+      if (key && !badgeByKey.has(key))
+        badgeByKey.set(key, String(row.badge_name))
+    })
+    ;(badgesByGuestRes.data ?? []).forEach((row: any) => {
+      const key = row.voter_key ? `key:${String(row.voter_key)}` : ''
+      if (key && !badgeByKey.has(key))
+        badgeByKey.set(key, String(row.badge_name))
+    })
+
+    Object.keys(baseMap).forEach((metaKey) => {
+      baseMap[metaKey] = {
+        level: levelByKey.get(metaKey) ?? baseMap[metaKey].level,
+        badgeName: badgeByKey.get(metaKey) ?? baseMap[metaKey].badgeName,
       }
     })
 
@@ -2514,7 +2565,7 @@ export default function MatnyaApp() {
         author: authorName,
         side,
         text,
-        author_key: authUser?.id ?? null,
+        author_key: authUser?.id ?? voterKey,
         status: 'active',
       })
       .select()
@@ -2529,6 +2580,7 @@ export default function MatnyaApp() {
     const newComment: CommentItem = {
       id: Number(inserted.id),
       author: inserted.author,
+      authorKey: inserted.author_key ?? null,
       side: inserted.side as Side,
       text: inserted.text,
       likes: Number(inserted.likes ?? 0),
@@ -2796,7 +2848,7 @@ export default function MatnyaApp() {
         content: data.content,
         left_label: data.leftLabel,
         right_label: data.rightLabel,
-        author_key: authUser?.id ?? null,
+        author_key: authUser?.id ?? voterKey,
         status: 'active',
       })
       .select()
@@ -3517,6 +3569,7 @@ export default function MatnyaApp() {
           featuredBadge={featuredBadge}
           currentUserLevel={stats.level}
           authorMetaMap={authorMetaMap}
+          currentActorKey={authUser?.id ?? voterKey}
         />
 
         <CreatePostModal
