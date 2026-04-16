@@ -394,77 +394,91 @@ const CommentCard = React.memo(function CommentCard({
   const isLeft = comment.side === 'left'
   const sideLabel = isLeft ? leftLabel : rightLabel
   const sideBadgeClass = isLeft
-    ? 'border-blue-200 bg-blue-50 text-blue-700'
-    : 'border-rose-200 bg-rose-50 text-rose-700'
+    ? 'border-blue-200 bg-blue-50/90 text-blue-700'
+    : 'border-violet-200 bg-violet-50/90 text-violet-700'
 
   return (
     <div
-      className={`rounded-[22px] border p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ${
+      className={`overflow-hidden rounded-[24px] border shadow-[0_14px_30px_rgba(15,23,42,0.06)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
-          : 'border-slate-200/90 bg-white'
+          : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.98)_100%)]'
       }`}
     >
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
-            >
-              {sideLabel}
-            </span>
-            <span className="truncate text-sm font-semibold text-slate-900">
-              {comment.author}
-            </span>
+      <div
+        className={`h-1 w-full ${
+          comment.hidden
+            ? 'bg-red-200'
+            : isLeft
+              ? 'bg-[linear-gradient(90deg,#60a5fa_0%,#4f7cff_100%)]'
+              : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
+        }`}
+      />
+      <div className="p-3.5">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
+              >
+                {sideLabel}
+              </span>
+              <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
+                {comment.author}
+              </span>
+            </div>
+          </div>
+          <div className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">
+            공감 {comment.likes}
           </div>
         </div>
-        <div className="shrink-0 text-[11px] text-slate-400">
-          공감 {comment.likes}
+
+        <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-700">
+          {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
-      </div>
 
-      <div className="text-[14px] leading-6 text-slate-700">
-        {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-        {!comment.hidden && (
-          <button
-            onClick={() => onLikeComment(comment.id)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition ${
-              isLiked
-                ? 'bg-rose-50 text-rose-600'
-                : 'bg-slate-100 text-slate-500'
-            }`}
-          >
-            <Heart className={`h-4 w-4 ${isLiked ? 'fill-[#ef4444]' : ''}`} />
-            <span>{comment.likes}</span>
-          </button>
-        )}
-        {!comment.hidden && (
-          <button
-            onClick={() => onOpenReportComment(comment.id)}
-            className="text-slate-400 transition hover:text-slate-600"
-          >
-            신고
-          </button>
-        )}
-        {adminMode && comment.hidden && (
-          <>
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs">
+          {!comment.hidden && (
             <button
-              onClick={() => onAdminRestoreComment(comment.id)}
-              className="rounded-full bg-[#4f7cff] px-3 py-1 text-xs font-bold text-white"
+              onClick={() => onLikeComment(comment.id)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
+                isLiked
+                  ? 'border-rose-200 bg-rose-50 text-rose-600'
+                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+              }`}
             >
-              숨김 해제
+              <Heart
+                className={`h-3.5 w-3.5 ${isLiked ? 'fill-[#ef4444]' : ''}`}
+              />
+              <span>공감</span>
+              <span>{comment.likes}</span>
             </button>
+          )}
+          {!comment.hidden && (
             <button
-              onClick={() => onAdminDeleteComment(comment.id)}
-              className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white"
+              onClick={() => onOpenReportComment(comment.id)}
+              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
             >
-              삭제
+              신고
             </button>
-          </>
-        )}
+          )}
+          {adminMode && comment.hidden && (
+            <>
+              <button
+                onClick={() => onAdminRestoreComment(comment.id)}
+                className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
+              >
+                숨김 해제
+              </button>
+              <button
+                onClick={() => onAdminDeleteComment(comment.id)}
+                className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white"
+              >
+                삭제
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -789,13 +803,13 @@ function CommentModal({
   if (!open || !post) return null
 
   const baseComments = sortType === 'best' ? sortedComments : latestComments
-  const visibleComments = baseComments
-    .filter((comment) => !comment.hidden || adminMode)
-    .slice(0, visibleCount)
+  const filteredVisibleComments = baseComments.filter(
+    (comment) => !comment.hidden || adminMode,
+  )
+  const visibleComments = filteredVisibleComments.slice(0, visibleCount)
   const bestComment = sortedComments.find((c) => !c.hidden) || sortedComments[0]
-  const hasMoreComments =
-    baseComments.filter((comment) => !comment.hidden || adminMode).length >
-    visibleCount
+  const hasMoreComments = filteredVisibleComments.length > visibleCount
+  const selectedIsLeft = commentSide === 'left'
 
   const submitComment = () => {
     const trimmed = text.trim()
@@ -805,83 +819,91 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
-        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
-          <div>
-            <div className="text-lg font-bold">반응</div>
-            <div className="text-sm text-slate-500">
-              {post.comments.length}개
+    <div className="fixed inset-0 z-40 bg-slate-900/35 backdrop-blur-md">
+      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-5 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
+                comments
+              </div>
+              <div className="mt-1 text-[20px] font-extrabold tracking-tight text-slate-950">
+                반응 {post.comments.length}개
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 shadow-[0_8px_18px_rgba(15,23,42,0.06)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[12px] text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <span className="font-semibold text-slate-900">{guestName}</span>{' '}
+              이름으로 바로 참여 가능
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSortType('best')}
+                className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                  sortType === 'best'
+                    ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
+                    : 'border border-slate-200 bg-white text-slate-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
+                }`}
+              >
+                베스트
+              </button>
+              <button
+                onClick={() => setSortType('latest')}
+                className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                  sortType === 'latest'
+                    ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
+                    : 'border border-slate-200 bg-white text-slate-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
+                }`}
+              >
+                최신
+              </button>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
-          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)] text-sm text-slate-600">
-            지금은 <span className="font-bold text-slate-900">{guestName}</span>{' '}
-            이름으로 바로 댓글 작성 가능
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSortType('best')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                sortType === 'best'
-                  ? 'bg-[#4f7cff] text-slate-900'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              베스트
-            </button>
-            <button
-              onClick={() => setSortType('latest')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                sortType === 'latest'
-                  ? 'bg-[#4f7cff] text-slate-900'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              최신
-            </button>
-          </div>
-
           {bestComment && !bestComment.hidden && (
-            <div className="rounded-[26px] border border-[#c9d8ff] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] p-4 shadow-[0_12px_28px_rgba(79,124,255,0.10)]">
-              <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
-                <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
-              </div>
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                    bestComment.side === 'left'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700'
-                      : 'border-rose-200 bg-rose-50 text-rose-700'
-                  }`}
-                >
-                  {bestComment.side === 'left'
-                    ? post.leftLabel
-                    : post.rightLabel}
-                </span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {bestComment.author}
-                </span>
-              </div>
-              <div className="text-[15px] leading-7 text-slate-900/85">
-                {bestComment.text}
-              </div>
-              <div className="mt-3 text-xs text-slate-500">
-                공감 {bestComment.likes}
+            <div className="overflow-hidden rounded-[28px] border border-[#d8e3ff] bg-[linear-gradient(180deg,#ffffff_0%,#edf3ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.12)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#60a5fa_0%,#4f7cff_55%,#7c9cff_100%)]" />
+              <div className="p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
+                  <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
+                </div>
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                      bestComment.side === 'left'
+                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        : 'border-violet-200 bg-violet-50 text-violet-700'
+                    }`}
+                  >
+                    {bestComment.side === 'left'
+                      ? post.leftLabel
+                      : post.rightLabel}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {bestComment.author}
+                  </span>
+                </div>
+                <div className="text-[15px] leading-7 tracking-[-0.01em] text-slate-800">
+                  {bestComment.text}
+                </div>
+                <div className="mt-3 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                  공감 {bestComment.likes}
+                </div>
               </div>
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {visibleComments.map((comment) => (
               <CommentCard
                 key={comment.id}
@@ -903,39 +925,39 @@ function CommentModal({
               onClick={() =>
                 setVisibleCount((prev) => prev + INITIAL_COMMENT_BATCH)
               }
-              className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-[0_2px_10px_rgba(15,23,42,0.03)] text-sm font-bold text-slate-900"
+              className="w-full rounded-[22px] border border-slate-200/80 bg-white/90 px-4 py-3 text-sm font-bold text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
             >
               반응 더보기
             </button>
           )}
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setCommentSide('left')}
-              className={`rounded-2xl px-4 py-2.5 text-sm font-bold ${
-                commentSide === 'left'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                  : 'bg-white text-slate-900 border border-slate-200/80'
-              }`}
-            >
-              {post.leftLabel}
-            </button>
-            <button
-              onClick={() => setCommentSide('right')}
-              className={`rounded-2xl px-4 py-2.5 text-sm font-bold ${
-                commentSide === 'right'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                  : 'bg-white text-slate-900 border border-slate-200/80'
-              }`}
-            >
-              {post.rightLabel}
-            </button>
-          </div>
+        <div className="shrink-0 border-t border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.96)_100%)] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <div className="rounded-[26px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setCommentSide('left')}
+                className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
+                  commentSide === 'left'
+                    ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
+                    : 'border border-slate-200 bg-slate-50 text-slate-700'
+                }`}
+              >
+                {post.leftLabel}
+              </button>
+              <button
+                onClick={() => setCommentSide('right')}
+                className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
+                  commentSide === 'right'
+                    ? 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] text-white shadow-[0_10px_20px_rgba(124,58,237,0.20)]'
+                    : 'border border-slate-200 bg-slate-50 text-slate-700'
+                }`}
+              >
+                {post.rightLabel}
+              </button>
+            </div>
 
-          <div>
-            <div className="flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
               <input
                 ref={inputRef}
                 value={text}
@@ -947,28 +969,29 @@ function CommentModal({
                     submitComment()
                   }
                 }}
-                placeholder="익명으로 바로 반응 남기기"
-                className="h-[50px] flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-slate-900 outline-none placeholder:text-slate-400"
+                placeholder={
+                  selectedIsLeft
+                    ? `${post.leftLabel} 쪽 의견 남기기`
+                    : `${post.rightLabel} 쪽 의견 남기기`
+                }
+                className="h-[48px] flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[14px] text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               <button
                 onClick={submitComment}
-                className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-[#4f7cff] text-white shadow-[0_14px_26px_rgba(79,124,255,0.24)]"
+                className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-[18px] text-white shadow-[0_14px_26px_rgba(15,23,42,0.12)] ${
+                  selectedIsLeft
+                    ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)]'
+                    : 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)]'
+                }`}
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
+          </div>
 
-            <div
-              className={`mt-1 text-right text-xs ${getCounterTone(
-                text.length,
-                LIMITS.comment,
-                0.7,
-                0.9,
-              )}`}
-            >
-              {text.length}/{LIMITS.comment}
-            </div>
+          <div className="mt-1.5 text-right text-[11px] text-slate-400">
+            {text.length}/{LIMITS.comment}
           </div>
         </div>
       </div>
