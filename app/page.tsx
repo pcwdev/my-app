@@ -1699,6 +1699,7 @@ export default function MatnyaApp() {
   const [shareStats, setShareStats] = useState({ left: 0, right: 0 })
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
+  const [sharedEntryActive, setSharedEntryActive] = useState(false)
 
   const featuredBadge = badges[0] ?? null
 
@@ -2341,7 +2342,10 @@ export default function MatnyaApp() {
     const incomingShareId = params.get('share')
     const incomingPostId = params.get('post')
 
-    if (incomingShareId) setShareId(incomingShareId)
+    if (incomingShareId) {
+      setShareId(incomingShareId)
+      setSharedEntryActive(true)
+    }
     if (incomingPostId && !Number.isNaN(Number(incomingPostId))) {
       setSharedPostId(Number(incomingPostId))
     }
@@ -2414,6 +2418,21 @@ export default function MatnyaApp() {
     const url = new URL(window.location.href)
     url.searchParams.set('post', String(postId))
     url.searchParams.set('share', id)
+    window.history.replaceState({}, '', url.toString())
+  }, [])
+
+  const clearShareMode = useCallback(() => {
+    setShareId(null)
+    setSharedPostId(null)
+    setShareOwnerKey(null)
+    setShareStats({ left: 0, right: 0 })
+    setSharedEntryActive(false)
+
+    if (typeof window === 'undefined') return
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('post')
+    url.searchParams.delete('share')
     window.history.replaceState({}, '', url.toString())
   }, [])
 
@@ -2681,9 +2700,15 @@ export default function MatnyaApp() {
     )
   }
 
-  const prev = () => setCurrentIndex((i) => Math.max(i - 1, 0))
-  const next = () =>
+  const prev = () => {
+    clearShareMode()
+    setCurrentIndex((i) => Math.max(i - 1, 0))
+  }
+
+  const next = () => {
+    clearShareMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
+  }
 
   const handleNextWithGuard = () => {
     if (!currentPost) return
@@ -2703,12 +2728,14 @@ export default function MatnyaApp() {
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
+      clearShareMode()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2718,6 +2745,7 @@ export default function MatnyaApp() {
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2728,6 +2756,7 @@ export default function MatnyaApp() {
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -3585,7 +3614,7 @@ export default function MatnyaApp() {
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
                 </p>
-                {shareId && (
+                {sharedEntryActive && (
                   <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                     🔗 공유 링크로 들어온 논쟁
                   </div>
