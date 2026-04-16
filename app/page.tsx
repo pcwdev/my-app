@@ -2286,8 +2286,8 @@ export default function MatnyaApp() {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-          <header className="sticky top-0 z-30 px-4 pt-3.5">
-            <div className="rounded-[30px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(247,250,255,0.99)_100%)] px-4 pb-3 pt-3.5 shadow-[0_18px_46px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          <header className="sticky top-0 z-30 px-4 pt-3">
+            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
@@ -2398,14 +2398,14 @@ export default function MatnyaApp() {
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
-        <header className="sticky top-0 z-30 px-4 pt-3.5">
-          <div className="rounded-[30px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(247,250,255,0.99)_100%)] px-4 pb-3 pt-3.5 shadow-[0_18px_46px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <header className="sticky top-0 z-30 px-4 pt-3">
+          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
                   맞냐
                 </div>
-                <div className="mt-1 text-[23px] font-extrabold tracking-tight">
+                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                   이거 맞냐?
                 </div>
               </div>
@@ -2466,9 +2466,9 @@ export default function MatnyaApp() {
                     setTab(label)
                     setCurrentIndex(0)
                   }}
-                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition ${
+                  className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
                     tab === label
-                      ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.28)]'
+                      ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
                       : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
                   }`}
                 >
@@ -2477,23 +2477,25 @@ export default function MatnyaApp() {
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {categoryFilters.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setSelectedCategory(category)
-                    setCurrentIndex(0)
-                  }}
-                  className={`rounded-[18px] px-2.5 py-2 text-[12px] font-bold transition ${
-                    selectedCategory === category
-                      ? 'bg-[#eaf0ff] text-[#315fdc] border border-[#cddcff] shadow-[0_8px_20px_rgba(79,124,255,0.10)]'
-                      : 'border border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+            <div className="mt-3 -mx-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max gap-2 px-1">
+                {categoryFilters.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedCategory(category)
+                      setCurrentIndex(0)
+                    }}
+                    className={`whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-semibold tracking-[-0.01em] transition ${
+                      selectedCategory === category
+                        ? 'border border-[#cfe0ff] bg-[linear-gradient(180deg,#eff4ff_0%,#e7efff_100%)] text-[#315fdc] shadow-[0_10px_20px_rgba(79,124,255,0.12)]'
+                        : 'border border-slate-200/90 bg-white/95 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </header>
@@ -2502,7 +2504,7 @@ export default function MatnyaApp() {
           <div className="mx-1 border-t border-slate-200/80" />
         </div>
 
-        <main className="px-4 pb-31 pt-2.5">
+        <main className="px-4 pb-32 pt-2">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -2510,7 +2512,7 @@ export default function MatnyaApp() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[30px] border-2 border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.985)_0%,rgba(249,251,255,1)_100%)] p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[30px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur"
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -2554,7 +2556,7 @@ export default function MatnyaApp() {
                 )}
               </div>
 
-              <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_8px_18px_rgba(15,23,42,0.03)]">
+              <div className="rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f9fbff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_rgba(148,163,184,0.12)]">
                 <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                   today issue
                 </div>
@@ -2658,18 +2660,18 @@ export default function MatnyaApp() {
 
         {!isModalOpen && (
           <div className="fixed bottom-3 left-0 right-0 z-[9999] px-4">
-            <div className="mx-auto max-w-[392px] rounded-[22px] border border-slate-200/90 bg-white/94 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_12px_24px_rgba(15,23,42,0.10)]">
+            <div className="mx-auto max-w-[392px] rounded-[24px] border border-white/90 bg-white/92 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_14px_28px_rgba(148,163,184,0.18),0_2px_8px_rgba(15,23,42,0.04)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
-                  className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
                   이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
-                  className="rounded-[18px] bg-[#4f7cff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_12px_22px_rgba(79,124,255,0.22)]"
+                  className="rounded-[18px] bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(79,124,255,0.22)]"
                 >
                   다음 글
                 </button>
