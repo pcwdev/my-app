@@ -2467,11 +2467,8 @@ export default function MatnyaApp() {
   }, [shareId])
 
   const loadShareStatsBySessionId = useCallback(
-    async (sessionId: string | null | undefined) => {
-      if (!sessionId) {
-        setShareStats({ left: 0, right: 0 })
-        return
-      }
+    async (sessionId: string | null) => {
+      if (!sessionId) return
 
       const { data, error } = await supabase
         .from('share_session_stats')
@@ -2485,16 +2482,17 @@ export default function MatnyaApp() {
       }
 
       setShareStats({
-        left: Number(data?.left_count ?? 0),
-        right: Number(data?.right_count ?? 0),
+        left: Number((data as any)?.left_count ?? 0),
+        right: Number((data as any)?.right_count ?? 0),
       })
     },
     [],
   )
 
   const loadShareStats = useCallback(async () => {
+    if (!shareId) return
     await loadShareStatsBySessionId(shareId)
-  }, [loadShareStatsBySessionId, shareId])
+  }, [shareId, loadShareStatsBySessionId])
 
   const syncShareUrl = useCallback((postId: number, id: string) => {
     if (typeof window === 'undefined') return
@@ -2650,15 +2648,15 @@ export default function MatnyaApp() {
         return null
       }
 
-      const nextShareId = String(data.id)
+      const nextShareId = String((data as any).id)
+
       setShareId(nextShareId)
-      setShareOwnerKey(data.owner_key ?? voterKey)
-      setSharedPostId(Number(data.post_id ?? currentPost.id))
-      syncShareUrl(currentPost.id, nextShareId)
-      await loadShareStatsBySessionId(nextShareId)
+      setShareOwnerKey(((data as any).owner_key ?? voterKey) as string)
+      setSharedPostId(Number((data as any).post_id ?? currentPost.id))
+      syncShareUrl(Number((data as any).post_id ?? currentPost.id), nextShareId)
       return nextShareId
     },
-    [currentPost, voterKey, syncShareUrl, loadShareStatsBySessionId],
+    [currentPost, voterKey, syncShareUrl],
   )
 
   const shareCurrentPost = useCallback(async () => {
@@ -2825,55 +2823,57 @@ ${shareUrl}`)
 
     if (!activeShareId && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
-      const shareIdFromUrl = params.get('share')
-      if (shareIdFromUrl) {
-        activeShareId = shareIdFromUrl
-      }
-    }
-
-    if (activeShareId) {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('share_sessions')
-        .select('id, post_id, owner_key')
-        .eq('id', activeShareId)
-        .maybeSingle()
-
-      if (sessionError) {
-        console.error('share session 재확인 실패', sessionError)
-      }
-
-      if (
-        !sessionData ||
-        Number(sessionData.post_id) !== Number(currentPost.id)
-      ) {
-        activeShareId = null
-      } else {
-        setShareId(String(sessionData.id))
-        setSharedPostId(Number(sessionData.post_id))
-        setShareOwnerKey(sessionData.owner_key ?? null)
+      const urlShareId = params.get('share')
+      if (urlShareId) {
+        activeShareId = urlShareId
       }
     }
 
     if (!activeShareId) {
       activeShareId = await createShareSession(choice)
-    } else if (!shareOwnerKey || String(shareOwnerKey) !== String(voterKey)) {
-      const { error: shareResponseError } = await supabase
-        .from('share_responses')
-        .upsert(
-          {
-            share_session_id: activeShareId,
-            responder_key: voterKey,
-            choice,
-          },
-          { onConflict: 'share_session_id,responder_key' },
-        )
+    }
 
-      if (shareResponseError) {
-        console.error('share response 저장 실패', shareResponseError)
-        showToast('친구 응답 저장 실패')
+    if (
+      activeShareId &&
+      (!shareOwnerKey || String(shareOwnerKey) !== String(voterKey))
+    ) {
+      const { data: validSession, error: validSessionError } = await supabase
+        .from('share_sessions')
+        .select('id, post_id')
+        .eq('id', activeShareId)
+        .maybeSingle()
+
+      if (validSessionError) {
+        console.error('share session 검증 실패', validSessionError)
+      } else if (
+        !validSession ||
+        Number((validSession as any).post_id) !== Number(currentPost.id)
+      ) {
+        console.error('현재 글과 share session 불일치', {
+          activeShareId,
+          currentPostId: currentPost.id,
+          sessionPostId: (validSession as any)?.post_id,
+        })
       } else {
-        await loadShareStatsBySessionId(activeShareId)
+        const { error: shareResponseError } = await supabase
+          .from('share_responses')
+          .upsert(
+            {
+              share_session_id: activeShareId,
+              responder_key: voterKey,
+              choice,
+            },
+            { onConflict: 'share_session_id,responder_key' },
+          )
+
+        if (shareResponseError) {
+          console.error('share response 저장 실패', shareResponseError)
+        } else {
+          await loadShareStatsBySessionId(activeShareId)
+        }
       }
+    } else if (!activeShareId) {
+      console.error('share_session_id 없음')
     }
 
     await updateProgress(
