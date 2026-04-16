@@ -232,25 +232,41 @@ const VoteOption = React.memo(function VoteOption({
   label,
   value,
   onClick,
+  side,
 }: {
   active: boolean
   label: string
   value: number
   onClick: () => void
+  side: 'left' | 'right'
 }) {
+  const isLeft = side === 'left'
+
+  const activeWrapClass = isLeft
+    ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
+    : 'border-violet-200 bg-[linear-gradient(180deg,#faf7ff_0%,#f2ebff_100%)] shadow-[0_14px_26px_rgba(124,58,237,0.14)]'
+
+  const activeBadgeClass = isLeft
+    ? 'bg-[#4f7cff] text-white'
+    : 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] text-white'
+
+  const barClass = isLeft
+    ? 'bg-[#4f7cff] shadow-[0_4px_12px_rgba(79,124,255,0.28)]'
+    : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] shadow-[0_4px_12px_rgba(124,58,237,0.26)]'
+
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
+      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
         active
-          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
+          ? activeWrapClass
           : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <span
           className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
-            active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
+            active ? activeBadgeClass : 'bg-slate-100 text-slate-700'
           }`}
         >
           {label}
@@ -261,7 +277,7 @@ const VoteOption = React.memo(function VoteOption({
       </div>
       <div className="h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
         <div
-          className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
+          className={`h-full rounded-full transition-all duration-150 ${barClass}`}
           style={{ width: `${value}%` }}
         />
       </div>
@@ -2628,14 +2644,31 @@ export default function MatnyaApp() {
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
                     value={p.left}
+                    side="left"
                     onClick={() => void handleVote('left')}
                   />
+
+                  <div className="flex items-center justify-center py-0.5">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-3 py-1.5 text-[11px] font-black tracking-[0.28em] text-slate-400 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                      <span>VS</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                    </div>
+                  </div>
+
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
+                    side="right"
                     onClick={() => void handleVote('right')}
                   />
+
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3.5 py-2 text-[12px] text-slate-500 shadow-[0_6px_16px_rgba(15,23,42,0.03)]">
+                    {votes[currentPost.id]
+                      ? '선택 완료. 이제 퍼센트와 댓글 흐름을 보면서 분위기를 확인해봐.'
+                      : '먼저 한쪽을 선택하면 결과와 다음 글 흐름이 더 재밌게 보임.'}
+                  </div>
 
                   {votes[currentPost.id] ? (
                     <div className="space-y-4">
