@@ -322,6 +322,117 @@ function normalizeStats(row?: Partial<UserStatsRow> | null): UserStatsRow {
   }
 }
 
+function getLevelTheme(level: number) {
+  if (level >= 10) {
+    return {
+      icon: '👑',
+      chipClass:
+        'border-amber-300 bg-[linear-gradient(135deg,#fff7cc_0%,#ffe082_100%)] text-amber-900 shadow-[0_10px_22px_rgba(245,158,11,0.18)]',
+      softClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      ringClass: 'from-amber-300 via-yellow-300 to-amber-400',
+    }
+  }
+  if (level >= 9) {
+    return {
+      icon: '🔥',
+      chipClass:
+        'border-orange-300 bg-[linear-gradient(135deg,#fff1e6_0%,#fdba74_100%)] text-orange-900 shadow-[0_10px_22px_rgba(249,115,22,0.16)]',
+      softClass: 'bg-orange-50 text-orange-800 border-orange-200',
+      ringClass: 'from-orange-300 via-amber-300 to-orange-400',
+    }
+  }
+  if (level >= 7) {
+    return {
+      icon: '🟣',
+      chipClass:
+        'border-violet-300 bg-[linear-gradient(135deg,#f5f3ff_0%,#c4b5fd_100%)] text-violet-900 shadow-[0_10px_22px_rgba(124,58,237,0.14)]',
+      softClass: 'bg-violet-50 text-violet-800 border-violet-200',
+      ringClass: 'from-violet-300 via-fuchsia-300 to-violet-400',
+    }
+  }
+  if (level >= 5) {
+    return {
+      icon: '🟢',
+      chipClass:
+        'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#86efac_100%)] text-emerald-900 shadow-[0_10px_22px_rgba(16,185,129,0.14)]',
+      softClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      ringClass: 'from-emerald-300 via-lime-300 to-emerald-400',
+    }
+  }
+  if (level >= 3) {
+    return {
+      icon: '🔵',
+      chipClass:
+        'border-blue-300 bg-[linear-gradient(135deg,#eff6ff_0%,#93c5fd_100%)] text-blue-900 shadow-[0_10px_22px_rgba(59,130,246,0.14)]',
+      softClass: 'bg-blue-50 text-blue-800 border-blue-200',
+      ringClass: 'from-blue-300 via-sky-300 to-blue-400',
+    }
+  }
+  return {
+    icon: '⚪',
+    chipClass:
+      'border-slate-300 bg-[linear-gradient(135deg,#ffffff_0%,#e2e8f0_100%)] text-slate-800 shadow-[0_8px_18px_rgba(148,163,184,0.14)]',
+    softClass: 'bg-slate-50 text-slate-700 border-slate-200',
+    ringClass: 'from-slate-200 via-slate-300 to-slate-300',
+  }
+}
+
+function getBadgeTheme(badgeName?: string | null) {
+  if (!badgeName) {
+    return {
+      icon: '✨',
+      pillClass: 'border-slate-200 bg-slate-50 text-slate-700',
+      softClass: 'border-slate-200 bg-slate-50 text-slate-700',
+    }
+  }
+
+  if (badgeName.includes('댓글')) {
+    return {
+      icon: '💬',
+      pillClass: 'border-sky-200 bg-sky-50 text-sky-800',
+      softClass: 'border-sky-200 bg-sky-50 text-sky-800',
+    }
+  }
+
+  if (badgeName.includes('판단')) {
+    return {
+      icon: '⚡',
+      pillClass: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+      softClass: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+    }
+  }
+
+  if (badgeName.includes('글') || badgeName.includes('썰')) {
+    return {
+      icon: '✍️',
+      pillClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+      softClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    }
+  }
+
+  if (badgeName.includes('공감')) {
+    return {
+      icon: '❤️',
+      pillClass: 'border-rose-200 bg-rose-50 text-rose-800',
+      softClass: 'border-rose-200 bg-rose-50 text-rose-800',
+    }
+  }
+
+  if (badgeName.includes('반응')) {
+    return {
+      icon: '🔥',
+      pillClass: 'border-amber-200 bg-amber-50 text-amber-800',
+      softClass: 'border-amber-200 bg-amber-50 text-amber-800',
+    }
+  }
+
+  return {
+    icon: '🏆',
+    pillClass: 'border-amber-200 bg-amber-50 text-amber-800',
+    softClass: 'border-amber-200 bg-amber-50 text-amber-800',
+  }
+}
+
 const VoteOption = React.memo(function VoteOption({
   active,
   label,
@@ -497,6 +608,7 @@ const CommentCard = React.memo(function CommentCard({
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
   const isMyComment =
     currentUserName != null && comment.author === currentUserName
+  const badgeTheme = getBadgeTheme(featuredBadge)
 
   return (
     <div
@@ -528,8 +640,10 @@ const CommentCard = React.memo(function CommentCard({
                 {comment.author}
               </span>
               {isMyComment && featuredBadge ? (
-                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                  🏆 {featuredBadge}
+                <span
+                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
+                >
+                  {badgeTheme.icon} {featuredBadge}
                 </span>
               ) : null}
             </div>
@@ -641,6 +755,7 @@ function MyActivityModal({
         <div className="shrink-0 px-5 pt-4">
           {(() => {
             const levelInfo = getLevelInfo(stats.points)
+            const levelTheme = getLevelTheme(levelInfo.level)
 
             return (
               <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-4">
@@ -649,8 +764,14 @@ function MyActivityModal({
                     <div className="text-sm font-semibold text-slate-900">
                       {profile?.anonymous_name ?? '익명 유저'}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      Lv.{levelInfo.level} · {levelInfo.label}
+                    <div className="mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${levelTheme.chipClass}`}
+                      >
+                        <span>{levelTheme.icon}</span>
+                        <span>Lv.{levelInfo.level}</span>
+                        <span>{levelInfo.label}</span>
+                      </span>
                     </div>
                   </div>
                   <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#4f7cff]">
@@ -708,14 +829,17 @@ function MyActivityModal({
                         아직 획득한 뱃지가 없음
                       </div>
                     ) : (
-                      badges.map((badge) => (
-                        <span
-                          key={badge}
-                          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700"
-                        >
-                          🏆 {badge}
-                        </span>
-                      ))
+                      badges.map((badge) => {
+                        const badgeTheme = getBadgeTheme(badge)
+                        return (
+                          <span
+                            key={badge}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
+                          >
+                            {badgeTheme.icon} {badge}
+                          </span>
+                        )
+                      })
                     )}
                   </div>
                 </div>
@@ -1270,11 +1394,18 @@ function CreatePostModal({
             <div className="mt-1 text-xs text-slate-500">
               현재 작성자: {guestName}
             </div>
-            {featuredBadge ? (
-              <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                🏆 대표 뱃지: {featuredBadge}
-              </div>
-            ) : null}
+            {featuredBadge
+              ? (() => {
+                  const badgeTheme = getBadgeTheme(featuredBadge)
+                  return (
+                    <div
+                      className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
+                    >
+                      {badgeTheme.icon} 대표 뱃지: {featuredBadge}
+                    </div>
+                  )
+                })()
+              : null}
           </div>
           <button
             onClick={onClose}
@@ -2883,20 +3014,25 @@ export default function MatnyaApp() {
                 {!authUser ? (
                   <button
                     onClick={() => setAuthOpen(true)}
-                    className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
                     <span className="text-xs font-bold">
-                      {guestName} · Lv.{levelInfo.level}
+                      Lv.{levelInfo.level}
                     </span>
                   </button>
                 ) : (
                   <button
                     onClick={() => setActivityOpen(true)}
-                    className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
                     <span className="text-xs font-bold">
-                      {(profile?.anonymous_name ?? '익명') +
-                        ` · Lv.${levelInfo.level}`}
+                      Lv.{levelInfo.level}
                     </span>
                   </button>
                 )}
@@ -3106,24 +3242,33 @@ export default function MatnyaApp() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-[22px] border border-amber-200 bg-[linear-gradient(180deg,#fff9e8_0%,#fff4cf_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(245,158,11,0.10)]">
+              <div className="mt-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.06)]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-amber-700">
-                    현재 Lv.{levelInfo.level}
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${getLevelTheme(levelInfo.level).chipClass}`}
+                  >
+                    {getLevelTheme(levelInfo.level).icon} Lv.{levelInfo.level}{' '}
+                    {levelInfo.label}
                   </span>
                   {featuredBadge ? (
-                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                      🏆 {featuredBadge}
-                    </span>
+                    (() => {
+                      const badgeTheme = getBadgeTheme(featuredBadge)
+                      return (
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
+                        >
+                          {badgeTheme.icon} {featuredBadge}
+                        </span>
+                      )
+                    })()
                   ) : (
-                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                      첫 판단 뱃지 도전중
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                      ✨ 첫 뱃지 도전중
                     </span>
                   )}
                 </div>
-                <div className="mt-2 text-[12px] leading-5 text-amber-900/85">
-                  지금 판단하면 +1P, 댓글 쓰면 +3P. 뱃지는 내 활동에서 전부 확인
-                  가능.
+                <div className="mt-2 text-[12px] leading-5 text-slate-600">
+                  활동할수록 레벨이 오르고, 행동에 따라 뱃지가 쌓임.
                 </div>
               </div>
 
