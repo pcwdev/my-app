@@ -780,10 +780,16 @@ function CommentModal({
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 80)
-      return () => clearTimeout(timer)
-    }
+    if (!open) return
+
+    const isMobile =
+      typeof window !== 'undefined' &&
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+    if (isMobile) return
+
+    const timer = setTimeout(() => inputRef.current?.focus(), 80)
+    return () => clearTimeout(timer)
   }, [open])
 
   useEffect(() => {
@@ -974,7 +980,7 @@ function CommentModal({
                     ? `${post.leftLabel} 쪽 의견 남기기`
                     : `${post.rightLabel} 쪽 의견 남기기`
                 }
-                className="h-[48px] min-w-0 flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[14px] text-slate-900 outline-none placeholder:text-slate-400"
+                className="h-[48px] min-w-0 flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[16px] text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               <button
