@@ -877,11 +877,22 @@ function CommentModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           {bestComment && !bestComment.hidden && (
-            <div className="overflow-hidden rounded-[28px] border border-[#d8e3ff] bg-[linear-gradient(180deg,#ffffff_0%,#edf3ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.12)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#60a5fa_0%,#4f7cff_55%,#7c9cff_100%)]" />
+            <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
               <div className="p-4">
-                <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
-                  <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
+                      BEST COMMENT
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
+                      <Flame className="h-4 w-4 text-amber-500" /> 지금 가장
+                      공감받는 반응
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    공감 {bestComment.likes}
+                  </div>
                 </div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span
@@ -899,11 +910,8 @@ function CommentModal({
                     {bestComment.author}
                   </span>
                 </div>
-                <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-800">
+                <div className="text-[15px] leading-6 tracking-[-0.01em] text-slate-800">
                   {bestComment.text}
-                </div>
-                <div className="mt-3 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                  공감 {bestComment.likes}
                 </div>
               </div>
             </div>
