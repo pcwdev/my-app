@@ -1143,6 +1143,8 @@ function CommentModal({
   currentUserLevel,
   authorMetaMap,
   currentActorKey,
+  liveNow,
+  activityStatusText,
 }: {
   post: PostItem | null
   open: boolean
@@ -1159,6 +1161,8 @@ function CommentModal({
   currentUserLevel?: number
   authorMetaMap: Record<string, AuthorMeta>
   currentActorKey?: string | null
+  liveNow: number
+  activityStatusText: string
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1277,6 +1281,11 @@ function CommentModal({
                 최신
               </button>
             </div>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2 text-[11px] text-slate-500">
+            <span>🔥 {activityStatusText}</span>
+            <span>{liveNow}명 반응 중</span>
           </div>
         </div>
 
@@ -1700,6 +1709,7 @@ export default function MatnyaApp() {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const [lastShareTotal, setLastShareTotal] = useState(0)
 
   const featuredBadge = badges[0] ?? null
 
@@ -2443,6 +2453,31 @@ export default function MatnyaApp() {
   useEffect(() => {
     if (shareId) void loadShareStats()
   }, [shareId, loadShareStats])
+
+  useEffect(() => {
+    if (!shareId) return
+
+    const timer = window.setInterval(() => {
+      void loadShareStats()
+    }, 12000)
+
+    return () => window.clearInterval(timer)
+  }, [shareId, loadShareStats])
+
+  useEffect(() => {
+    const total = shareStats.left + shareStats.right
+
+    if (!shareId) {
+      setLastShareTotal(0)
+      return
+    }
+
+    if (total > lastShareTotal && lastShareTotal > 0) {
+      showToast('🔥 친구 반응 들어오는 중')
+    }
+
+    setLastShareTotal(total)
+  }, [shareId, shareStats.left, shareStats.right, lastShareTotal, showToast])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -3431,6 +3466,28 @@ export default function MatnyaApp() {
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
   const levelInfo = getLevelInfo(stats.points)
+  const totalVotes = currentPost.leftVotes + currentPost.rightVotes
+  const shareTotal = shareStats.left + shareStats.right
+  const liveNow = Math.max(
+    3,
+    Math.round(
+      currentPost.comments.length * 1.4 +
+        totalVotes * 0.08 +
+        currentPost.views * 0.018 +
+        shareTotal * 1.6 +
+        (sharedEntryActive ? 2 : 0),
+    ),
+  )
+  const voteGap = Math.abs(p.left - p.right)
+  const activityStatusText =
+    shareTotal > 0
+      ? '공유 반응 계속 모이는 중'
+      : voteGap <= 8
+        ? '지금 박빙으로 갈리는 중'
+        : currentPost.comments.length >= 8
+          ? '댓글 반응 빠르게 쌓이는 중'
+          : '새 반응 계속 들어오는 중'
+
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
@@ -3546,6 +3603,37 @@ export default function MatnyaApp() {
 
         <div className="px-4">
           <div className="mx-1 border-t border-slate-200/80" />
+        </div>
+
+        <div className="px-4 pt-2">
+          <div className="rounded-[20px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95)_0%,rgba(247,250,255,0.96)_100%)] px-3.5 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-extrabold tracking-[0.18em] text-rose-500">
+                  LIVE
+                </div>
+                <div className="mt-1 text-sm font-bold text-slate-900">
+                  {activityStatusText}
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-700">
+                {liveNow}명 반응 중
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+              <span>댓글 {currentPost.comments.length}개</span>
+              <span>·</span>
+              <span>참여 {totalVotes}명</span>
+              <span>·</span>
+              <span>조회 {currentPost.views}</span>
+              {shareTotal > 0 ? (
+                <>
+                  <span>·</span>
+                  <span>공유 반응 {shareTotal}명</span>
+                </>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <main className="px-4 pb-32 pt-2">
@@ -3723,6 +3811,12 @@ export default function MatnyaApp() {
                                 : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
                         </div>
 
+                        {shareId ? (
+                          <div className="mt-2 rounded-2xl border border-amber-200/80 bg-white/70 px-3 py-2 text-[11px] text-amber-700">
+                            12초마다 친구 반응을 새로 불러오는 중
+                          </div>
+                        ) : null}
+
                         <button
                           onClick={() => void shareCurrentPost()}
                           className="mt-3 w-full rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
@@ -3839,6 +3933,8 @@ export default function MatnyaApp() {
           currentUserLevel={stats.level}
           authorMetaMap={authorMetaMap}
           currentActorKey={authUser?.id ?? voterKey}
+          liveNow={liveNow}
+          activityStatusText={activityStatusText}
         />
 
         <CreatePostModal
