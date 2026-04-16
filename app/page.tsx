@@ -473,6 +473,8 @@ const CommentCard = React.memo(function CommentCard({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
+  currentUserName,
+  featuredBadge,
 }: {
   comment: CommentItem
   leftLabel: string
@@ -483,6 +485,8 @@ const CommentCard = React.memo(function CommentCard({
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
+  currentUserName?: string
+  featuredBadge?: string | null
 }) {
   if (comment.hidden && !adminMode) return null
 
@@ -491,6 +495,8 @@ const CommentCard = React.memo(function CommentCard({
   const sideBadgeClass = isLeft
     ? 'border-blue-200 bg-blue-50/90 text-blue-700'
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
+  const isMyComment =
+    currentUserName != null && comment.author === currentUserName
 
   return (
     <div
@@ -521,6 +527,11 @@ const CommentCard = React.memo(function CommentCard({
               <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
                 {comment.author}
               </span>
+              {isMyComment && featuredBadge ? (
+                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                  🏆 {featuredBadge}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -933,6 +944,7 @@ function CommentModal({
   onAdminRestoreComment,
   onAdminDeleteComment,
   guestName,
+  featuredBadge,
 }: {
   post: PostItem | null
   open: boolean
@@ -945,6 +957,7 @@ function CommentModal({
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
   guestName: string
+  featuredBadge?: string | null
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1022,6 +1035,11 @@ function CommentModal({
             <div className="max-w-full rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
               <span className="font-semibold text-slate-900">{guestName}</span>{' '}
               이름으로 바로 참여 가능
+              {featuredBadge ? (
+                <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-bold text-amber-700">
+                  🏆 {featuredBadge}
+                </span>
+              ) : null}
             </div>
             <div className="flex gap-2">
               <button
@@ -1103,6 +1121,8 @@ function CommentModal({
                 adminMode={adminMode}
                 onAdminRestoreComment={onAdminRestoreComment}
                 onAdminDeleteComment={onAdminDeleteComment}
+                currentUserName={guestName}
+                featuredBadge={featuredBadge}
               />
             ))}
           </div>
@@ -1191,6 +1211,7 @@ function CreatePostModal({
   onClose,
   onCreate,
   guestName,
+  featuredBadge,
 }: {
   open: boolean
   onClose: () => void
@@ -1203,6 +1224,7 @@ function CreatePostModal({
     rightLabel: string
   }) => void
   guestName: string
+  featuredBadge?: string | null
 }) {
   const [category, setCategory] = useState('연애')
   const [ageGroup, setAgeGroup] = useState('20대')
@@ -1248,6 +1270,11 @@ function CreatePostModal({
             <div className="mt-1 text-xs text-slate-500">
               현재 작성자: {guestName}
             </div>
+            {featuredBadge ? (
+              <div className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                🏆 대표 뱃지: {featuredBadge}
+              </div>
+            ) : null}
           </div>
           <button
             onClick={onClose}
@@ -1420,6 +1447,8 @@ export default function MatnyaApp() {
     }),
   )
   const [badges, setBadges] = useState<string[]>([])
+
+  const featuredBadge = badges[0] ?? null
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
   const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
@@ -2797,6 +2826,7 @@ export default function MatnyaApp() {
           onClose={() => setWriteOpen(false)}
           onCreate={(input) => void createPost(input)}
           guestName={profile?.anonymous_name ?? guestName}
+          featuredBadge={featuredBadge}
         />
 
         <MyActivityModal
@@ -2833,6 +2863,8 @@ export default function MatnyaApp() {
   }
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
+  const levelInfo = getLevelInfo(stats.points)
+  const rewardGuide = ['판단 +1P', '댓글 +3P', '글쓰기 +5P', '공감 받으면 +2P']
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
@@ -2855,7 +2887,9 @@ export default function MatnyaApp() {
                     onClick={() => setAuthOpen(true)}
                     className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                   >
-                    <span className="text-xs font-bold">{guestName}</span>
+                    <span className="text-xs font-bold">
+                      {guestName} · Lv.{levelInfo.level}
+                    </span>
                   </button>
                 ) : (
                   <button
@@ -2863,7 +2897,8 @@ export default function MatnyaApp() {
                     className="flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                   >
                     <span className="text-xs font-bold">
-                      {profile?.anonymous_name ?? '익명'}
+                      {(profile?.anonymous_name ?? '익명') +
+                        ` · Lv.${levelInfo.level}`}
                     </span>
                   </button>
                 )}
@@ -2933,6 +2968,36 @@ export default function MatnyaApp() {
                   >
                     {category}
                   </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-[24px] border border-[#d9e5ff] bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_100%)] px-3.5 py-3 shadow-[0_10px_24px_rgba(79,124,255,0.10)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[12px] font-extrabold tracking-[0.02em] text-[#315fdc]">
+                    포인트 · 레벨 · 뱃지 진행중
+                  </div>
+                  <div className="mt-1 text-[12px] leading-5 text-slate-600">
+                    판단/댓글/글쓰기 하면 포인트가 쌓이고, 조건을 채우면 뱃지가
+                    열림.
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActivityOpen(true)}
+                  className="shrink-0 rounded-full border border-[#cfe0ff] bg-white px-3 py-1.5 text-[11px] font-bold text-[#315fdc]"
+                >
+                  내 레벨 보기
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {rewardGuide.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-white/90 bg-white/85 px-2.5 py-1 text-[11px] font-semibold text-slate-600"
+                  >
+                    {item}
+                  </span>
                 ))}
               </div>
             </div>
@@ -3072,6 +3137,27 @@ export default function MatnyaApp() {
                   ) : null}
                 </div>
               )}
+
+              <div className="mt-4 rounded-[22px] border border-amber-200 bg-[linear-gradient(180deg,#fff9e8_0%,#fff4cf_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(245,158,11,0.10)]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-amber-700">
+                    현재 Lv.{levelInfo.level}
+                  </span>
+                  {featuredBadge ? (
+                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                      🏆 {featuredBadge}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                      첫 판단 뱃지 도전중
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 text-[12px] leading-5 text-amber-900/85">
+                  지금 판단하면 +1P, 댓글 쓰면 +3P. 뱃지는 내 활동에서 전부 확인
+                  가능.
+                </div>
+              </div>
 
               <div className="mt-5 border-t border-slate-200 pt-3">
                 <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
