@@ -289,7 +289,7 @@ function ReportModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-md">
       <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
         <div className="mb-1 text-lg font-bold">신고하기</div>
         <div className="mb-4 text-sm text-slate-500">{targetLabel}</div>
@@ -339,7 +339,7 @@ function AuthOptionalModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-md">
       <div className="mx-auto mt-24 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
         <div className="mb-1 text-lg font-bold">로그인은 선택</div>
         <div className="mb-4 text-sm leading-6 text-slate-500">
@@ -512,8 +512,8 @@ function MyActivityModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">내 활동</div>
@@ -563,7 +563,7 @@ function MyActivityModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="text-sm text-slate-500">
               로그인 후 작성한 글이 없음
@@ -647,8 +647,8 @@ function DeletedItemsModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">삭제 항목 관리</div>
@@ -819,9 +819,9 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/35 backdrop-blur-md">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
-        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-5 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
@@ -839,8 +839,8 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[12px] text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="max-w-full rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
               <span className="font-semibold text-slate-900">{guestName}</span>{' '}
               이름으로 바로 참여 가능
             </div>
@@ -869,7 +869,7 @@ function CommentModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           {bestComment && !bestComment.hidden && (
             <div className="overflow-hidden rounded-[28px] border border-[#d8e3ff] bg-[linear-gradient(180deg,#ffffff_0%,#edf3ff_100%)] shadow-[0_16px_34px_rgba(79,124,255,0.12)]">
               <div className="h-1.5 w-full bg-[linear-gradient(90deg,#60a5fa_0%,#4f7cff_55%,#7c9cff_100%)]" />
@@ -877,7 +877,7 @@ function CommentModal({
                 <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
                   <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
                 </div>
-                <div className="mb-2 flex items-center gap-2">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span
                     className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${
                       bestComment.side === 'left'
@@ -893,7 +893,7 @@ function CommentModal({
                     {bestComment.author}
                   </span>
                 </div>
-                <div className="text-[15px] leading-7 tracking-[-0.01em] text-slate-800">
+                <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-800">
                   {bestComment.text}
                 </div>
                 <div className="mt-3 inline-flex rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
@@ -932,7 +932,7 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.96)_100%)] px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+        <div className="shrink-0 border-t border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.96)_100%)] px-4 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="rounded-[26px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -957,7 +957,7 @@ function CommentModal({
               </button>
             </div>
 
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex min-w-0 items-center gap-2">
               <input
                 ref={inputRef}
                 value={text}
@@ -974,7 +974,7 @@ function CommentModal({
                     ? `${post.leftLabel} 쪽 의견 남기기`
                     : `${post.rightLabel} 쪽 의견 남기기`
                 }
-                className="h-[48px] flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[14px] text-slate-900 outline-none placeholder:text-slate-400"
+                className="h-[48px] min-w-0 flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[14px] text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               <button
@@ -1053,8 +1053,8 @@ function CreatePostModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-md">
-      <div className="mx-auto flex h-[100dvh] min-h-0 max-w-md flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
             <div className="text-lg font-bold">맞냐 글쓰기</div>
@@ -1070,7 +1070,7 @@ function CreatePostModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)] text-sm text-slate-600">
             로그인 없이 바로 글 작성 가능. 로그인은 내 활동 저장용.
           </div>
@@ -2321,7 +2321,7 @@ export default function MatnyaApp() {
   if (!currentPost) {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
-        <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
+        <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-4 pt-3">
             <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               <div className="flex items-start justify-between">
@@ -2433,7 +2433,7 @@ export default function MatnyaApp() {
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col bg-transparent">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
           <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div className="flex items-start justify-between">
