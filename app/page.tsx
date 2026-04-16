@@ -141,6 +141,11 @@ type UserBadgeRow = {
   created_at?: string
 }
 
+type AuthorMeta = {
+  level: number
+  badgeName: string | null
+}
+
 const LEVELS = [
   { level: 1, min: 0, label: '새싹' },
   { level: 2, min: 10, label: '입문자' },
@@ -433,6 +438,44 @@ function getBadgeTheme(badgeName?: string | null) {
   }
 }
 
+const AUTHOR_BADGE_POOL = [
+  '판단러',
+  '댓글러',
+  '썰장인',
+  '공감받기 시작',
+  '반응유발자',
+  '첫 판단',
+] as const
+
+function getFallbackAuthorMeta(author: string): AuthorMeta {
+  const safe = (author || '익명000').trim()
+  const hash = Array.from(safe).reduce((acc, ch, index) => {
+    return acc + ch.charCodeAt(0) * (index + 1)
+  }, 0)
+
+  return {
+    level: 2 + (hash % 7),
+    badgeName: AUTHOR_BADGE_POOL[hash % AUTHOR_BADGE_POOL.length],
+  }
+}
+
+function resolveAuthorMeta(
+  author: string,
+  map: Record<string, AuthorMeta>,
+  currentUserName?: string,
+  currentUserLevel?: number,
+  currentFeaturedBadge?: string | null,
+): AuthorMeta {
+  if (currentUserName && author === currentUserName) {
+    return {
+      level: currentUserLevel ?? 1,
+      badgeName: currentFeaturedBadge ?? null,
+    }
+  }
+
+  return map[author] ?? getFallbackAuthorMeta(author)
+}
+
 const VoteOption = React.memo(function VoteOption({
   active,
   label,
@@ -584,8 +627,7 @@ const CommentCard = React.memo(function CommentCard({
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
-  currentUserName,
-  featuredBadge,
+  authorMeta,
 }: {
   comment: CommentItem
   leftLabel: string
@@ -596,8 +638,7 @@ const CommentCard = React.memo(function CommentCard({
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
-  currentUserName?: string
-  featuredBadge?: string | null
+  authorMeta?: AuthorMeta
 }) {
   if (comment.hidden && !adminMode) return null
 
@@ -606,9 +647,9 @@ const CommentCard = React.memo(function CommentCard({
   const sideBadgeClass = isLeft
     ? 'border-blue-200 bg-blue-50/90 text-blue-700'
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
-  const isMyComment =
-    currentUserName != null && comment.author === currentUserName
-  const badgeTheme = getBadgeTheme(featuredBadge)
+  const resolvedMeta = authorMeta ?? getFallbackAuthorMeta(comment.author)
+  const badgeTheme = getBadgeTheme(resolvedMeta.badgeName)
+  const levelTheme = getLevelTheme(resolvedMeta.level)
 
   return (
     <div
@@ -639,11 +680,16 @@ const CommentCard = React.memo(function CommentCard({
               <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
                 {comment.author}
               </span>
-              {isMyComment && featuredBadge ? (
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
+              >
+                {levelTheme.icon} Lv.{resolvedMeta.level}
+              </span>
+              {resolvedMeta.badgeName ? (
                 <span
                   className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
                 >
-                  {badgeTheme.icon} {featuredBadge}
+                  {badgeTheme.icon} {resolvedMeta.badgeName}
                 </span>
               ) : null}
             </div>
@@ -1069,6 +1115,8 @@ function CommentModal({
   onAdminDeleteComment,
   guestName,
   featuredBadge,
+  currentUserLevel,
+  authorMetaMap,
 }: {
   post: PostItem | null
   open: boolean
@@ -1082,6 +1130,8 @@ function CommentModal({
   onAdminDeleteComment: (commentId: number) => void
   guestName: string
   featuredBadge?: string | null
+  currentUserLevel?: number
+  authorMetaMap: Record<string, AuthorMeta>
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1124,6 +1174,15 @@ function CommentModal({
   )
   const visibleComments = filteredVisibleComments.slice(0, visibleCount)
   const bestComment = sortedComments.find((c) => !c.hidden) || sortedComments[0]
+  const bestCommentMeta = bestComment
+    ? resolveAuthorMeta(
+        bestComment.author,
+        authorMetaMap,
+        guestName,
+        currentUserLevel,
+        featuredBadge,
+      )
+    : null
   const hasMoreComments = filteredVisibleComments.length > visibleCount
   const selectedIsLeft = commentSide === 'left'
 
@@ -1224,6 +1283,24 @@ function CommentModal({
                   <span className="text-sm font-semibold text-slate-900">
                     {bestComment.author}
                   </span>
+                  {bestCommentMeta ? (
+                    <>
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${getLevelTheme(bestCommentMeta.level).softClass}`}
+                      >
+                        {getLevelTheme(bestCommentMeta.level).icon} Lv.
+                        {bestCommentMeta.level}
+                      </span>
+                      {bestCommentMeta.badgeName ? (
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${getBadgeTheme(bestCommentMeta.badgeName).softClass}`}
+                        >
+                          {getBadgeTheme(bestCommentMeta.badgeName).icon}{' '}
+                          {bestCommentMeta.badgeName}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
                 <div className="text-[15px] leading-6 tracking-[-0.01em] text-slate-800">
                   {bestComment.text}
@@ -1245,8 +1322,13 @@ function CommentModal({
                 adminMode={adminMode}
                 onAdminRestoreComment={onAdminRestoreComment}
                 onAdminDeleteComment={onAdminDeleteComment}
-                currentUserName={guestName}
-                featuredBadge={featuredBadge}
+                authorMeta={resolveAuthorMeta(
+                  comment.author,
+                  authorMetaMap,
+                  guestName,
+                  currentUserLevel,
+                  featuredBadge,
+                )}
               />
             ))}
           </div>
@@ -1578,6 +1660,9 @@ export default function MatnyaApp() {
     }),
   )
   const [badges, setBadges] = useState<string[]>([])
+  const [authorMetaMap, setAuthorMetaMap] = useState<
+    Record<string, AuthorMeta>
+  >({})
 
   const featuredBadge = badges[0] ?? null
 
@@ -2028,6 +2113,88 @@ export default function MatnyaApp() {
     [authUser?.id, voterKey, stats, showToast, awardBadgesFromStats],
   )
 
+  const loadAuthorMeta = useCallback(async () => {
+    const allComments = posts.flatMap((post) => post.comments)
+    const uniqueAuthors = [
+      ...new Set(allComments.map((comment) => comment.author).filter(Boolean)),
+    ]
+
+    if (uniqueAuthors.length === 0) {
+      setAuthorMetaMap({})
+      return
+    }
+
+    const baseMap: Record<string, AuthorMeta> = {}
+    uniqueAuthors.forEach((author) => {
+      baseMap[author] = getFallbackAuthorMeta(author)
+    })
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, anonymous_name')
+      .in('anonymous_name', uniqueAuthors)
+
+    if (profilesError) {
+      console.error('작성자 프로필 조회 실패', profilesError)
+      setAuthorMetaMap(baseMap)
+      return
+    }
+
+    const matchedProfiles = profilesData ?? []
+    const userIds = matchedProfiles.map((profile) => profile.id)
+
+    if (userIds.length === 0) {
+      setAuthorMetaMap(baseMap)
+      return
+    }
+
+    const { data: statsRows, error: statsError } = await supabase
+      .from('user_stats')
+      .select('user_id, level')
+      .in('user_id', userIds)
+
+    if (statsError) {
+      console.error('작성자 레벨 조회 실패', statsError)
+    }
+
+    const { data: badgeRows, error: badgeError } = await supabase
+      .from('user_badges')
+      .select('user_id, badge_name, created_at')
+      .in('user_id', userIds)
+      .order('created_at', { ascending: false })
+
+    if (badgeError) {
+      console.error('작성자 뱃지 조회 실패', badgeError)
+    }
+
+    const levelByUserId = new Map<string, number>()
+    ;(statsRows ?? []).forEach((row: any) => {
+      levelByUserId.set(String(row.user_id), Number(row.level ?? 1))
+    })
+
+    const badgeByUserId = new Map<string, string>()
+    ;(badgeRows ?? []).forEach((row: any) => {
+      const key = String(row.user_id)
+      if (!badgeByUserId.has(key)) {
+        badgeByUserId.set(key, String(row.badge_name))
+      }
+    })
+
+    matchedProfiles.forEach((profile: any) => {
+      const author = String(profile.anonymous_name)
+      baseMap[author] = {
+        level:
+          levelByUserId.get(String(profile.id)) ?? baseMap[author]?.level ?? 1,
+        badgeName:
+          badgeByUserId.get(String(profile.id)) ??
+          baseMap[author]?.badgeName ??
+          null,
+      }
+    })
+
+    setAuthorMetaMap(baseMap)
+  }, [posts])
+
   const handleAdminToggle = async () => {
     if (!isAdmin) {
       showToast('관리자 계정만 가능')
@@ -2125,6 +2292,11 @@ export default function MatnyaApp() {
     if (!voterKey) return
     void loadProgress()
   }, [voterKey, authUser?.id, loadProgress])
+
+  useEffect(() => {
+    if (posts.length === 0) return
+    void loadAuthorMeta()
+  }, [posts, loadAuthorMeta])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -3342,6 +3514,9 @@ export default function MatnyaApp() {
             void adminDeleteComment(commentId)
           }
           guestName={profile?.anonymous_name ?? guestName}
+          featuredBadge={featuredBadge}
+          currentUserLevel={stats.level}
+          authorMetaMap={authorMetaMap}
         />
 
         <CreatePostModal
