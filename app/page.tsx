@@ -390,8 +390,6 @@ const CommentCard = React.memo(function CommentCard({
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-
   if (comment.hidden && !adminMode) return null
 
   const isLeft = comment.side === 'left'
@@ -399,11 +397,6 @@ const CommentCard = React.memo(function CommentCard({
   const sideBadgeClass = isLeft
     ? 'border-blue-200 bg-blue-50/90 text-blue-700'
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
-
-  const handleReportClick = () => {
-    setMenuOpen(false)
-    onOpenReportComment(comment.id)
-  }
 
   return (
     <div
@@ -459,32 +452,13 @@ const CommentCard = React.memo(function CommentCard({
                 <span>{comment.likes}</span>
               </button>
 
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => setMenuOpen((prev) => !prev)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                  aria-label="댓글 메뉴"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-
-                {menuOpen && (
-                  <div className="absolute right-0 top-10 z-20 min-w-[112px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.12)]">
-                    <button
-                      onClick={handleReportClick}
-                      className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      신고하기
-                    </button>
-                    <button
-                      onClick={() => setMenuOpen(false)}
-                      className="block w-full border-t border-slate-100 px-4 py-3 text-left text-[13px] font-semibold text-slate-500 transition hover:bg-slate-50"
-                    >
-                      닫기
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => onOpenReportComment(comment.id)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                aria-label="댓글 신고"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
             </>
           ) : null}
 
