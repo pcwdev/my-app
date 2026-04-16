@@ -2654,22 +2654,33 @@ export default function MatnyaApp() {
   const shareCurrentPost = useCallback(async () => {
     if (!currentPost) return
 
+    const currentChoice = votes[currentPost.id]
+    if (!currentChoice) {
+      showToast('먼저 선택해야 공유할 수 있음')
+      return
+    }
+
+    const shouldCreateNewShare =
+      !shareId ||
+      !sharedPostId ||
+      Number(sharedPostId) !== Number(currentPost.id)
+
     let activeShareId = shareId
-    if (!activeShareId) {
-      const currentChoice = votes[currentPost.id]
-      if (!currentChoice) {
-        showToast('먼저 선택해야 공유할 수 있음')
-        return
-      }
+
+    if (shouldCreateNewShare) {
       activeShareId = await createShareSession(currentChoice)
       if (!activeShareId) {
         showToast('공유 링크 생성 실패')
         return
       }
+      setSharedEntryActive(false)
     }
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
-    const shareText = `이거 맞냐?\n${currentPost.title}\n\n너라면 뭐 선택함?`
+    const shareText = `이거 맞냐?
+${currentPost.title}
+
+너라면 뭐 선택함?`
 
     try {
       if (navigator.share) {
@@ -2679,7 +2690,8 @@ export default function MatnyaApp() {
           url: shareUrl,
         })
       } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+        await navigator.clipboard.writeText(`${shareText}
+${shareUrl}`)
         showToast('공유 링크 복사 완료')
       } else {
         window.prompt('아래 링크를 복사해서 공유해줘', shareUrl)
@@ -2687,7 +2699,7 @@ export default function MatnyaApp() {
     } catch (error) {
       console.error('공유 실패', error)
     }
-  }, [currentPost, shareId, votes, createShareSession, showToast])
+  }, [currentPost, shareId, sharedPostId, votes, createShareSession, showToast])
 
   const controversialPosts = useMemo(() => {
     if (!currentPost) return []
