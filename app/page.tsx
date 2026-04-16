@@ -2639,7 +2639,7 @@ export default function MatnyaApp() {
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-4 space-y-2.5">
+                <div className="mt-4 space-y-2">
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
@@ -2647,15 +2647,6 @@ export default function MatnyaApp() {
                     side="left"
                     onClick={() => void handleVote('left')}
                   />
-
-                  <div className="flex items-center justify-center py-0.5">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-3 py-1.5 text-[11px] font-black tracking-[0.28em] text-slate-400 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                      <span>VS</span>
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                    </div>
-                  </div>
-
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
