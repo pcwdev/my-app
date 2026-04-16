@@ -2554,11 +2554,16 @@ export default function MatnyaApp() {
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
+  const isViewingSharedPost =
+    !!shareId &&
+    !!sharedPostId &&
+    !!currentPost &&
+    Number(currentPost.id) === Number(sharedPostId)
+
   useEffect(() => {
-    if (!shareId || !sharedPostId || !currentPost) return
-    if (Number(currentPost.id) !== Number(sharedPostId)) return
+    if (!isViewingSharedPost) return
     void loadShareStats()
-  }, [shareId, sharedPostId, currentPost?.id, loadShareStats])
+  }, [isViewingSharedPost, loadShareStats])
 
   useEffect(() => {
     if (!currentPost) {
@@ -3835,57 +3840,59 @@ export default function MatnyaApp() {
                         </div>
                       )}
 
-                      <div className="rounded-[24px] border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] p-4 shadow-[0_12px_26px_rgba(245,158,11,0.10)]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-extrabold tracking-[0.14em] text-amber-600">
-                              FRIEND REACTION
+                      {isViewingSharedPost ? (
+                        <div className="rounded-[24px] border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] p-4 shadow-[0_12px_26px_rgba(245,158,11,0.10)]">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-extrabold tracking-[0.14em] text-amber-600">
+                                FRIEND REACTION
+                              </div>
+                              <div className="mt-1 text-base font-black text-slate-900">
+                                친구들 반응 모아보기
+                              </div>
                             </div>
-                            <div className="mt-1 text-base font-black text-slate-900">
-                              친구들 반응 모아보기
+                            <div className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-amber-700 shadow-sm">
+                              익명 집계
                             </div>
                           </div>
-                          <div className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-amber-700 shadow-sm">
-                            익명 집계
-                          </div>
-                        </div>
 
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                            <div className="text-[11px] text-slate-400">
-                              친구들 {currentPost.leftLabel}
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                              <div className="text-[11px] text-slate-400">
+                                친구들 {currentPost.leftLabel}
+                              </div>
+                              <div className="mt-1 text-lg font-black text-slate-900">
+                                {shareStats.left}명
+                              </div>
                             </div>
-                            <div className="mt-1 text-lg font-black text-slate-900">
-                              {shareStats.left}명
+                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                              <div className="text-[11px] text-slate-400">
+                                친구들 {currentPost.rightLabel}
+                              </div>
+                              <div className="mt-1 text-lg font-black text-slate-900">
+                                {shareStats.right}명
+                              </div>
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                            <div className="text-[11px] text-slate-400">
-                              친구들 {currentPost.rightLabel}
-                            </div>
-                            <div className="mt-1 text-lg font-black text-slate-900">
-                              {shareStats.right}명
-                            </div>
+
+                          <div className="mt-3 text-xs text-slate-600">
+                            {shareStats.left + shareStats.right === 0
+                              ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
+                              : shareStats.left === shareStats.right
+                                ? '친구들 의견이 팽팽함 👀'
+                                : shareStats.left > shareStats.right
+                                  ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
+                                  : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
                           </div>
-                        </div>
 
-                        <div className="mt-3 text-xs text-slate-600">
-                          {shareStats.left + shareStats.right === 0
-                            ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
-                            : shareStats.left === shareStats.right
-                              ? '친구들 의견이 팽팽함 👀'
-                              : shareStats.left > shareStats.right
-                                ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
-                                : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
+                          <button
+                            onClick={() => void shareCurrentPost()}
+                            className="mt-3 w-full rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                          >
+                            친구 더 보내기
+                          </button>
                         </div>
-
-                        <button
-                          onClick={() => void shareCurrentPost()}
-                          className="mt-3 w-full rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
-                        >
-                          친구 더 보내기
-                        </button>
-                      </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
