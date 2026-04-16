@@ -370,6 +370,8 @@ function AuthOptionalModal({
 
 const CommentCard = React.memo(function CommentCard({
   comment,
+  leftLabel,
+  rightLabel,
   onLikeComment,
   isLiked,
   onOpenReportComment,
@@ -378,6 +380,8 @@ const CommentCard = React.memo(function CommentCard({
   onAdminDeleteComment,
 }: {
   comment: CommentItem
+  leftLabel: string
+  rightLabel: string
   onLikeComment: (commentId: number) => void | Promise<void>
   isLiked: boolean
   onOpenReportComment: (commentId: number) => void
@@ -387,27 +391,50 @@ const CommentCard = React.memo(function CommentCard({
 }) {
   if (comment.hidden && !adminMode) return null
 
+  const isLeft = comment.side === 'left'
+  const sideLabel = isLeft ? leftLabel : rightLabel
+  const sideBadgeClass = isLeft
+    ? 'border-blue-200 bg-blue-50 text-blue-700'
+    : 'border-rose-200 bg-rose-50 text-rose-700'
+
   return (
     <div
-      className={`rounded-3xl border p-3 ${
+      className={`rounded-[22px] border p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
-          : 'border-slate-200 bg-white/95'
+          : 'border-slate-200/90 bg-white'
       }`}
     >
-      <div className="mb-1 flex items-center justify-between text-xs">
-        <div className="font-bold text-slate-900">{comment.author}</div>
-        <div className="text-slate-400">공감 {comment.likes}</div>
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
+            >
+              {sideLabel}
+            </span>
+            <span className="truncate text-sm font-semibold text-slate-900">
+              {comment.author}
+            </span>
+          </div>
+        </div>
+        <div className="shrink-0 text-[11px] text-slate-400">
+          공감 {comment.likes}
+        </div>
       </div>
+
       <div className="text-[14px] leading-6 text-slate-700">
         {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
         {!comment.hidden && (
           <button
             onClick={() => onLikeComment(comment.id)}
-            className={`flex items-center gap-1 transition ${
-              isLiked ? 'text-[#ef4444]' : 'text-slate-500'
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition ${
+              isLiked
+                ? 'bg-rose-50 text-rose-600'
+                : 'bg-slate-100 text-slate-500'
             }`}
           >
             <Heart className={`h-4 w-4 ${isLiked ? 'fill-[#ef4444]' : ''}`} />
@@ -426,13 +453,13 @@ const CommentCard = React.memo(function CommentCard({
           <>
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
-              className="rounded-full bg-[#4f7cff] px-3 py-1 text-xs font-bold text-slate-900"
+              className="rounded-full bg-[#4f7cff] px-3 py-1 text-xs font-bold text-white"
             >
               숨김 해제
             </button>
             <button
               onClick={() => onAdminDeleteComment(comment.id)}
-              className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-slate-900"
+              className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white"
             >
               삭제
             </button>
@@ -501,7 +528,7 @@ function MyActivityModal({
           <div className="flex gap-2">
             <button
               onClick={() => setTab('posts')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'posts'
                   ? 'bg-[#4f7cff] text-slate-900'
                   : 'bg-slate-100 text-slate-700'
@@ -511,7 +538,7 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'comments'
                   ? 'bg-[#4f7cff] text-slate-900'
                   : 'bg-slate-100 text-slate-700'
@@ -762,15 +789,13 @@ function CommentModal({
   if (!open || !post) return null
 
   const baseComments = sortType === 'best' ? sortedComments : latestComments
-  const visibleComments = baseComments.slice(0, visibleCount)
+  const visibleComments = baseComments
+    .filter((comment) => !comment.hidden || adminMode)
+    .slice(0, visibleCount)
   const bestComment = sortedComments.find((c) => !c.hidden) || sortedComments[0]
-  const leftComments = visibleComments.filter(
-    (comment) => comment.side === 'left',
-  )
-  const rightComments = visibleComments.filter(
-    (comment) => comment.side === 'right',
-  )
-  const hasMoreComments = baseComments.length > visibleCount
+  const hasMoreComments =
+    baseComments.filter((comment) => !comment.hidden || adminMode).length >
+    visibleCount
 
   const submitComment = () => {
     const trimmed = text.trim()
@@ -827,12 +852,25 @@ function CommentModal({
           </div>
 
           {bestComment && !bestComment.hidden && (
-            <div className="rounded-[30px] border border-[#c9d8ff] bg-[#edf3ff] p-4">
+            <div className="rounded-[26px] border border-[#c9d8ff] bg-[linear-gradient(180deg,#f7faff_0%,#edf3ff_100%)] p-4 shadow-[0_12px_28px_rgba(79,124,255,0.10)]">
               <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#4f7cff]">
-                <Flame className="h-4 w-4" /> 베스트 반응
+                <Flame className="h-4 w-4" /> 지금 가장 공감받는 반응
               </div>
-              <div className="mb-2 text-sm font-semibold text-slate-900">
-                {bestComment.author}
+              <div className="mb-2 flex items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                    bestComment.side === 'left'
+                      ? 'border-blue-200 bg-blue-50 text-blue-700'
+                      : 'border-rose-200 bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  {bestComment.side === 'left'
+                    ? post.leftLabel
+                    : post.rightLabel}
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {bestComment.author}
+                </span>
               </div>
               <div className="text-[15px] leading-7 text-slate-900/85">
                 {bestComment.text}
@@ -843,46 +881,21 @@ function CommentModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3">
-              <div className="mb-3 text-sm font-bold text-slate-900">
-                {post.leftLabel}
-              </div>
-              <div className="space-y-3">
-                {leftComments.map((comment) => (
-                  <CommentCard
-                    key={comment.id}
-                    comment={comment}
-                    onLikeComment={onLikeComment}
-                    isLiked={!!likedComments[comment.id]}
-                    onOpenReportComment={onOpenReportComment}
-                    adminMode={adminMode}
-                    onAdminRestoreComment={onAdminRestoreComment}
-                    onAdminDeleteComment={onAdminDeleteComment}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-3">
-              <div className="mb-3 text-sm font-bold text-slate-900">
-                {post.rightLabel}
-              </div>
-              <div className="space-y-3">
-                {rightComments.map((comment) => (
-                  <CommentCard
-                    key={comment.id}
-                    comment={comment}
-                    onLikeComment={onLikeComment}
-                    isLiked={!!likedComments[comment.id]}
-                    onOpenReportComment={onOpenReportComment}
-                    adminMode={adminMode}
-                    onAdminRestoreComment={onAdminRestoreComment}
-                    onAdminDeleteComment={onAdminDeleteComment}
-                  />
-                ))}
-              </div>
-            </div>
+          <div className="space-y-3">
+            {visibleComments.map((comment) => (
+              <CommentCard
+                key={comment.id}
+                comment={comment}
+                leftLabel={post.leftLabel}
+                rightLabel={post.rightLabel}
+                onLikeComment={onLikeComment}
+                isLiked={!!likedComments[comment.id]}
+                onOpenReportComment={onOpenReportComment}
+                adminMode={adminMode}
+                onAdminRestoreComment={onAdminRestoreComment}
+                onAdminDeleteComment={onAdminDeleteComment}
+              />
+            ))}
           </div>
 
           {hasMoreComments && (
@@ -901,7 +914,7 @@ function CommentModal({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCommentSide('left')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+              className={`rounded-2xl px-4 py-2.5 text-sm font-bold ${
                 commentSide === 'left'
                   ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
                   : 'bg-white text-slate-900 border border-slate-200/80'
@@ -911,7 +924,7 @@ function CommentModal({
             </button>
             <button
               onClick={() => setCommentSide('right')}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${
+              className={`rounded-2xl px-4 py-2.5 text-sm font-bold ${
                 commentSide === 'right'
                   ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
                   : 'bg-white text-slate-900 border border-slate-200/80'
