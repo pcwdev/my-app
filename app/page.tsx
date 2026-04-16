@@ -41,6 +41,7 @@ const REPORT_HIDE_THRESHOLD = 3
 const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
   guestName: 'matnya_guest_name',
+  viewedSnapshots: 'matnya_viewed_post_snapshots',
 }
 
 const PREFIXES = [
@@ -145,6 +146,20 @@ type UserBadgeRow = {
 type AuthorMeta = {
   level: number
   badgeName: string | null
+}
+
+type ViewedPostSnapshot = {
+  viewedAt: number
+  commentsCount: number
+  totalVotes: number
+  views: number
+}
+
+type RevisitMeta = {
+  seenBefore: boolean
+  commentsDelta: number
+  votesDelta: number
+  viewsDelta: number
 }
 
 function getAuthorMetaKey(author: string, authorKey?: string | null) {
@@ -332,6 +347,35 @@ function normalizeStats(row?: Partial<UserStatsRow> | null): UserStatsRow {
     likes_received: Number(row?.likes_received ?? 0),
     created_at: row?.created_at,
   }
+}
+
+function readViewedSnapshots(): Record<string, ViewedPostSnapshot> {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.viewedSnapshots)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeViewedSnapshots(next: Record<string, ViewedPostSnapshot>) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(
+    STORAGE_KEYS.viewedSnapshots,
+    JSON.stringify(next),
+  )
+}
+
+function getRevisitLabel(meta: RevisitMeta) {
+  if (!meta.seenBefore) return null
+  if (meta.commentsDelta > 0) return `전에 본 글 · 댓글 +${meta.commentsDelta}`
+  if (meta.votesDelta > 0) return `전에 본 글 · 참여 +${meta.votesDelta}`
+  if (meta.viewsDelta > 0) return '전에 본 글 · 반응 늘어남'
+  return '전에 본 글'
 }
 
 function getLevelTheme(level: number) {
@@ -1143,8 +1187,6 @@ function CommentModal({
   currentUserLevel,
   authorMetaMap,
   currentActorKey,
-  liveNow,
-  activityStatusText,
 }: {
   post: PostItem | null
   open: boolean
@@ -1161,8 +1203,6 @@ function CommentModal({
   currentUserLevel?: number
   authorMetaMap: Record<string, AuthorMeta>
   currentActorKey?: string | null
-  liveNow: number
-  activityStatusText: string
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1281,11 +1321,6 @@ function CommentModal({
                 최신
               </button>
             </div>
-          </div>
-
-          <div className="mt-2 flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2 text-[11px] text-slate-500">
-            <span>🔥 {activityStatusText}</span>
-            <span>{liveNow}명 반응 중</span>
           </div>
         </div>
 
@@ -1709,8 +1744,12 @@ export default function MatnyaApp() {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
-  const [hasRespondedToShare, setHasRespondedToShare] = useState(false)
-  const [lastShareTotal, setLastShareTotal] = useState(0)
+  const [revisitMeta, setRevisitMeta] = useState<RevisitMeta>({
+    seenBefore: false,
+    commentsDelta: 0,
+    votesDelta: 0,
+    viewsDelta: 0,
+  })
 
   const featuredBadge = badges[0] ?? null
 
@@ -2438,7 +2477,6 @@ export default function MatnyaApp() {
     setShareOwnerKey(null)
     setShareStats({ left: 0, right: 0 })
     setSharedEntryActive(false)
-    setHasRespondedToShare(false)
 
     if (typeof window === 'undefined') return
 
@@ -2457,43 +2495,6 @@ export default function MatnyaApp() {
   }, [shareId, loadShareStats])
 
   useEffect(() => {
-    if (!shareId || !voterKey) {
-      setHasRespondedToShare(false)
-      return
-    }
-
-    if (shareOwnerKey && String(shareOwnerKey) === String(voterKey)) {
-      setHasRespondedToShare(true)
-      return
-    }
-
-    let cancelled = false
-
-    const loadMyShareResponse = async () => {
-      const { data, error } = await supabase
-        .from('share_responses')
-        .select('id')
-        .eq('share_id', shareId)
-        .eq('responder_key', voterKey)
-        .maybeSingle()
-
-      if (error) {
-        console.error('내 share response 조회 실패', error)
-        if (!cancelled) setHasRespondedToShare(false)
-        return
-      }
-
-      if (!cancelled) setHasRespondedToShare(!!data)
-    }
-
-    void loadMyShareResponse()
-
-    return () => {
-      cancelled = true
-    }
-  }, [shareId, voterKey, shareOwnerKey])
-
-  useEffect(() => {
     if (!shareId) return
 
     const timer = window.setInterval(() => {
@@ -2502,21 +2503,6 @@ export default function MatnyaApp() {
 
     return () => window.clearInterval(timer)
   }, [shareId, loadShareStats])
-
-  useEffect(() => {
-    const total = shareStats.left + shareStats.right
-
-    if (!shareId) {
-      setLastShareTotal(0)
-      return
-    }
-
-    if (total > lastShareTotal && lastShareTotal > 0) {
-      showToast('🔥 친구 반응 들어오는 중')
-    }
-
-    setLastShareTotal(total)
-  }, [shareId, shareStats.left, shareStats.right, lastShareTotal, showToast])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -2547,6 +2533,36 @@ export default function MatnyaApp() {
 
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
+
+  const revisitLabel = getRevisitLabel(revisitMeta)
+  const totalParticipants = currentPost
+    ? currentPost.leftVotes + currentPost.rightVotes
+    : 0
+  const estimatedActiveNow = currentPost
+    ? Math.max(
+        6,
+        Math.min(
+          99,
+          Math.round(
+            currentPost.comments.length * 1.8 +
+              totalParticipants * 0.12 +
+              currentPost.views * 0.015 +
+              shareStats.left +
+              shareStats.right,
+          ),
+        ),
+      )
+    : 0
+  const liveStatusLabel = currentPost
+    ? shareStats.left + shareStats.right > 0
+      ? '공유 반응 계속 모이는 중'
+      : Math.abs(currentPost.leftVotes - currentPost.rightVotes) <=
+          Math.max(3, Math.round(totalParticipants * 0.08))
+        ? '지금 박빙으로 갈리는 중'
+        : currentPost.comments.length >= 6
+          ? '댓글 반응 빠르게 쌓이는 중'
+          : '지금 반응 들어오는 중'
+    : ''
 
   useEffect(() => {
     if (!sharedPostId || posts.length === 0) return
@@ -2648,6 +2664,54 @@ export default function MatnyaApp() {
       .sort((a, b) => a.controversyScore - b.controversyScore)
       .slice(0, 3)
   }, [posts, currentPost])
+
+  useEffect(() => {
+    if (!currentPost?.id) return
+
+    const snapshots = readViewedSnapshots()
+    const snapshotKey = String(currentPost.id)
+    const prevSnapshot = snapshots[snapshotKey]
+    const nextSnapshot: ViewedPostSnapshot = {
+      viewedAt: Date.now(),
+      commentsCount: currentPost.comments.length,
+      totalVotes: currentPost.leftVotes + currentPost.rightVotes,
+      views: currentPost.views,
+    }
+
+    if (prevSnapshot) {
+      setRevisitMeta({
+        seenBefore: true,
+        commentsDelta: Math.max(
+          0,
+          nextSnapshot.commentsCount - Number(prevSnapshot.commentsCount ?? 0),
+        ),
+        votesDelta: Math.max(
+          0,
+          nextSnapshot.totalVotes - Number(prevSnapshot.totalVotes ?? 0),
+        ),
+        viewsDelta: Math.max(
+          0,
+          nextSnapshot.views - Number(prevSnapshot.views ?? 0),
+        ),
+      })
+    } else {
+      setRevisitMeta({
+        seenBefore: false,
+        commentsDelta: 0,
+        votesDelta: 0,
+        viewsDelta: 0,
+      })
+    }
+
+    snapshots[snapshotKey] = nextSnapshot
+    writeViewedSnapshots(snapshots)
+  }, [
+    currentPost?.id,
+    currentPost?.comments.length,
+    currentPost?.leftVotes,
+    currentPost?.rightVotes,
+    currentPost?.views,
+  ])
 
   useEffect(() => {
     if (!currentPost?.id) return
@@ -2761,7 +2825,6 @@ export default function MatnyaApp() {
       if (shareResponseError) {
         console.error('share response 저장 실패', shareResponseError)
       } else {
-        setHasRespondedToShare(true)
         void loadShareStats()
       }
     }
@@ -2776,22 +2839,18 @@ export default function MatnyaApp() {
   }
 
   const prev = () => {
+    clearShareMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
+    clearShareMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
 
   const handleNextWithGuard = () => {
     if (!currentPost) return
-    const currentDisplayVote =
-      sharedEntryActive &&
-      currentPost.id === sharedPostId &&
-      !hasRespondedToShare
-        ? undefined
-        : votes[currentPost.id]
-    if (!currentDisplayVote) {
+    if (!votes[currentPost.id]) {
       showToast('먼저 선택하고 넘어가야 함')
       return
     }
@@ -2800,25 +2859,21 @@ export default function MatnyaApp() {
 
   const moveToPostWithGuard = (postId: number) => {
     if (!currentPost) return
-    const currentDisplayVote =
-      sharedEntryActive &&
-      currentPost.id === sharedPostId &&
-      !hasRespondedToShare
-        ? undefined
-        : votes[currentPost.id]
-    if (!currentDisplayVote) {
+    if (!votes[currentPost.id]) {
       showToast('먼저 지금 글에 선택해야 이동할 수 있음')
       return
     }
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
+      clearShareMode()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2828,6 +2883,7 @@ export default function MatnyaApp() {
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2838,6 +2894,7 @@ export default function MatnyaApp() {
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
+      clearShareMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -3512,34 +3569,6 @@ export default function MatnyaApp() {
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
   const levelInfo = getLevelInfo(stats.points)
-  const totalVotes = currentPost.leftVotes + currentPost.rightVotes
-  const shareTotal = shareStats.left + shareStats.right
-  const isViewingSharedPost =
-    sharedEntryActive && currentPost.id === sharedPostId
-  const displayVote =
-    isViewingSharedPost && !hasRespondedToShare
-      ? undefined
-      : votes[currentPost.id]
-  const liveNow = Math.max(
-    3,
-    Math.round(
-      currentPost.comments.length * 1.4 +
-        totalVotes * 0.08 +
-        currentPost.views * 0.018 +
-        shareTotal * 1.6 +
-        (isViewingSharedPost ? 2 : 0),
-    ),
-  )
-  const voteGap = Math.abs(p.left - p.right)
-  const activityStatusText =
-    shareTotal > 0
-      ? '공유 반응 계속 모이는 중'
-      : voteGap <= 8
-        ? '지금 박빙으로 갈리는 중'
-        : currentPost.comments.length >= 8
-          ? '댓글 반응 빠르게 쌓이는 중'
-          : '새 반응 계속 들어오는 중'
-
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
@@ -3657,37 +3686,6 @@ export default function MatnyaApp() {
           <div className="mx-1 border-t border-slate-200/80" />
         </div>
 
-        <div className="px-4 pt-2">
-          <div className="rounded-[20px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95)_0%,rgba(247,250,255,0.96)_100%)] px-3.5 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-extrabold tracking-[0.18em] text-rose-500">
-                  LIVE
-                </div>
-                <div className="mt-1 text-sm font-bold text-slate-900">
-                  {activityStatusText}
-                </div>
-              </div>
-              <div className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-700">
-                {liveNow}명 반응 중
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-              <span>댓글 {currentPost.comments.length}개</span>
-              <span>·</span>
-              <span>참여 {totalVotes}명</span>
-              <span>·</span>
-              <span>조회 {currentPost.views}</span>
-              {shareTotal > 0 ? (
-                <>
-                  <span>·</span>
-                  <span>공유 반응 {shareTotal}명</span>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
         <main className="px-4 pb-32 pt-2">
           <AnimatePresence mode="wait">
             <motion.div
@@ -3754,29 +3752,43 @@ export default function MatnyaApp() {
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
                 </p>
-                {isViewingSharedPost && (
+                {sharedEntryActive && (
                   <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                     🔗 공유 링크로 들어온 논쟁
                   </div>
                 )}
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
+                    🔥 {liveStatusLabel}
+                  </span>
+                  <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                    지금 {estimatedActiveNow}명 반응 중
+                  </span>
+                  {revisitLabel ? (
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
+                      👀 {revisitLabel}
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               {(!currentPost.hidden || adminMode) && (
                 <div className="mt-4 space-y-2.5">
                   <VoteOption
-                    active={displayVote === 'left'}
+                    active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
                     value={p.left}
                     onClick={() => void handleVote('left')}
                   />
                   <VoteOption
-                    active={displayVote === 'right'}
+                    active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
                     onClick={() => void handleVote('right')}
                   />
 
-                  {displayVote ? (
+                  {votes[currentPost.id] ? (
                     <div className="space-y-4">
                       <button
                         onClick={handleNextWithGuard}
@@ -3863,11 +3875,9 @@ export default function MatnyaApp() {
                                 : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
                         </div>
 
-                        {shareId ? (
-                          <div className="mt-2 rounded-2xl border border-amber-200/80 bg-white/70 px-3 py-2 text-[11px] text-amber-700">
-                            12초마다 친구 반응을 새로 불러오는 중
-                          </div>
-                        ) : null}
+                        <div className="mt-2 text-[11px] text-slate-400">
+                          12초마다 반응 자동 갱신
+                        </div>
 
                         <button
                           onClick={() => void shareCurrentPost()}
@@ -3985,8 +3995,6 @@ export default function MatnyaApp() {
           currentUserLevel={stats.level}
           authorMetaMap={authorMetaMap}
           currentActorKey={authUser?.id ?? voterKey}
-          liveNow={liveNow}
-          activityStatusText={activityStatusText}
         />
 
         <CreatePostModal
