@@ -1752,10 +1752,15 @@ export default function MatnyaApp() {
     Record<string, AuthorMeta>
   >({})
   const [shareId, setShareId] = useState<string | null>(null)
-  const [shareStats, setShareStats] = useState({ left: 0, right: 0 })
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const [shareSessionByPost, setShareSessionByPost] = useState<
+    Record<number, { id: string; ownerKey: string | null }>
+  >({})
+  const [shareStatsBySessionId, setShareStatsBySessionId] = useState<
+    Record<string, { left: number; right: number }>
+  >({})
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
   const [justCreatedPostId, setJustCreatedPostId] = useState<number | null>(
     null,
@@ -2446,48 +2451,121 @@ export default function MatnyaApp() {
     void loadAuthorMeta()
   }, [posts, loadAuthorMeta])
 
-  const loadShareSession = useCallback(async () => {
-    if (!shareId) return
+  const loadShareSessionById = useCallback(
+    async (targetShareId: string) => {
+      if (!targetShareId) return null
 
-    const { data, error } = await supabase
-      .from('share_sessions')
-      .select('id, post_id, owner_key, owner_choice')
-      .eq('id', shareId)
-      .maybeSingle()
+      const { data, error } = await supabase
+        .from('share_sessions')
+        .select('id, post_id, owner_key, owner_choice')
+        .eq('id', targetShareId)
+        .maybeSingle()
 
-    if (error) {
-      console.error('share session 조회 실패', error)
-      return
-    }
+      if (error) {
+        console.error('share session 조회 실패', error)
+        return null
+      }
 
-    if (data) {
-      setShareOwnerKey(data.owner_key ?? null)
-      if (data.post_id) setSharedPostId(Number(data.post_id))
-    }
-  }, [shareId])
+      if (!data) return null
 
-  const loadShareStats = useCallback(async () => {
-    if (!shareId) return
+      const nextPostId = Number(data.post_id)
+      setShareSessionByPost((prev) => ({
+        ...prev,
+        [nextPostId]: {
+          id: String(data.id),
+          ownerKey: data.owner_key ?? null,
+        },
+      }))
 
-    const { data, error } = await supabase
-      .from('share_responses')
-      .select('choice')
-      .eq('share_id', shareId)
+      if (shareId === targetShareId) {
+        setShareOwnerKey(data.owner_key ?? null)
+        if (data.post_id) setSharedPostId(nextPostId)
+      }
 
-    if (error) {
-      console.error('share responses 조회 실패', error)
-      return
-    }
+      return {
+        id: String(data.id),
+        postId: nextPostId,
+        ownerKey: data.owner_key ?? null,
+        ownerChoice: data.owner_choice as VoteSide,
+      }
+    },
+    [shareId],
+  )
 
-    const left = (data ?? []).filter(
-      (item: any) => item.choice === 'left',
-    ).length
-    const right = (data ?? []).filter(
-      (item: any) => item.choice === 'right',
-    ).length
+  const loadLatestOwnedShareSessionForPost = useCallback(
+    async (postId: number) => {
+      if (!postId || !voterKey) return null
 
-    setShareStats({ left, right })
-  }, [shareId])
+      const { data, error } = await supabase
+        .from('share_sessions')
+        .select('id, post_id, owner_key, owner_choice')
+        .eq('post_id', postId)
+        .eq('owner_key', voterKey)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.error('내 share session 조회 실패', error)
+        return null
+      }
+
+      if (!data) {
+        setShareSessionByPost((prev) => {
+          const next = { ...prev }
+          delete next[postId]
+          return next
+        })
+        return null
+      }
+
+      const nextSession = {
+        id: String(data.id),
+        ownerKey: data.owner_key ?? null,
+      }
+
+      setShareSessionByPost((prev) => ({
+        ...prev,
+        [postId]: nextSession,
+      }))
+
+      return nextSession
+    },
+    [voterKey],
+  )
+
+  const loadShareStatsBySessionId = useCallback(
+    async (targetShareId: string) => {
+      if (!targetShareId) return { left: 0, right: 0 }
+
+      const { data, error } = await supabase
+        .from('share_responses')
+        .select('choice')
+        .eq('share_session_id', targetShareId)
+
+      if (error) {
+        console.error('share responses 조회 실패', error)
+        return { left: 0, right: 0 }
+      }
+
+      const left = (data ?? []).filter(
+        (item: any) => item.choice === 'left',
+      ).length
+      const right = (data ?? []).filter(
+        (item: any) => item.choice === 'right',
+      ).length
+      const nextStats = { left, right }
+
+      setShareStatsBySessionId((prev) => ({
+        ...prev,
+        [targetShareId]: nextStats,
+      }))
+
+      return nextStats
+    },
+    [],
+  )
 
   const syncShareUrl = useCallback((postId: number, id: string) => {
     if (typeof window === 'undefined') return
@@ -2501,7 +2579,6 @@ export default function MatnyaApp() {
     setShareId(null)
     setSharedPostId(null)
     setShareOwnerKey(null)
-    setShareStats({ left: 0, right: 0 })
     setSharedEntryActive(false)
 
     if (typeof window === 'undefined') return
@@ -2512,17 +2589,17 @@ export default function MatnyaApp() {
     window.history.replaceState({}, '', url.toString())
   }, [])
 
-  const keepShareSessionWhileNavigating = useCallback(() => {
+  const endSharedEntryMode = useCallback(() => {
     setSharedEntryActive(false)
   }, [])
 
   useEffect(() => {
-    if (shareId) void loadShareSession()
-  }, [shareId, loadShareSession])
+    if (shareId) void loadShareSessionById(shareId)
+  }, [shareId, loadShareSessionById])
 
   useEffect(() => {
-    if (shareId) void loadShareStats()
-  }, [shareId, loadShareStats])
+    if (shareId) void loadShareStatsBySessionId(shareId)
+  }, [shareId, loadShareStatsBySessionId])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -2554,18 +2631,55 @@ export default function MatnyaApp() {
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
-  const hasActiveSharedSession = !!shareId && !!sharedPostId
-
-  const isViewingSharedPost =
-    hasActiveSharedSession &&
-    !!currentPost &&
+  const linkedShareSessionId =
+    currentPost &&
+    shareId &&
+    sharedPostId &&
     Number(currentPost.id) === Number(sharedPostId)
+      ? shareId
+      : null
+
+  const ownedShareSession = currentPost
+    ? (shareSessionByPost[currentPost.id] ?? null)
+    : null
+  const activeCurrentShareSessionId =
+    linkedShareSessionId ?? ownedShareSession?.id ?? null
+  const activeCurrentShareOwnerKey =
+    linkedShareSessionId &&
+    Number(currentPost?.id ?? 0) === Number(sharedPostId)
+      ? shareOwnerKey
+      : (ownedShareSession?.ownerKey ?? null)
+  const currentShareStats = activeCurrentShareSessionId
+    ? (shareStatsBySessionId[activeCurrentShareSessionId] ?? {
+        left: 0,
+        right: 0,
+      })
+    : { left: 0, right: 0 }
+
+  const isViewingSharedPost = !!currentPost && !!activeCurrentShareSessionId
 
   useEffect(() => {
-    if (!isViewingSharedPost || !shareId || !sharedPostId) return
-    syncShareUrl(Number(sharedPostId), shareId)
-    void loadShareStats()
-  }, [isViewingSharedPost, shareId, sharedPostId, syncShareUrl, loadShareStats])
+    if (!activeCurrentShareSessionId) return
+    void loadShareStatsBySessionId(activeCurrentShareSessionId)
+  }, [activeCurrentShareSessionId, loadShareStatsBySessionId])
+
+  useEffect(() => {
+    if (!currentPost?.id || !voterKey) return
+    if (linkedShareSessionId && Number(sharedPostId) === Number(currentPost.id))
+      return
+    void loadLatestOwnedShareSessionForPost(currentPost.id)
+  }, [
+    currentPost?.id,
+    voterKey,
+    linkedShareSessionId,
+    sharedPostId,
+    loadLatestOwnedShareSessionForPost,
+  ])
+
+  useEffect(() => {
+    if (!currentPost?.id || !activeCurrentShareSessionId) return
+    syncShareUrl(currentPost.id, activeCurrentShareSessionId)
+  }, [currentPost?.id, activeCurrentShareSessionId, syncShareUrl])
 
   useEffect(() => {
     if (!currentPost) {
@@ -2630,23 +2744,34 @@ export default function MatnyaApp() {
     async (choice: VoteSide) => {
       if (!currentPost || !voterKey) return null
 
-      const nextShareId = `share_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`
+      const { data, error } = await supabase
+        .from('share_sessions')
+        .insert({
+          post_id: currentPost.id,
+          owner_key: voterKey,
+          owner_choice: choice,
+          is_active: true,
+        })
+        .select('id, post_id, owner_key, owner_choice')
+        .single()
 
-      const { error } = await supabase.from('share_sessions').insert({
-        id: nextShareId,
-        post_id: currentPost.id,
-        owner_key: voterKey,
-        owner_choice: choice,
-      })
-
-      if (error) {
+      if (error || !data) {
         console.error('share session 생성 실패', error)
         return null
       }
 
+      const nextShareId = String(data.id)
+
       setShareId(nextShareId)
       setShareOwnerKey(voterKey)
       setSharedPostId(currentPost.id)
+      setShareSessionByPost((prev) => ({
+        ...prev,
+        [currentPost.id]: {
+          id: nextShareId,
+          ownerKey: voterKey,
+        },
+      }))
       syncShareUrl(currentPost.id, nextShareId)
       return nextShareId
     },
@@ -2662,21 +2787,13 @@ export default function MatnyaApp() {
       return
     }
 
-    const shouldCreateNewShare =
-      !shareId ||
-      !sharedPostId ||
-      Number(sharedPostId) !== Number(currentPost.id)
-
-    let activeShareId = shareId
-
-    if (shouldCreateNewShare) {
-      activeShareId = await createShareSession(currentChoice)
-      if (!activeShareId) {
-        showToast('공유 링크 생성 실패')
-        return
-      }
-      setSharedEntryActive(false)
+    const activeShareId = await createShareSession(currentChoice)
+    if (!activeShareId) {
+      showToast('공유 링크 생성 실패')
+      return
     }
+
+    setSharedEntryActive(false)
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
     const shareText = `이거 맞냐?
@@ -2701,7 +2818,7 @@ ${shareUrl}`)
     } catch (error) {
       console.error('공유 실패', error)
     }
-  }, [currentPost, shareId, sharedPostId, votes, createShareSession, showToast])
+  }, [currentPost, votes, createShareSession, showToast])
 
   const controversialPosts = useMemo(() => {
     if (!currentPost) return []
@@ -2813,26 +2930,29 @@ ${shareUrl}`)
       return
     }
 
-    let activeShareId = shareId
+    let activeShareId = activeCurrentShareSessionId
 
     if (!activeShareId) {
       activeShareId = await createShareSession(choice)
-    } else if (!shareOwnerKey || String(shareOwnerKey) !== String(voterKey)) {
+    } else if (
+      !activeCurrentShareOwnerKey ||
+      String(activeCurrentShareOwnerKey) !== String(voterKey)
+    ) {
       const { error: shareResponseError } = await supabase
         .from('share_responses')
         .upsert(
           {
-            share_id: activeShareId,
+            share_session_id: activeShareId,
             responder_key: voterKey,
             choice,
           },
-          { onConflict: 'share_id,responder_key' },
+          { onConflict: 'share_session_id,responder_key' },
         )
 
       if (shareResponseError) {
         console.error('share response 저장 실패', shareResponseError)
       } else {
-        void loadShareStats()
+        void loadShareStatsBySessionId(activeShareId)
       }
     }
 
@@ -2852,12 +2972,12 @@ ${shareUrl}`)
   }
 
   const prev = () => {
-    keepShareSessionWhileNavigating()
+    endSharedEntryMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
-    keepShareSessionWhileNavigating()
+    endSharedEntryMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
 
@@ -2879,14 +2999,14 @@ ${shareUrl}`)
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
-      keepShareSessionWhileNavigating()
+      endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
-      keepShareSessionWhileNavigating()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2896,7 +3016,7 @@ ${shareUrl}`)
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      keepShareSessionWhileNavigating()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2907,7 +3027,7 @@ ${shareUrl}`)
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      keepShareSessionWhileNavigating()
+      endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -3778,12 +3898,7 @@ ${shareUrl}`)
                     : currentPost.content}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {isViewingSharedPost && (
-                    <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                      🔗 친구 반응 집계 중인 논쟁
-                    </div>
-                  )}
-                  {sharedEntryActive && !isViewingSharedPost && (
+                  {sharedEntryActive && (
                     <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                       🔗 공유 링크로 들어온 논쟁
                     </div>
@@ -3890,7 +4005,7 @@ ${shareUrl}`)
                                 친구들 {currentPost.leftLabel}
                               </div>
                               <div className="mt-1 text-lg font-black text-slate-900">
-                                {shareStats.left}명
+                                {currentShareStats.left}명
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
@@ -3898,17 +4013,21 @@ ${shareUrl}`)
                                 친구들 {currentPost.rightLabel}
                               </div>
                               <div className="mt-1 text-lg font-black text-slate-900">
-                                {shareStats.right}명
+                                {currentShareStats.right}명
                               </div>
                             </div>
                           </div>
 
                           <div className="mt-3 text-xs text-slate-600">
-                            {shareStats.left + shareStats.right === 0
+                            {currentShareStats.left +
+                              currentShareStats.right ===
+                            0
                               ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
-                              : shareStats.left === shareStats.right
+                              : currentShareStats.left ===
+                                  currentShareStats.right
                                 ? '친구들 의견이 팽팽함 👀'
-                                : shareStats.left > shareStats.right
+                                : currentShareStats.left >
+                                    currentShareStats.right
                                   ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
                                   : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
                           </div>
