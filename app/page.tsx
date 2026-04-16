@@ -120,6 +120,54 @@ type DeletedCommentItem = {
   text: string
 }
 
+type UserStatsRow = {
+  id: string
+  user_id: string | null
+  voter_key: string | null
+  points: number
+  level: number
+  votes_count: number
+  comments_count: number
+  posts_count: number
+  likes_received: number
+  created_at?: string
+}
+
+type UserBadgeRow = {
+  id: string
+  user_id: string | null
+  voter_key: string | null
+  badge_name: string
+  created_at?: string
+}
+
+const LEVELS = [
+  { level: 1, min: 0, label: '새싹' },
+  { level: 2, min: 10, label: '입문자' },
+  { level: 3, min: 30, label: '판단러' },
+  { level: 4, min: 60, label: '의견쟁이' },
+  { level: 5, min: 100, label: '반응유저' },
+  { level: 6, min: 160, label: '논쟁참여자' },
+  { level: 7, min: 250, label: '공감수집가' },
+  { level: 8, min: 400, label: '판정고수' },
+  { level: 9, min: 600, label: '논쟁지배자' },
+  { level: 10, min: 1000, label: '맞냐장인' },
+]
+
+const BADGE_RULES = [
+  { name: '첫 판단', check: (s: UserStatsRow) => s.votes_count >= 1 },
+  { name: '판단러', check: (s: UserStatsRow) => s.votes_count >= 10 },
+  { name: '판단중독', check: (s: UserStatsRow) => s.votes_count >= 50 },
+  { name: '첫 댓글', check: (s: UserStatsRow) => s.comments_count >= 1 },
+  { name: '댓글러', check: (s: UserStatsRow) => s.comments_count >= 10 },
+  { name: '키보드전사', check: (s: UserStatsRow) => s.comments_count >= 50 },
+  { name: '첫 글', check: (s: UserStatsRow) => s.posts_count >= 1 },
+  { name: '썰장인', check: (s: UserStatsRow) => s.posts_count >= 5 },
+  { name: '공감받기 시작', check: (s: UserStatsRow) => s.likes_received >= 10 },
+  { name: '반응유발자', check: (s: UserStatsRow) => s.likes_received >= 50 },
+  { name: '댓글스타', check: (s: UserStatsRow) => s.likes_received >= 100 },
+] as const
+
 function getOrCreateVoterKey(): string {
   if (typeof window === 'undefined') return 'server'
   const saved = window.localStorage.getItem(STORAGE_KEYS.voterKey)
@@ -226,6 +274,52 @@ function getCounterTone(
   if (ratio >= dangerAt) return 'text-red-500'
   if (ratio >= warnAt) return 'text-amber-500'
   return 'text-slate-400'
+}
+
+function getLevelInfo(points: number) {
+  let current = LEVELS[0]
+
+  for (const item of LEVELS) {
+    if (points >= item.min) current = item
+  }
+
+  const next = LEVELS.find((item) => item.level === current.level + 1) ?? null
+
+  return {
+    level: current.level,
+    label: current.label,
+    currentMin: current.min,
+    nextMin: next?.min ?? current.min,
+    nextLabel: next?.label ?? null,
+    progress:
+      next != null
+        ? Math.min(
+            100,
+            Math.round(
+              ((points - current.min) / Math.max(1, next.min - current.min)) *
+                100,
+            ),
+          )
+        : 100,
+  }
+}
+
+function normalizeStats(row?: Partial<UserStatsRow> | null): UserStatsRow {
+  const points = Number(row?.points ?? 0)
+  const levelInfo = getLevelInfo(points)
+
+  return {
+    id: String(row?.id ?? ''),
+    user_id: row?.user_id ?? null,
+    voter_key: row?.voter_key ?? null,
+    points,
+    level: Number(row?.level ?? levelInfo.level),
+    votes_count: Number(row?.votes_count ?? 0),
+    comments_count: Number(row?.comments_count ?? 0),
+    posts_count: Number(row?.posts_count ?? 0),
+    likes_received: Number(row?.likes_received ?? 0),
+    created_at: row?.created_at,
+  }
 }
 
 const VoteOption = React.memo(function VoteOption({
@@ -493,6 +587,8 @@ function MyActivityModal({
   onOpenComment,
   onLogout,
   profile,
+  stats,
+  badges,
 }: {
   open: boolean
   onClose: () => void
@@ -502,6 +598,8 @@ function MyActivityModal({
   onOpenComment: (postId: number) => void
   onLogout: () => void
   profile: ProfileRow | null
+  stats: UserStatsRow
+  badges: string[]
 }) {
   const [tab, setTab] = useState<'posts' | 'comments'>('posts')
 
@@ -530,14 +628,89 @@ function MyActivityModal({
         </div>
 
         <div className="shrink-0 px-5 pt-4">
-          <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-3">
-            <div className="text-sm font-semibold text-slate-900">
-              {profile?.anonymous_name ?? '익명 유저'}
-            </div>
-            <div className="mt-1 text-xs text-slate-500">
-              로그인한 활동만 저장됨
-            </div>
-          </div>
+          {(() => {
+            const levelInfo = getLevelInfo(stats.points)
+
+            return (
+              <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {profile?.anonymous_name ?? '익명 유저'}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Lv.{levelInfo.level} · {levelInfo.label}
+                    </div>
+                  </div>
+                  <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#4f7cff]">
+                    {stats.points}P
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>다음 레벨 진행도</span>
+                    <span>{levelInfo.progress}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-[#4f7cff] transition-all"
+                      style={{ width: `${levelInfo.progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">판단</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.votes_count}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">댓글</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.comments_count}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">글</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.posts_count}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">받은 공감</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.likes_received}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-2 text-xs font-semibold text-slate-500">
+                    획득 뱃지
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {badges.length === 0 ? (
+                      <div className="text-xs text-slate-400">
+                        아직 획득한 뱃지가 없음
+                      </div>
+                    ) : (
+                      badges.map((badge) => (
+                        <span
+                          key={badge}
+                          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700"
+                        >
+                          🏆 {badge}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="flex gap-2">
             <button
@@ -1236,6 +1409,17 @@ export default function MatnyaApp() {
 
   const [myPosts, setMyPosts] = useState<MyPostItem[]>([])
   const [myComments, setMyComments] = useState<MyCommentItem[]>([])
+  const [stats, setStats] = useState<UserStatsRow>(
+    normalizeStats({
+      points: 0,
+      level: 1,
+      votes_count: 0,
+      comments_count: 0,
+      posts_count: 0,
+      likes_received: 0,
+    }),
+  )
+  const [badges, setBadges] = useState<string[]>([])
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
   const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
@@ -1277,6 +1461,17 @@ export default function MatnyaApp() {
     setDeletedOpen(false)
     setMyPosts([])
     setMyComments([])
+    setStats(
+      normalizeStats({
+        points: 0,
+        level: 1,
+        votes_count: 0,
+        comments_count: 0,
+        posts_count: 0,
+        likes_received: 0,
+      }),
+    )
+    setBadges([])
     setCommentOpen(false)
     setActivityOpen(false)
   }, [])
@@ -1529,6 +1724,150 @@ export default function MatnyaApp() {
     )
   }, [])
 
+  const loadProgress = useCallback(async () => {
+    const currentUserId = authUser?.id ?? null
+    const currentVoterKey = currentUserId ? null : voterKey
+
+    if (!currentUserId && !currentVoterKey) return
+
+    let statsQuery = supabase.from('user_stats').select('*').limit(1)
+    statsQuery = currentUserId
+      ? statsQuery.eq('user_id', currentUserId)
+      : statsQuery.eq('voter_key', currentVoterKey)
+
+    const { data: statsData, error: statsError } =
+      await statsQuery.maybeSingle()
+
+    if (statsError) {
+      console.error('user_stats 조회 실패', statsError)
+    } else if (statsData) {
+      setStats(normalizeStats(statsData as Partial<UserStatsRow>))
+    } else {
+      const base = normalizeStats({
+        user_id: currentUserId,
+        voter_key: currentVoterKey,
+      })
+      setStats(base)
+
+      const { error: insertError } = await supabase.from('user_stats').insert({
+        user_id: currentUserId,
+        voter_key: currentVoterKey,
+        points: 0,
+        level: 1,
+        votes_count: 0,
+        comments_count: 0,
+        posts_count: 0,
+        likes_received: 0,
+      })
+
+      if (insertError) {
+        console.error('user_stats 초기 생성 실패', insertError)
+      }
+    }
+
+    let badgeQuery = supabase
+      .from('user_badges')
+      .select('badge_name')
+      .order('created_at', { ascending: false })
+
+    badgeQuery = currentUserId
+      ? badgeQuery.eq('user_id', currentUserId)
+      : badgeQuery.eq('voter_key', currentVoterKey)
+
+    const { data: badgeRows, error: badgeError } = await badgeQuery
+
+    if (badgeError) {
+      console.error('user_badges 조회 실패', badgeError)
+    } else {
+      setBadges((badgeRows ?? []).map((row) => row.badge_name))
+    }
+  }, [authUser?.id, voterKey])
+
+  const awardBadgesFromStats = useCallback(
+    async (nextStats: UserStatsRow) => {
+      const currentUserId = authUser?.id ?? null
+      const currentVoterKey = currentUserId ? null : voterKey
+      if (!currentUserId && !currentVoterKey) return
+
+      const nextBadgeNames = BADGE_RULES.filter((rule) =>
+        rule.check(nextStats),
+      ).map((rule) => rule.name)
+
+      const newlyEarned = nextBadgeNames.filter(
+        (name) => !badges.includes(name),
+      )
+      if (newlyEarned.length === 0) return
+
+      const rows = newlyEarned.map((badgeName) => ({
+        user_id: currentUserId,
+        voter_key: currentVoterKey,
+        badge_name: badgeName,
+      }))
+
+      const { error } = await supabase.from('user_badges').insert(rows)
+      if (error) {
+        console.error('뱃지 저장 실패', error)
+        return
+      }
+
+      setBadges((prev) => [...newlyEarned, ...prev])
+      newlyEarned.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
+    },
+    [authUser?.id, voterKey, badges, showToast],
+  )
+
+  const updateProgress = useCallback(
+    async (delta: Partial<UserStatsRow>, rewardMessage?: string) => {
+      const currentUserId = authUser?.id ?? null
+      const currentVoterKey = currentUserId ? null : voterKey
+      if (!currentUserId && !currentVoterKey) return
+
+      const nextStats = normalizeStats({
+        ...stats,
+        user_id: currentUserId,
+        voter_key: currentVoterKey,
+        points: stats.points + Number(delta.points ?? 0),
+        votes_count: stats.votes_count + Number(delta.votes_count ?? 0),
+        comments_count:
+          stats.comments_count + Number(delta.comments_count ?? 0),
+        posts_count: stats.posts_count + Number(delta.posts_count ?? 0),
+        likes_received:
+          stats.likes_received + Number(delta.likes_received ?? 0),
+      })
+
+      const nextLevelInfo = getLevelInfo(nextStats.points)
+      nextStats.level = nextLevelInfo.level
+
+      setStats(nextStats)
+
+      let query = supabase.from('user_stats').update({
+        points: nextStats.points,
+        level: nextStats.level,
+        votes_count: nextStats.votes_count,
+        comments_count: nextStats.comments_count,
+        posts_count: nextStats.posts_count,
+        likes_received: nextStats.likes_received,
+      })
+
+      query = currentUserId
+        ? query.eq('user_id', currentUserId)
+        : query.eq('voter_key', currentVoterKey)
+
+      const { error } = await query
+      if (error) {
+        console.error('포인트 업데이트 실패', error)
+        return
+      }
+
+      if (rewardMessage) {
+        showToast(rewardMessage)
+      }
+
+      await awardBadgesFromStats(nextStats)
+    },
+    [authUser?.id, voterKey, stats, showToast, awardBadgesFromStats],
+  )
+
   const handleAdminToggle = async () => {
     if (!isAdmin) {
       showToast('관리자 계정만 가능')
@@ -1569,6 +1908,17 @@ export default function MatnyaApp() {
       setProfile(null)
       setMyPosts([])
       setMyComments([])
+      setStats(
+        normalizeStats({
+          points: 0,
+          level: 1,
+          votes_count: 0,
+          comments_count: 0,
+          posts_count: 0,
+          likes_received: 0,
+        }),
+      )
+      setBadges([])
       setAdminMode(false)
 
       showToast('로그아웃 완료')
@@ -1610,6 +1960,11 @@ export default function MatnyaApp() {
       setMyComments([])
     }
   }, [authUser?.id, fetchMyActivity])
+
+  useEffect(() => {
+    if (!voterKey) return
+    void loadProgress()
+  }, [voterKey, authUser?.id, loadProgress])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -1751,7 +2106,13 @@ export default function MatnyaApp() {
       return
     }
 
-    showToast('판단 반영 완료!')
+    await updateProgress(
+      {
+        points: 1,
+        votes_count: prevChoice ? 0 : 1,
+      },
+      prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
+    )
   }
 
   const prev = () => setCurrentIndex((i) => Math.max(i - 1, 0))
@@ -1864,7 +2225,13 @@ export default function MatnyaApp() {
       ])
     }
 
-    showToast('반응 등록 완료')
+    await updateProgress(
+      {
+        points: 3,
+        comments_count: 1,
+      },
+      '🔥 +3 포인트',
+    )
   }
 
   const likeComment = async (commentId: number): Promise<void> => {
@@ -1909,6 +2276,19 @@ export default function MatnyaApp() {
     }
 
     showToast(alreadyLiked ? '공감 취소' : '공감 반영')
+
+    if (
+      !alreadyLiked &&
+      targetComment.author === (profile?.anonymous_name ?? guestName)
+    ) {
+      await updateProgress(
+        {
+          points: 2,
+          likes_received: 1,
+        },
+        '🔥 공감 받아 +2 포인트',
+      )
+    }
   }
 
   const openReportPost = () => {
@@ -2131,7 +2511,14 @@ export default function MatnyaApp() {
     setSelectedCategory('전체')
     setCurrentIndex(0)
     setWriteOpen(false)
-    showToast('맞냐 등록 완료!')
+
+    await updateProgress(
+      {
+        points: 5,
+        posts_count: 1,
+      },
+      '🔥 글 작성 +5 포인트',
+    )
   }
 
   const adminRestorePost = async () => {
@@ -2421,6 +2808,8 @@ export default function MatnyaApp() {
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
+          stats={stats}
+          badges={badges}
         />
 
         <DeletedItemsModal
@@ -2772,6 +3161,8 @@ export default function MatnyaApp() {
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
+          stats={stats}
+          badges={badges}
         />
 
         <DeletedItemsModal
