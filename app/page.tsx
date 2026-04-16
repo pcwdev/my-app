@@ -2864,8 +2864,6 @@ export default function MatnyaApp() {
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
   const levelInfo = getLevelInfo(stats.points)
-  const rewardGuide = ['판단 +1P', '댓글 +3P', '글쓰기 +5P', '공감 받으면 +2P']
-
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
@@ -2968,36 +2966,6 @@ export default function MatnyaApp() {
                   >
                     {category}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-[24px] border border-[#d9e5ff] bg-[linear-gradient(180deg,#f7faff_0%,#eef4ff_100%)] px-3.5 py-3 shadow-[0_10px_24px_rgba(79,124,255,0.10)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[12px] font-extrabold tracking-[0.02em] text-[#315fdc]">
-                    포인트 · 레벨 · 뱃지 진행중
-                  </div>
-                  <div className="mt-1 text-[12px] leading-5 text-slate-600">
-                    판단/댓글/글쓰기 하면 포인트가 쌓이고, 조건을 채우면 뱃지가
-                    열림.
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActivityOpen(true)}
-                  className="shrink-0 rounded-full border border-[#cfe0ff] bg-white px-3 py-1.5 text-[11px] font-bold text-[#315fdc]"
-                >
-                  내 레벨 보기
-                </button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {rewardGuide.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-white/90 bg-white/85 px-2.5 py-1 text-[11px] font-semibold text-slate-600"
-                  >
-                    {item}
-                  </span>
                 ))}
               </div>
             </div>
