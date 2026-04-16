@@ -2512,7 +2512,7 @@ export default function MatnyaApp() {
     window.history.replaceState({}, '', url.toString())
   }, [])
 
-  const endSharedEntryMode = useCallback(() => {
+  const keepShareSessionWhileNavigating = useCallback(() => {
     setSharedEntryActive(false)
   }, [])
 
@@ -2554,16 +2554,18 @@ export default function MatnyaApp() {
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
+  const hasActiveSharedSession = !!shareId && !!sharedPostId
+
   const isViewingSharedPost =
-    !!shareId &&
-    !!sharedPostId &&
+    hasActiveSharedSession &&
     !!currentPost &&
     Number(currentPost.id) === Number(sharedPostId)
 
   useEffect(() => {
-    if (!isViewingSharedPost) return
+    if (!isViewingSharedPost || !shareId || !sharedPostId) return
+    syncShareUrl(Number(sharedPostId), shareId)
     void loadShareStats()
-  }, [isViewingSharedPost, loadShareStats])
+  }, [isViewingSharedPost, shareId, sharedPostId, syncShareUrl, loadShareStats])
 
   useEffect(() => {
     if (!currentPost) {
@@ -2850,12 +2852,12 @@ ${shareUrl}`)
   }
 
   const prev = () => {
-    endSharedEntryMode()
+    keepShareSessionWhileNavigating()
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }
 
   const next = () => {
-    endSharedEntryMode()
+    keepShareSessionWhileNavigating()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
   }
 
@@ -2877,14 +2879,14 @@ ${shareUrl}`)
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
-      endSharedEntryMode()
+      keepShareSessionWhileNavigating()
       setCurrentIndex(nextIndexInFiltered)
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
-      endSharedEntryMode()
+      keepShareSessionWhileNavigating()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
@@ -2894,7 +2896,7 @@ ${shareUrl}`)
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      endSharedEntryMode()
+      keepShareSessionWhileNavigating()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -2905,7 +2907,7 @@ ${shareUrl}`)
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      endSharedEntryMode()
+      keepShareSessionWhileNavigating()
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
@@ -3776,7 +3778,12 @@ ${shareUrl}`)
                     : currentPost.content}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {sharedEntryActive && (
+                  {isViewingSharedPost && (
+                    <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                      🔗 친구 반응 집계 중인 논쟁
+                    </div>
+                  )}
+                  {sharedEntryActive && !isViewingSharedPost && (
                     <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                       🔗 공유 링크로 들어온 논쟁
                     </div>
