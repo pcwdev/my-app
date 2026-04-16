@@ -1695,6 +1695,10 @@ export default function MatnyaApp() {
   const [authorMetaMap, setAuthorMetaMap] = useState<
     Record<string, AuthorMeta>
   >({})
+  const [shareId, setShareId] = useState<string | null>(null)
+  const [shareStats, setShareStats] = useState({ left: 0, right: 0 })
+  const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
+  const [sharedPostId, setSharedPostId] = useState<number | null>(null)
 
   const featuredBadge = badges[0] ?? null
 
@@ -2331,6 +2335,19 @@ export default function MatnyaApp() {
   }, [fetchAll])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const incomingShareId = params.get('share')
+    const incomingPostId = params.get('post')
+
+    if (incomingShareId) setShareId(incomingShareId)
+    if (incomingPostId && !Number.isNaN(Number(incomingPostId))) {
+      setSharedPostId(Number(incomingPostId))
+    }
+  }, [])
+
+  useEffect(() => {
     if (authUser?.id) {
       void fetchMyActivity(authUser.id)
     } else {
@@ -2348,6 +2365,65 @@ export default function MatnyaApp() {
     if (posts.length === 0) return
     void loadAuthorMeta()
   }, [posts, loadAuthorMeta])
+
+  const loadShareSession = useCallback(async () => {
+    if (!shareId) return
+
+    const { data, error } = await supabase
+      .from('share_sessions')
+      .select('id, post_id, owner_key, owner_choice')
+      .eq('id', shareId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('share session 조회 실패', error)
+      return
+    }
+
+    if (data) {
+      setShareOwnerKey(data.owner_key ?? null)
+      if (data.post_id) setSharedPostId(Number(data.post_id))
+    }
+  }, [shareId])
+
+  const loadShareStats = useCallback(async () => {
+    if (!shareId) return
+
+    const { data, error } = await supabase
+      .from('share_responses')
+      .select('choice')
+      .eq('share_id', shareId)
+
+    if (error) {
+      console.error('share responses 조회 실패', error)
+      return
+    }
+
+    const left = (data ?? []).filter(
+      (item: any) => item.choice === 'left',
+    ).length
+    const right = (data ?? []).filter(
+      (item: any) => item.choice === 'right',
+    ).length
+
+    setShareStats({ left, right })
+  }, [shareId])
+
+  const syncShareUrl = useCallback((postId: number, id: string) => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('post', String(postId))
+    url.searchParams.set('share', id)
+    window.history.replaceState({}, '', url.toString())
+  }, [])
+
+  useEffect(() => {
+    if (shareId) void loadShareSession()
+  }, [shareId, loadShareSession])
+
+  useEffect(() => {
+    if (shareId) void loadShareStats()
+  }, [shareId, loadShareStats])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -2378,6 +2454,90 @@ export default function MatnyaApp() {
 
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
+
+  useEffect(() => {
+    if (!sharedPostId || posts.length === 0) return
+
+    const filteredIndex = filteredPosts.findIndex(
+      (post) => post.id === sharedPostId,
+    )
+    if (filteredIndex >= 0) {
+      setCurrentIndex(filteredIndex)
+      return
+    }
+
+    const allIndex = posts.findIndex((post) => post.id === sharedPostId)
+    if (allIndex >= 0) {
+      setTab('추천')
+      setSelectedCategory('전체')
+      setCurrentIndex(allIndex)
+    }
+  }, [sharedPostId, posts, filteredPosts])
+
+  const createShareSession = useCallback(
+    async (choice: VoteSide) => {
+      if (!currentPost || !voterKey) return null
+
+      const nextShareId = `share_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`
+
+      const { error } = await supabase.from('share_sessions').insert({
+        id: nextShareId,
+        post_id: currentPost.id,
+        owner_key: voterKey,
+        owner_choice: choice,
+      })
+
+      if (error) {
+        console.error('share session 생성 실패', error)
+        return null
+      }
+
+      setShareId(nextShareId)
+      setShareOwnerKey(voterKey)
+      setSharedPostId(currentPost.id)
+      syncShareUrl(currentPost.id, nextShareId)
+      return nextShareId
+    },
+    [currentPost, voterKey, syncShareUrl],
+  )
+
+  const shareCurrentPost = useCallback(async () => {
+    if (!currentPost) return
+
+    let activeShareId = shareId
+    if (!activeShareId) {
+      const currentChoice = votes[currentPost.id]
+      if (!currentChoice) {
+        showToast('먼저 선택해야 공유할 수 있음')
+        return
+      }
+      activeShareId = await createShareSession(currentChoice)
+      if (!activeShareId) {
+        showToast('공유 링크 생성 실패')
+        return
+      }
+    }
+
+    const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
+    const shareText = `이거 맞냐?\n${currentPost.title}\n\n너라면 뭐 선택함?`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: currentPost.title,
+          text: shareText,
+          url: shareUrl,
+        })
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+        showToast('공유 링크 복사 완료')
+      } else {
+        window.prompt('아래 링크를 복사해서 공유해줘', shareUrl)
+      }
+    } catch (error) {
+      console.error('공유 실패', error)
+    }
+  }, [currentPost, shareId, votes, createShareSession, showToast])
 
   const controversialPosts = useMemo(() => {
     if (!currentPost) return []
@@ -2487,6 +2647,29 @@ export default function MatnyaApp() {
       showToast('투표 반영 실패')
       void fetchAll(voterKey)
       return
+    }
+
+    let activeShareId = shareId
+
+    if (!activeShareId) {
+      activeShareId = await createShareSession(choice)
+    } else if (!shareOwnerKey || String(shareOwnerKey) !== String(voterKey)) {
+      const { error: shareResponseError } = await supabase
+        .from('share_responses')
+        .upsert(
+          {
+            share_id: activeShareId,
+            responder_key: voterKey,
+            choice,
+          },
+          { onConflict: 'share_id,responder_key' },
+        )
+
+      if (shareResponseError) {
+        console.error('share response 저장 실패', shareResponseError)
+      } else {
+        void loadShareStats()
+      }
     }
 
     await updateProgress(
@@ -3402,6 +3585,11 @@ export default function MatnyaApp() {
                     ? '관리자 확인 전까지 숨김 처리됩니다.'
                     : currentPost.content}
                 </p>
+                {shareId && (
+                  <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                    🔗 공유 링크로 들어온 논쟁
+                  </div>
+                )}
               </div>
 
               {(!currentPost.hidden || adminMode) && (
@@ -3461,6 +3649,58 @@ export default function MatnyaApp() {
                           </div>
                         </div>
                       )}
+
+                      <div className="rounded-[24px] border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] p-4 shadow-[0_12px_26px_rgba(245,158,11,0.10)]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-extrabold tracking-[0.14em] text-amber-600">
+                              FRIEND REACTION
+                            </div>
+                            <div className="mt-1 text-base font-black text-slate-900">
+                              친구들 반응 모아보기
+                            </div>
+                          </div>
+                          <div className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-amber-700 shadow-sm">
+                            익명 집계
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                            <div className="text-[11px] text-slate-400">
+                              친구들 {currentPost.leftLabel}
+                            </div>
+                            <div className="mt-1 text-lg font-black text-slate-900">
+                              {shareStats.left}명
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                            <div className="text-[11px] text-slate-400">
+                              친구들 {currentPost.rightLabel}
+                            </div>
+                            <div className="mt-1 text-lg font-black text-slate-900">
+                              {shareStats.right}명
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 text-xs text-slate-600">
+                          {shareStats.left + shareStats.right === 0
+                            ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
+                            : shareStats.left === shareStats.right
+                              ? '친구들 의견이 팽팽함 👀'
+                              : shareStats.left > shareStats.right
+                                ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
+                                : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
+                        </div>
+
+                        <button
+                          onClick={() => void shareCurrentPost()}
+                          className="mt-3 w-full rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                        >
+                          친구 더 보내기
+                        </button>
+                      </div>
                     </div>
                   ) : null}
                 </div>
