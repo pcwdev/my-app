@@ -4085,16 +4085,16 @@ ${shareUrl}`)
                         <div
                           className={`rounded-[24px] p-4 ${isSharedOwnerViewingPost ? 'border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_26px_rgba(79,124,255,0.10)]' : 'border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] shadow-[0_12px_26px_rgba(245,158,11,0.10)]'}`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
+                          <div className="flex items-start justify-between gap-3 sm:gap-4">
+                            <div className="min-w-0 flex-1 pr-1">
                               <div
-                                className={`text-xs font-extrabold tracking-[0.14em] ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-600'}`}
+                                className={`text-[11px] font-extrabold tracking-[0.18em] ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-600'}`}
                               >
                                 {isSharedOwnerViewingPost
                                   ? 'LIVE SHARE'
                                   : 'FRIEND REACTION'}
                               </div>
-                              <div className="mt-1 text-base font-black text-slate-900">
+                              <div className="mt-1 text-[17px] leading-[1.32] font-black tracking-[-0.02em] text-slate-900 sm:text-[18px]">
                                 {isSharedOwnerViewingPost
                                   ? shareResponseTotal > 0
                                     ? '친구 반응이 실시간으로 들어오는 중'
@@ -4103,7 +4103,7 @@ ${shareUrl}`)
                               </div>
                             </div>
                             <div
-                              className={`rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold shadow-sm ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-700'}`}
+                              className={`shrink-0 whitespace-nowrap rounded-full border bg-white/95 px-4 py-2 text-[12px] font-extrabold leading-none shadow-[0_8px_18px_rgba(15,23,42,0.06)] ${isSharedOwnerViewingPost ? 'border-[#d6e4ff] text-[#4f7cff]' : 'border-amber-200 text-amber-700'}`}
                             >
                               {isSharedOwnerViewingPost
                                 ? '실시간 반영'
@@ -4115,7 +4115,7 @@ ${shareUrl}`)
                           !showOwnerShareResults ? (
                             <div className="mt-3 space-y-3">
                               <div
-                                className={`rounded-2xl border px-3 py-3 text-sm font-semibold transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
+                                className={`rounded-2xl border px-4 py-3.5 text-[15px] leading-7 font-semibold transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
                               >
                                 {shareResponseTotal === 0
                                   ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
