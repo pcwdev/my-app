@@ -1845,16 +1845,13 @@ function ShareInboxModal({
 
   useEffect(() => {
     if (!open) return
-    if (items.some((item) => item.unreadCount > 0)) {
-      setFilter('new')
-      return
-    }
-    if (items.some((item) => item.totalCount > 0)) {
-      setFilter('ready')
-      return
-    }
-    setFilter('all')
-  }, [open, items])
+    setFilter((prev) => {
+      if (prev === 'new' || prev === 'ready' || prev === 'all') return prev
+      if (items.some((item) => item.unreadCount > 0)) return 'new'
+      if (items.some((item) => item.totalCount > 0)) return 'ready'
+      return 'all'
+    })
+  }, [open])
 
   if (!open) return null
 
