@@ -357,6 +357,9 @@ type ShareInboxItem = {
   rightCount: number
   totalCount: number
   unreadCount: number
+  overallLeftCount: number
+  overallRightCount: number
+  overallTotalCount: number
   leftLabel?: string
   rightLabel?: string
 }
@@ -2162,43 +2165,118 @@ function ShareInboxModal({
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                        <div className="text-[11px] text-slate-400">
-                          {item.leftLabel ?? '왼쪽'}
+                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                          전체 결과
                         </div>
-                        <div className="mt-1 text-base font-black text-slate-900">
-                          {item.leftCount}명
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold text-slate-500">
-                          {percentPair.left}%
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
-                            style={{
-                              width: `${Math.max(percentPair.left, item.totalCount === 0 ? 0 : 8)}%`,
-                            }}
-                          />
+                        <div className="text-[11px] font-bold text-slate-500">
+                          {item.overallTotalCount}명 참여
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                        <div className="text-[11px] text-slate-400">
-                          {item.rightLabel ?? '오른쪽'}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                          <div className="text-[11px] text-slate-400">
+                            {item.leftLabel ?? '왼쪽'}
+                          </div>
+                          <div className="mt-1 text-base font-black text-slate-900">
+                            {item.overallLeftCount}명
+                          </div>
+                          <div className="mt-1 text-[11px] font-bold text-slate-500">
+                            {
+                              getPercentPair(
+                                item.overallLeftCount,
+                                item.overallRightCount,
+                              ).left
+                            }
+                            %
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                              style={{
+                                width: `${Math.max(getPercentPair(item.overallLeftCount, item.overallRightCount).left, item.overallTotalCount === 0 ? 0 : 8)}%`,
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-1 text-base font-black text-slate-900">
-                          {item.rightCount}명
+                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                          <div className="text-[11px] text-slate-400">
+                            {item.rightLabel ?? '오른쪽'}
+                          </div>
+                          <div className="mt-1 text-base font-black text-slate-900">
+                            {item.overallRightCount}명
+                          </div>
+                          <div className="mt-1 text-[11px] font-bold text-slate-500">
+                            {
+                              getPercentPair(
+                                item.overallLeftCount,
+                                item.overallRightCount,
+                              ).right
+                            }
+                            %
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                              style={{
+                                width: `${Math.max(getPercentPair(item.overallLeftCount, item.overallRightCount).right, item.overallTotalCount === 0 ? 0 : 8)}%`,
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-1 text-[11px] font-bold text-slate-500">
-                          {percentPair.right}%
+                      </div>
+                    </div>
+
+                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                          친구 결과
                         </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-[#facc15] transition-all duration-500"
-                            style={{
-                              width: `${Math.max(percentPair.right, item.totalCount === 0 ? 0 : 8)}%`,
-                            }}
-                          />
+                        <div
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${tensionMeta.toneClass}`}
+                        >
+                          {tensionMeta.label}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                          <div className="text-[11px] text-slate-400">
+                            {item.leftLabel ?? '왼쪽'}
+                          </div>
+                          <div className="mt-1 text-base font-black text-slate-900">
+                            {item.leftCount}명
+                          </div>
+                          <div className="mt-1 text-[11px] font-bold text-slate-500">
+                            {percentPair.left}%
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                              style={{
+                                width: `${Math.max(percentPair.left, item.totalCount === 0 ? 0 : 8)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                          <div className="text-[11px] text-slate-400">
+                            {item.rightLabel ?? '오른쪽'}
+                          </div>
+                          <div className="mt-1 text-base font-black text-slate-900">
+                            {item.rightCount}명
+                          </div>
+                          <div className="mt-1 text-[11px] font-bold text-slate-500">
+                            {percentPair.right}%
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                              style={{
+                                width: `${Math.max(percentPair.right, item.totalCount === 0 ? 0 : 8)}%`,
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2219,21 +2297,31 @@ function ShareInboxModal({
                       </div>
                       <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
                         <div className="text-[11px] text-slate-400">
-                          친구들 흐름
+                          전체 흐름
                         </div>
                         <div className="mt-1 text-sm font-black text-slate-900">
-                          {ownerInsight.friendLabel}
+                          {item.overallLeftCount === item.overallRightCount
+                            ? '전체 의견 팽팽'
+                            : item.overallLeftCount > item.overallRightCount
+                              ? `${item.leftLabel ?? '왼쪽'} 우세`
+                              : `${item.rightLabel ?? '오른쪽'} 우세`}
                         </div>
                         <div
-                          className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${tensionMeta.toneClass}`}
+                          className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${getShareTensionMeta(item.overallLeftCount, item.overallRightCount).toneClass}`}
                         >
-                          {tensionMeta.label}
+                          {
+                            getShareTensionMeta(
+                              item.overallLeftCount,
+                              item.overallRightCount,
+                            ).label
+                          }
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 text-[12px] leading-5 text-slate-600">
-                      {ownerInsight.helper} · {tensionMeta.helper}
+                      익명 전체 흐름 먼저 보고, 그 아래 친구들 반응까지 같이
+                      보면 더 재밌음 · {ownerInsight.helper}
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -3171,7 +3259,7 @@ export default function MatnyaApp() {
           .in('share_session_id', sessionIds),
         supabase
           .from('posts')
-          .select('id, title, left_label, right_label')
+          .select('id, title, left_label, right_label, left_votes, right_votes')
           .in('id', postIds),
       ])
 
@@ -3192,13 +3280,21 @@ export default function MatnyaApp() {
 
       const postMap = new Map<
         number,
-        { title: string; leftLabel?: string; rightLabel?: string }
+        {
+          title: string
+          leftLabel?: string
+          rightLabel?: string
+          overallLeftCount: number
+          overallRightCount: number
+        }
       >()
       for (const row of (postRows ?? []) as Array<any>) {
         postMap.set(Number(row.id), {
           title: String(row.title ?? '공유한 글'),
           leftLabel: row.left_label ?? undefined,
           rightLabel: row.right_label ?? undefined,
+          overallLeftCount: Number(row.left_votes ?? 0),
+          overallRightCount: Number(row.right_votes ?? 0),
         })
       }
 
@@ -3222,6 +3318,11 @@ export default function MatnyaApp() {
           rightCount: stats.right,
           totalCount,
           unreadCount,
+          overallLeftCount: Number(postMeta?.overallLeftCount ?? 0),
+          overallRightCount: Number(postMeta?.overallRightCount ?? 0),
+          overallTotalCount:
+            Number(postMeta?.overallLeftCount ?? 0) +
+            Number(postMeta?.overallRightCount ?? 0),
           leftLabel: postMeta?.leftLabel,
           rightLabel: postMeta?.rightLabel,
         }
@@ -5020,55 +5121,114 @@ ${shareUrl}`)
                             </div>
                           ) : (
                             <>
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                <div
-                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-white'}`}
-                                >
-                                  <div className="text-[11px] text-slate-400">
-                                    친구들 {currentPost.leftLabel}
+                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                    전체 결과
                                   </div>
-                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
-                                    <span>{shareStats.left}명</span>
-                                    {sharePulse &&
-                                    shareStats.left > 0 &&
-                                    shareStats.left >= shareStats.right ? (
-                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
-                                        HOT
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
-                                      style={{
-                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.left / shareResponseTotal) * 100))}%`,
-                                      }}
-                                    />
+                                  <div className="text-[11px] font-bold text-slate-500">
+                                    {currentPost.leftVotes +
+                                      currentPost.rightVotes}
+                                    명 참여
                                   </div>
                                 </div>
-                                <div
-                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-white'}`}
-                                >
-                                  <div className="text-[11px] text-slate-400">
-                                    친구들 {currentPost.rightLabel}
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                                    <div className="text-[11px] text-slate-400">
+                                      전체 {currentPost.leftLabel}
+                                    </div>
+                                    <div className="mt-1 text-lg font-black text-slate-900">
+                                      {currentPost.leftVotes}명
+                                    </div>
+                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                      <div
+                                        className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                                        style={{
+                                          width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).left, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
+                                        }}
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
-                                    <span>{shareStats.right}명</span>
-                                    {sharePulse &&
-                                    shareStats.right > 0 &&
-                                    shareStats.right > shareStats.left ? (
-                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
-                                        HOT
-                                      </span>
-                                    ) : null}
+                                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                                    <div className="text-[11px] text-slate-400">
+                                      전체 {currentPost.rightLabel}
+                                    </div>
+                                    <div className="mt-1 text-lg font-black text-slate-900">
+                                      {currentPost.rightVotes}명
+                                    </div>
+                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                      <div
+                                        className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                                        style={{
+                                          width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).right, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
+                                        }}
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
-                                      style={{
-                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
-                                      }}
-                                    />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                    친구 결과
+                                  </div>
+                                  <div
+                                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${shareTensionMeta.toneClass}`}
+                                  >
+                                    {shareTensionMeta.label}
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <div
+                                    className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                  >
+                                    <div className="text-[11px] text-slate-400">
+                                      친구들 {currentPost.leftLabel}
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                      <span>{shareStats.left}명</span>
+                                      {sharePulse &&
+                                      shareStats.left > 0 &&
+                                      shareStats.left >= shareStats.right ? (
+                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                          HOT
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                        style={{
+                                          width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.left / shareResponseTotal) * 100))}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                  >
+                                    <div className="text-[11px] text-slate-400">
+                                      친구들 {currentPost.rightLabel}
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                      <span>{shareStats.right}명</span>
+                                      {sharePulse &&
+                                      shareStats.right > 0 &&
+                                      shareStats.right > shareStats.left ? (
+                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                          HOT
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                        style={{
+                                          width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -5089,20 +5249,33 @@ ${shareUrl}`)
                                 </div>
                                 <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                                   <div className="text-[11px] text-slate-400">
-                                    친구들 흐름
+                                    전체 흐름
                                   </div>
                                   <div className="mt-1 text-sm font-black text-slate-900">
-                                    {ownerChoiceInsight.friendLabel}
+                                    {currentPost.leftVotes ===
+                                    currentPost.rightVotes
+                                      ? '전체 의견 팽팽'
+                                      : currentPost.leftVotes >
+                                          currentPost.rightVotes
+                                        ? `${currentPost.leftLabel} 우세`
+                                        : `${currentPost.rightLabel} 우세`}
                                   </div>
                                   <div
-                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${shareTensionMeta.toneClass}`}
+                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${getShareTensionMeta(currentPost.leftVotes, currentPost.rightVotes).toneClass}`}
                                   >
-                                    {shareTensionMeta.label}
+                                    {
+                                      getShareTensionMeta(
+                                        currentPost.leftVotes,
+                                        currentPost.rightVotes,
+                                      ).label
+                                    }
                                   </div>
                                 </div>
                               </div>
 
                               <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                익명 전체 흐름 먼저 보고, 친구들 반응이 얼마나
+                                다른지도 같이 보는 판임 ·{' '}
                                 {ownerChoiceInsight.helper}
                               </div>
 
