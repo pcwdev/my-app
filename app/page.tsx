@@ -1822,7 +1822,7 @@ function ShareInboxModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 space-y-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[148px] space-y-3.5 [webkit-overflow-scrolling:touch]">
           {loading ? (
             <div className="rounded-[24px] border border-slate-200/80 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
               보낸 공유함 불러오는 중...
@@ -1933,6 +1933,8 @@ function ShareInboxModal({
                 </div>
               )
             })}
+
+          <div className="h-10 shrink-0" aria-hidden="true" />
         </div>
       </div>
     </div>
