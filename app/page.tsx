@@ -1756,6 +1756,11 @@ export default function MatnyaApp() {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const [showOwnerShareResults, setShowOwnerShareResults] = useState(false)
+  const [sharePulse, setSharePulse] = useState(false)
+  const [ownerShareDelta, setOwnerShareDelta] = useState(0)
+  const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastShareTotalRef = useRef<number>(0)
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
   const [justCreatedPostId, setJustCreatedPostId] = useState<number | null>(
     null,
@@ -2454,9 +2459,12 @@ export default function MatnyaApp() {
   }, [voterKey, authUser?.id, loadProgress])
 
   useEffect(() => {
-    if (posts.length === 0) return
-    void loadAuthorMeta()
-  }, [posts, loadAuthorMeta])
+    return () => {
+      if (sharePulseTimerRef.current) {
+        clearTimeout(sharePulseTimerRef.current)
+      }
+    }
+  }, [])
 
   const loadShareStatsBySessionId = useCallback(
     async (sessionId: string | null) => {
@@ -2524,6 +2532,10 @@ export default function MatnyaApp() {
     setShareOwnerKey(null)
     setShareStats({ left: 0, right: 0 })
     setSharedEntryActive(false)
+    setShowOwnerShareResults(false)
+    setSharePulse(false)
+    setOwnerShareDelta(0)
+    lastShareTotalRef.current = 0
 
     if (typeof window === 'undefined') return
 
@@ -2587,10 +2599,55 @@ export default function MatnyaApp() {
     !!voterKey &&
     String(shareOwnerKey) !== String(voterKey)
 
+  const isSharedOwnerViewingPost =
+    isViewingSharedPost &&
+    !!shareOwnerKey &&
+    !!voterKey &&
+    String(shareOwnerKey) === String(voterKey)
+
+  const shareResponseTotal = shareStats.left + shareStats.right
+
   useEffect(() => {
     if (!isViewingSharedPost) return
     void loadShareStats()
   }, [isViewingSharedPost, loadShareStats])
+
+  useEffect(() => {
+    if (!isSharedOwnerViewingPost || !shareId) return
+
+    const interval = window.setInterval(() => {
+      void loadShareStatsBySessionId(shareId)
+    }, 4000)
+
+    return () => window.clearInterval(interval)
+  }, [isSharedOwnerViewingPost, shareId, loadShareStatsBySessionId])
+
+  useEffect(() => {
+    if (!isSharedOwnerViewingPost) {
+      lastShareTotalRef.current = shareResponseTotal
+      setOwnerShareDelta(0)
+      return
+    }
+
+    const previousTotal = lastShareTotalRef.current
+
+    if (shareResponseTotal > previousTotal) {
+      const diff = shareResponseTotal - previousTotal
+      showToast(diff > 1 ? `친구 응답 ${diff}개 도착` : '친구가 응답했어요')
+      setOwnerShareDelta(diff)
+      setSharePulse(true)
+      setShowOwnerShareResults(false)
+      if (sharePulseTimerRef.current) {
+        clearTimeout(sharePulseTimerRef.current)
+      }
+      sharePulseTimerRef.current = setTimeout(() => {
+        setSharePulse(false)
+        setOwnerShareDelta(0)
+      }, 1800)
+    }
+
+    lastShareTotalRef.current = shareResponseTotal
+  }, [isSharedOwnerViewingPost, shareResponseTotal, showToast])
 
   useEffect(() => {
     if (!currentPost) {
@@ -2764,6 +2821,8 @@ export default function MatnyaApp() {
         return
       }
       setSharedEntryActive(false)
+      setShowOwnerShareResults(false)
+      lastShareTotalRef.current = 0
     } else if (activeShareId) {
       await loadShareStatsBySessionId(activeShareId)
       syncShareUrl(currentPost.id, activeShareId)
@@ -3926,6 +3985,22 @@ ${shareUrl}`)
                         : '🔥 친구가 보낸 맞냐 · 선택하면 바로 결과 공개'}
                     </div>
                   )}
+                  {isSharedOwnerViewingPost && (
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold transition-all duration-300 ${sharePulse ? 'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#d1fae5_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.18)] -translate-y-0.5' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
+                    >
+                      <span>
+                        {shareResponseTotal > 0
+                          ? `⚡ 친구 응답 ${shareResponseTotal}개 도착`
+                          : '📨 친구 응답 기다리는 중'}
+                      </span>
+                      {ownerShareDelta > 0 ? (
+                        <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 shadow-sm">
+                          +{ownerShareDelta}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                   {isOwnCurrentPost && (
                     <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
                       ✍️ 내가 쓴 글 · 첫 반응 기다리는 중
@@ -4007,56 +4082,150 @@ ${shareUrl}`)
                       ) : null}
 
                       {isViewingSharedPost ? (
-                        <div className="rounded-[24px] border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] p-4 shadow-[0_12px_26px_rgba(245,158,11,0.10)]">
+                        <div
+                          className={`rounded-[24px] p-4 ${isSharedOwnerViewingPost ? 'border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_26px_rgba(79,124,255,0.10)]' : 'border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] shadow-[0_12px_26px_rgba(245,158,11,0.10)]'}`}
+                        >
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <div className="text-xs font-extrabold tracking-[0.14em] text-amber-600">
-                                FRIEND REACTION
+                              <div
+                                className={`text-xs font-extrabold tracking-[0.14em] ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-600'}`}
+                              >
+                                {isSharedOwnerViewingPost
+                                  ? 'LIVE SHARE'
+                                  : 'FRIEND REACTION'}
                               </div>
                               <div className="mt-1 text-base font-black text-slate-900">
-                                친구들 반응 모아보기
+                                {isSharedOwnerViewingPost
+                                  ? shareResponseTotal > 0
+                                    ? '친구 반응이 실시간으로 들어오는 중'
+                                    : '친구 응답 기다리는 중'
+                                  : '친구들 반응 모아보기'}
                               </div>
                             </div>
-                            <div className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-amber-700 shadow-sm">
-                              익명 집계
-                            </div>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                              <div className="text-[11px] text-slate-400">
-                                친구들 {currentPost.leftLabel}
-                              </div>
-                              <div className="mt-1 text-lg font-black text-slate-900">
-                                {shareStats.left}명
-                              </div>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
-                              <div className="text-[11px] text-slate-400">
-                                친구들 {currentPost.rightLabel}
-                              </div>
-                              <div className="mt-1 text-lg font-black text-slate-900">
-                                {shareStats.right}명
-                              </div>
+                            <div
+                              className={`rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold shadow-sm ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-700'}`}
+                            >
+                              {isSharedOwnerViewingPost
+                                ? '실시간 반영'
+                                : '익명 집계'}
                             </div>
                           </div>
 
-                          <div className="mt-3 text-xs text-slate-600">
-                            {shareStats.left + shareStats.right === 0
-                              ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
-                              : shareStats.left === shareStats.right
-                                ? '친구들 의견이 팽팽함 👀'
-                                : shareStats.left > shareStats.right
-                                  ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
-                                  : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
-                          </div>
+                          {isSharedOwnerViewingPost &&
+                          !showOwnerShareResults ? (
+                            <div className="mt-3 space-y-3">
+                              <div
+                                className={`rounded-2xl border px-3 py-3 text-sm font-semibold transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
+                              >
+                                {shareResponseTotal === 0
+                                  ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
+                                  : ownerShareDelta > 0
+                                    ? `방금 친구 응답 +${ownerShareDelta}. 결과 보기 버튼을 눌러 바로 확인해봐.`
+                                    : `친구 응답 ${shareResponseTotal}개 도착. 결과 보기 버튼을 눌러 확인해봐.`}
+                              </div>
 
-                          <button
-                            onClick={() => void shareCurrentPost()}
-                            className="mt-3 w-full rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
-                          >
-                            친구 더 보내기
-                          </button>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => setShowOwnerShareResults(true)}
+                                  className={`rounded-[18px] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.16)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
+                                >
+                                  {ownerShareDelta > 0
+                                    ? `결과 보기 +${ownerShareDelta}`
+                                    : '결과 보기'}
+                                </button>
+                                <button
+                                  onClick={() => void shareCurrentPost()}
+                                  className="rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                                >
+                                  친구 더 보내기
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <div
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-white'}`}
+                                >
+                                  <div className="text-[11px] text-slate-400">
+                                    친구들 {currentPost.leftLabel}
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                    <span>{shareStats.left}명</span>
+                                    {sharePulse &&
+                                    shareStats.left > 0 &&
+                                    shareStats.left >= shareStats.right ? (
+                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                        HOT
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                      style={{
+                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.left / shareResponseTotal) * 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-white'}`}
+                                >
+                                  <div className="text-[11px] text-slate-400">
+                                    친구들 {currentPost.rightLabel}
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                    <span>{shareStats.right}명</span>
+                                    {sharePulse &&
+                                    shareStats.right > 0 &&
+                                    shareStats.right > shareStats.left ? (
+                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                        HOT
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                      style={{
+                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                {shareResponseTotal === 0
+                                  ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
+                                  : shareStats.left === shareStats.right
+                                    ? '친구들 의견이 팽팽함 👀'
+                                    : shareStats.left > shareStats.right
+                                      ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
+                                      : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
+                              </div>
+
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                {isSharedOwnerViewingPost ? (
+                                  <button
+                                    onClick={() =>
+                                      setShowOwnerShareResults(false)
+                                    }
+                                    className="rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                                  >
+                                    결과 접기
+                                  </button>
+                                ) : null}
+                                <button
+                                  onClick={() => void shareCurrentPost()}
+                                  className={`${isSharedOwnerViewingPost ? '' : 'col-span-2 '}rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]`}
+                                >
+                                  친구 더 보내기
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </div>
