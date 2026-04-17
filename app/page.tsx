@@ -1883,83 +1883,48 @@ function ShareInboxModal({
           </div>
         </div>
 
-        <div className="shrink-0 px-5 pt-4">
-          <div className="rounded-[26px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(79,124,255,0.08)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-bold text-slate-900">
-                  친구 반응이 쌓이는 판을 다시 모아보는 공간
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  응답 오면 다시 보고, 갈리면 더 보내고, 핫하면 계속 키우는 흐름
-                </div>
-              </div>
-              <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-black text-[#4f7cff]">
-                {items.length}판
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                <div className="text-[11px] text-slate-400">새 응답</div>
-                <div className="mt-1 text-base font-black text-slate-900">
-                  {totalUnread}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                <div className="text-[11px] text-slate-400">결과 열린 판</div>
-                <div className="mt-1 text-base font-black text-slate-900">
-                  {readyCount}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                <div className="text-[11px] text-slate-400">보낸 공유</div>
-                <div className="mt-1 text-base font-black text-slate-900">
-                  {items.length}
-                </div>
-              </div>
-            </div>
-
-            {hottestItem || mostDivisiveItem ? (
-              <div className="mt-3 grid grid-cols-1 gap-2">
-                {hottestItem ? (
-                  <div className="rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] px-3.5 py-3">
-                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
-                      HOT PICK
-                    </div>
-                    <div className="mt-1 text-sm font-black text-slate-900 line-clamp-1">
-                      {hottestItem.title}
-                    </div>
-                    <div className="mt-1 text-[12px] text-slate-600">
-                      가장 반응 많은 내 논쟁 · {hottestItem.totalCount}명 참여
-                    </div>
-                  </div>
-                ) : null}
-                {mostDivisiveItem && mostDivisiveItem.totalCount > 0 ? (
-                  <div className="rounded-2xl border border-rose-200 bg-[linear-gradient(180deg,#fff8fa_0%,#fff1f2_100%)] px-3.5 py-3">
-                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-rose-600">
-                      MOST DIVISIVE
-                    </div>
-                    <div className="mt-1 text-sm font-black text-slate-900 line-clamp-1">
-                      {mostDivisiveItem.title}
-                    </div>
-                    <div className="mt-1 text-[12px] text-slate-600">
-                      가장 갈리는 판 ·{' '}
-                      {
-                        getShareTensionMeta(
-                          mostDivisiveItem.leftCount,
-                          mostDivisiveItem.rightCount,
-                        ).label
-                      }
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+        <div className="shrink-0 border-b border-slate-200/70 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-3 py-1 text-[12px] font-bold text-[#4f7cff]">
+              새 응답 {totalUnread}
+            </span>
+            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-bold text-slate-700">
+              결과 열린 판 {readyCount}
+            </span>
+            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-bold text-slate-700">
+              보낸 공유 {items.length}
+            </span>
           </div>
+          {hottestItem ||
+          (mostDivisiveItem && mostDivisiveItem.totalCount > 0) ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+              {hottestItem ? (
+                <button
+                  onClick={() => onOpenItem(hottestItem)}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700"
+                >
+                  <span>🔥 핫한 판</span>
+                  <span className="max-w-[140px] truncate">
+                    {hottestItem.title}
+                  </span>
+                </button>
+              ) : null}
+              {mostDivisiveItem && mostDivisiveItem.totalCount > 0 ? (
+                <button
+                  onClick={() => onOpenItem(mostDivisiveItem)}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-semibold text-rose-700"
+                >
+                  <span>⚡ 가장 갈리는 판</span>
+                  <span className="max-w-[140px] truncate">
+                    {mostDivisiveItem.title}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[148px] space-y-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[104px] space-y-3.5 [webkit-overflow-scrolling:touch]">
           {loading ? (
             <div className="rounded-[24px] border border-slate-200/80 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
               보낸 공유함 불러오는 중...
@@ -4305,7 +4270,12 @@ ${shareUrl}`)
   }
 
   const isModalOpen =
-    commentOpen || writeOpen || activityOpen || deletedOpen || authOpen
+    commentOpen ||
+    writeOpen ||
+    activityOpen ||
+    deletedOpen ||
+    authOpen ||
+    shareInboxOpen
 
   if (loading) {
     return (
