@@ -2486,16 +2486,12 @@ export default function MatnyaApp() {
       return
     }
 
-    if (!data?.id) {
-      console.error('share session 없음', shareId)
-      return
+    if (data) {
+      setShareId(String(data.id))
+      setShareOwnerKey(data.owner_key ?? null)
+      if (data.post_id) setSharedPostId(Number(data.post_id))
+      await loadShareStatsBySessionId(String(data.id))
     }
-
-    const normalizedSessionId = String(data.id)
-    setShareId(normalizedSessionId)
-    setShareOwnerKey(data.owner_key ?? null)
-    if (data.post_id) setSharedPostId(Number(data.post_id))
-    await loadShareStatsBySessionId(normalizedSessionId)
   }, [shareId, loadShareStatsBySessionId])
 
   const loadShareStats = useCallback(async () => {
@@ -2859,53 +2855,55 @@ ${shareUrl}`)
       if (validSessionError) {
         console.error('share session 검증 실패', validSessionError)
         showToast('공유 세션 확인 실패')
-      } else if (!validSession?.id) {
-        console.error('share session 없음', activeShareSessionId)
-        showToast('공유 세션을 찾지 못함')
-      } else {
+      } else if (validSession?.id) {
         const normalizedSessionId = String(validSession.id)
-        const sessionPostId = Number(validSession.post_id)
-
         setShareId(normalizedSessionId)
         setShareOwnerKey(String(validSession.owner_key ?? ''))
-        setSharedPostId(sessionPostId)
+        if (validSession.post_id) {
+          setSharedPostId(Number(validSession.post_id))
+        }
 
-        if (sessionPostId !== Number(currentPost.id)) {
-          console.error('현재 글과 share session 불일치', {
-            currentPostId: currentPost.id,
-            sessionPostId,
-            normalizedSessionId,
-          })
-          showToast('공유 글 이동 후 다시 선택해줘')
-        } else if (
+        if (
           !validSession.owner_key ||
           String(validSession.owner_key) !== String(voterKey)
         ) {
-          const payload = {
+          const shareResponsePayload = {
             share_session_id: normalizedSessionId,
             responder_key: voterKey,
             choice,
           }
 
-          const { error: shareResponseError } = await supabase
-            .from('share_responses')
-            .upsert(payload, {
-              onConflict: 'share_session_id,responder_key',
-            })
+          const { data: savedResponse, error: shareResponseError } =
+            await supabase
+              .from('share_responses')
+              .upsert(shareResponsePayload, {
+                onConflict: 'share_session_id,responder_key',
+              })
+              .select('id, share_session_id, responder_key, choice')
+              .single()
 
           if (shareResponseError) {
-            console.error(
-              'share response 저장 실패',
+            console.error('share response 저장 실패', {
               shareResponseError,
-              payload,
-            )
+              shareResponsePayload,
+            })
             showToast('친구 응답 저장 실패')
+          } else if (!savedResponse?.share_session_id) {
+            console.error('share response 저장 결과 비정상', {
+              savedResponse,
+              shareResponsePayload,
+            })
+            showToast('친구 응답 저장 확인 실패')
           } else {
             await loadShareStatsBySessionId(normalizedSessionId)
+            showToast('친구 응답 반영 완료')
           }
         } else {
           await loadShareStatsBySessionId(normalizedSessionId)
         }
+      } else {
+        console.error('share session 없음', activeShareSessionId)
+        showToast('공유 세션을 찾지 못함')
       }
     }
 
