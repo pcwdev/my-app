@@ -144,6 +144,44 @@ type UserBadgeRow = {
   created_at?: string
 }
 
+type HotScoreRow = {
+  post_id: number
+  score: number
+  view_1h: number
+  vote_1h: number
+  comment_1h: number
+  share_24h: number
+  controversy_ratio: number
+  updated_at?: string | null
+}
+
+type TurningPointRow = {
+  post_id: number
+  event_label: string
+  leader_side: 'left' | 'right' | 'tie' | null
+  snapshot_left_votes: number
+  snapshot_right_votes: number
+  created_at?: string | null
+}
+
+type HotMeta = {
+  score: number
+  view1h: number
+  vote1h: number
+  comment1h: number
+  share24h: number
+  controversyRatio: number
+  updatedAt: string | null
+}
+
+type TurningPointMeta = {
+  eventLabel: string
+  leaderSide: 'left' | 'right' | 'tie' | null
+  leftVotes: number
+  rightVotes: number
+  createdAt: string | null
+}
+
 type AuthorMeta = {
   level: number
   badgeName: string | null
@@ -742,6 +780,75 @@ function resolveAuthorMeta(
   }
 
   return map[metaKey] ?? getFallbackAuthorMeta(comment.author)
+}
+
+function getHotBadge(meta?: HotMeta | null) {
+  if (!meta) return null
+
+  if (meta.comment1h >= 6) {
+    return {
+      label: '💬 댓글 폭발',
+      toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
+    }
+  }
+
+  if (meta.vote1h >= 5) {
+    return {
+      label: '🔥 급상승',
+      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+    }
+  }
+
+  if (meta.share24h >= 3) {
+    return {
+      label: '📨 공유 도는 중',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  if (meta.view1h >= 8) {
+    return {
+      label: '👀 보는 사람 많음',
+      toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+    }
+  }
+
+  return {
+    label: '✨ 반응 쌓이는 중',
+    toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+  }
+}
+
+function getTurningPointLabel(eventLabel?: string | null) {
+  switch (eventLabel) {
+    case 'flipped':
+      return '⚡ 방금 뒤집힘'
+    case 'tied':
+      return '👀 지금 팽팽'
+    case 'landslide':
+      return '😵 한쪽 몰림'
+    case 'first_lead':
+      return '📈 우세 형성'
+    default:
+      return null
+  }
+}
+
+function formatRelativeShort(value?: string | null) {
+  if (!value) return ''
+
+  const diffMs = Date.now() - new Date(value).getTime()
+  if (!Number.isFinite(diffMs) || diffMs < 0) return '방금'
+
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return '방금'
+  if (minutes < 60) return `${minutes}분 전`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}시간 전`
+
+  const days = Math.floor(hours / 24)
+  return `${days}일 전`
 }
 
 const VoteOption = React.memo(function VoteOption({
@@ -2406,6 +2513,11 @@ export default function MatnyaApp() {
   const [justCreatedPostId, setJustCreatedPostId] = useState<number | null>(
     null,
   )
+  const [hotScoreMap, setHotScoreMap] = useState<Record<number, HotMeta>>({})
+  const [turningPointMap, setTurningPointMap] = useState<
+    Record<number, TurningPointMeta>
+  >({})
+  const [hotNowPosts, setHotNowPosts] = useState<PostItem[]>([])
 
   const featuredBadge = badges[0] ?? null
   const currentActorKey = authUser?.id ?? voterKey ?? null
@@ -2501,80 +2613,212 @@ export default function MatnyaApp() {
     [],
   )
 
-  const fetchAll = useCallback(async (key: string) => {
-    setLoading(true)
+  const loadDiscoveryData = useCallback(
+    async (sourcePosts?: PostItem[]) => {
+      const basePosts = sourcePosts ?? posts
 
-    const { data: postsData, error: postsError } = await supabase
-      .from('posts')
-      .select('*')
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
+      if (basePosts.length === 0) {
+        setHotScoreMap({})
+        setTurningPointMap({})
+        setHotNowPosts([])
+        return
+      }
 
-    if (postsError) {
-      console.error('posts 불러오기 실패', postsError)
+      const postIds = basePosts.map((post) => post.id)
+
+      const [hotResult, turningResult] = await Promise.all([
+        supabase
+          .from('post_hot_scores')
+          .select(
+            'post_id, score, view_1h, vote_1h, comment_1h, share_24h, controversy_ratio, updated_at',
+          )
+          .in('post_id', postIds),
+        supabase
+          .from('post_turning_points')
+          .select(
+            'post_id, event_label, leader_side, snapshot_left_votes, snapshot_right_votes, created_at',
+          )
+          .in('post_id', postIds)
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (hotResult.error) {
+        console.error('post_hot_scores 불러오기 실패', hotResult.error)
+      }
+
+      if (turningResult.error) {
+        console.error('post_turning_points 불러오기 실패', turningResult.error)
+      }
+
+      const nextHotMap: Record<number, HotMeta> = {}
+      ;(hotResult.data ?? []).forEach((row: any) => {
+        nextHotMap[Number(row.post_id)] = {
+          score: Number(row.score ?? 0),
+          view1h: Number(row.view_1h ?? 0),
+          vote1h: Number(row.vote_1h ?? 0),
+          comment1h: Number(row.comment_1h ?? 0),
+          share24h: Number(row.share_24h ?? 0),
+          controversyRatio: Number(row.controversy_ratio ?? 1),
+          updatedAt: row.updated_at ?? null,
+        }
+      })
+      setHotScoreMap(nextHotMap)
+
+      const nextTurningMap: Record<number, TurningPointMeta> = {}
+      ;(turningResult.data ?? []).forEach((row: any) => {
+        const postId = Number(row.post_id)
+        if (nextTurningMap[postId]) return
+        nextTurningMap[postId] = {
+          eventLabel: row.event_label,
+          leaderSide: row.leader_side ?? null,
+          leftVotes: Number(row.snapshot_left_votes ?? 0),
+          rightVotes: Number(row.snapshot_right_votes ?? 0),
+          createdAt: row.created_at ?? null,
+        }
+      })
+      setTurningPointMap(nextTurningMap)
+
+      const ranked = [...basePosts]
+        .filter((post) => !post.hidden)
+        .sort((a, b) => {
+          const scoreA = nextHotMap[a.id]?.score ?? 0
+          const scoreB = nextHotMap[b.id]?.score ?? 0
+          if (scoreB !== scoreA) return scoreB - scoreA
+          return (
+            b.comments.length +
+            b.leftVotes +
+            b.rightVotes -
+            (a.comments.length + a.leftVotes + a.rightVotes)
+          )
+        })
+        .slice(0, 3)
+
+      setHotNowPosts(ranked)
+    },
+    [posts],
+  )
+
+  const logPostEvent = useCallback(
+    async ({
+      postId,
+      eventType,
+      side,
+      sessionId,
+      refId,
+    }: {
+      postId: number
+      eventType:
+        | 'view'
+        | 'vote'
+        | 'comment'
+        | 'share_create'
+        | 'share_open'
+        | 'share_vote'
+      side?: VoteSide | null
+      sessionId?: string | null
+      refId?: number | null
+    }) => {
+      const { error } = await supabase.from('post_events').insert({
+        post_id: postId,
+        voter_key: voterKey || null,
+        event_type: eventType,
+        side: side ?? null,
+        session_id: sessionId ?? null,
+        ref_id: refId ?? null,
+      })
+
+      if (error) {
+        console.error('post_events 저장 실패', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          postId,
+          eventType,
+        })
+      }
+    },
+    [voterKey],
+  )
+
+  const fetchAll = useCallback(
+    async (key: string) => {
+      setLoading(true)
+
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false })
+
+      if (postsError) {
+        console.error('posts 불러오기 실패', postsError)
+        setLoading(false)
+        return
+      }
+
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('*')
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false })
+
+      if (commentsError) {
+        console.error('comments 불러오기 실패', commentsError)
+        setLoading(false)
+        return
+      }
+
+      const { data: voteRows, error: votesError } = await supabase
+        .from('votes')
+        .select('post_id, voter_key, side')
+        .eq('voter_key', key)
+
+      if (votesError) {
+        console.error('votes 불러오기 실패', votesError)
+      }
+
+      const merged: PostItem[] = (postsData ?? []).map((post) => ({
+        id: Number(post.id),
+        category: post.category,
+        ageGroup: post.age_group,
+        title: post.title,
+        content: post.content,
+        leftLabel: post.left_label,
+        rightLabel: post.right_label,
+        leftVotes: Number(post.left_votes ?? 0),
+        rightVotes: Number(post.right_votes ?? 0),
+        reportCount: Number(post.report_count ?? 0),
+        hidden: Boolean(post.hidden ?? false),
+        authorKey: post.author_key ?? null,
+        views: Number(post.views ?? 0),
+        comments: (commentsData ?? [])
+          .filter((comment) => Number(comment.post_id) === Number(post.id))
+          .map((comment) => ({
+            id: Number(comment.id),
+            author: comment.author,
+            authorKey: comment.author_key ?? null,
+            side: comment.side as Side,
+            text: comment.text,
+            likes: Number(comment.likes ?? 0),
+            reportCount: Number(comment.report_count ?? 0),
+            hidden: Boolean(comment.hidden ?? false),
+          })),
+      }))
+
+      setPosts(merged)
+
+      const voteMap: Record<number, VoteSide> = {}
+      ;(voteRows ?? []).forEach((row: VoteRow) => {
+        voteMap[Number(row.post_id)] = row.side
+      })
+      setVotes(voteMap)
+      await loadDiscoveryData(merged)
+
       setLoading(false)
-      return
-    }
-
-    const { data: commentsData, error: commentsError } = await supabase
-      .from('comments')
-      .select('*')
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
-
-    if (commentsError) {
-      console.error('comments 불러오기 실패', commentsError)
-      setLoading(false)
-      return
-    }
-
-    const { data: voteRows, error: votesError } = await supabase
-      .from('votes')
-      .select('post_id, voter_key, side')
-      .eq('voter_key', key)
-
-    if (votesError) {
-      console.error('votes 불러오기 실패', votesError)
-    }
-
-    const merged: PostItem[] = (postsData ?? []).map((post) => ({
-      id: Number(post.id),
-      category: post.category,
-      ageGroup: post.age_group,
-      title: post.title,
-      content: post.content,
-      leftLabel: post.left_label,
-      rightLabel: post.right_label,
-      leftVotes: Number(post.left_votes ?? 0),
-      rightVotes: Number(post.right_votes ?? 0),
-      reportCount: Number(post.report_count ?? 0),
-      hidden: Boolean(post.hidden ?? false),
-      authorKey: post.author_key ?? null,
-      views: Number(post.views ?? 0),
-      comments: (commentsData ?? [])
-        .filter((comment) => Number(comment.post_id) === Number(post.id))
-        .map((comment) => ({
-          id: Number(comment.id),
-          author: comment.author,
-          authorKey: comment.author_key ?? null,
-          side: comment.side as Side,
-          text: comment.text,
-          likes: Number(comment.likes ?? 0),
-          reportCount: Number(comment.report_count ?? 0),
-          hidden: Boolean(comment.hidden ?? false),
-        })),
-    }))
-
-    setPosts(merged)
-
-    const voteMap: Record<number, VoteSide> = {}
-    ;(voteRows ?? []).forEach((row: VoteRow) => {
-      voteMap[Number(row.post_id)] = row.side
-    })
-    setVotes(voteMap)
-
-    setLoading(false)
-  }, [])
+    },
+    [loadDiscoveryData],
+  )
 
   const fetchMyActivity = useCallback(async (userId: string) => {
     if (!userId) return
@@ -3497,6 +3741,12 @@ ${shareUrl}`)
     currentPost?.leftLabel,
     currentPost?.rightLabel,
   )
+  const currentHotMeta = hotScoreMap[currentPost?.id ?? 0] ?? null
+  const currentTurningPoint = turningPointMap[currentPost?.id ?? 0] ?? null
+  const currentHotBadge = getHotBadge(currentHotMeta)
+  const currentTurningPointLabel = getTurningPointLabel(
+    currentTurningPoint?.eventLabel,
+  )
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
 
@@ -3535,6 +3785,25 @@ ${shareUrl}`)
     if (!isViewingSharedPost) return
     void loadShareStats()
   }, [isViewingSharedPost, loadShareStats])
+
+  useEffect(() => {
+    if (
+      !isSharedVisitor ||
+      !shareId ||
+      !currentPost?.id ||
+      typeof window === 'undefined'
+    )
+      return
+
+    const key = `matnya_share_open_${shareId}_${currentPost.id}_${voterKey}`
+    if (window.sessionStorage.getItem(key)) return
+    window.sessionStorage.setItem(key, '1')
+    void logPostEvent({
+      postId: currentPost.id,
+      eventType: 'share_open',
+      sessionId: shareId,
+    })
+  }, [isSharedVisitor, shareId, currentPost?.id, voterKey, logPostEvent])
 
   useEffect(() => {
     if (!isSharedOwnerViewingPost || !shareId) return
@@ -3663,9 +3932,23 @@ ${shareUrl}`)
       setSharedPostId(Number(data.post_id ?? currentPost.id))
       syncShareUrl(currentPost.id, nextShareId)
       await loadShareStatsBySessionId(nextShareId)
+      await logPostEvent({
+        postId: currentPost.id,
+        eventType: 'share_create',
+        side: choice,
+        sessionId: nextShareId,
+      })
+      await loadDiscoveryData()
       return nextShareId
     },
-    [currentPost, voterKey, syncShareUrl, loadShareStatsBySessionId],
+    [
+      currentPost,
+      voterKey,
+      syncShareUrl,
+      loadShareStatsBySessionId,
+      logPostEvent,
+      loadDiscoveryData,
+    ],
   )
 
   const saveShareResponse = useCallback(
@@ -3809,6 +4092,11 @@ ${shareUrl}`)
       .slice(0, 3)
   }, [posts, currentPost])
 
+  const discoveryTopPosts = useMemo(
+    () => hotNowPosts.filter((post) => post.id !== currentPost?.id).slice(0, 3),
+    [hotNowPosts, currentPost?.id],
+  )
+
   useEffect(() => {
     if (!currentPost?.id) return
 
@@ -3840,7 +4128,12 @@ ${shareUrl}`)
     }
 
     void increaseView()
-  }, [currentPost?.id])
+    void logPostEvent({
+      postId: currentPost.id,
+      eventType: 'view',
+    })
+    void loadDiscoveryData()
+  }, [currentPost?.id, logPostEvent, loadDiscoveryData])
 
   const handleVote = async (choice: VoteSide) => {
     if (!currentPost || !voterKey) return
@@ -3965,6 +4258,23 @@ ${shareUrl}`)
         console.error('share session 없음', activeShareSessionId)
       }
     }
+
+    await logPostEvent({
+      postId: currentPost.id,
+      eventType: 'vote',
+      side: choice,
+    })
+
+    if (activeShareSessionId && isSharedVisitor) {
+      await logPostEvent({
+        postId: currentPost.id,
+        eventType: 'share_vote',
+        side: choice,
+        sessionId: activeShareSessionId,
+      })
+    }
+
+    await loadDiscoveryData()
 
     await updateProgress(
       {
@@ -4101,6 +4411,14 @@ ${shareUrl}`)
         ...prev,
       ])
     }
+
+    await logPostEvent({
+      postId: currentPost.id,
+      eventType: 'comment',
+      side,
+      refId: newComment.id,
+    })
+    await loadDiscoveryData()
 
     await updateProgress(
       {
@@ -4394,6 +4712,7 @@ ${shareUrl}`)
     setCommentOpen(false)
     setActivityOpen(false)
     markPostMeaningful(newPost)
+    await loadDiscoveryData([newPost, ...posts])
     showToast('내가 쓴 글 등록 완료')
 
     await updateProgress(
@@ -4856,6 +5175,53 @@ ${shareUrl}`)
         </div>
 
         <main className="px-4 pb-32 pt-2">
+          {discoveryTopPosts.length > 0 ? (
+            <div className="mb-3 rounded-[24px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] p-3.5 shadow-[0_14px_30px_rgba(148,163,184,0.12)]">
+              <div className="flex items-center gap-2 text-[11px] font-extrabold tracking-[0.18em] text-[#4f7cff]">
+                <BarChart3 className="h-4 w-4" /> LIVE BOARD
+              </div>
+              <div className="mt-2 text-sm font-black text-slate-900">
+                지금 판 커지는 글
+              </div>
+              <div className="mt-3 space-y-2">
+                {discoveryTopPosts.map((item, index) => {
+                  const hotMeta = hotScoreMap[item.id]
+                  const turningMeta = turningPointMap[item.id]
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => moveToPostWithGuard(item.id)}
+                      className="w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-bold text-[#4f7cff]">
+                            TOP {index + 1}
+                          </div>
+                          <div className="mt-1 line-clamp-1 text-sm font-bold text-slate-900">
+                            {item.title}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
+                            <span>{hotMeta?.vote1h ?? 0}표/1시간</span>
+                            <span>·</span>
+                            <span>{item.comments.length}댓글</span>
+                            <span>·</span>
+                            <span>{item.leftVotes + item.rightVotes}참여</span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-extrabold text-slate-700">
+                          {getTurningPointLabel(turningMeta?.eventLabel) ??
+                            getHotBadge(hotMeta)?.label ??
+                            '반응 중'}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
@@ -4955,7 +5321,44 @@ ${shareUrl}`)
                       👀 {revisitMeta.label}
                     </div>
                   )}
+                  {currentHotBadge ? (
+                    <div
+                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${currentHotBadge.toneClass}`}
+                    >
+                      {currentHotBadge.label}
+                    </div>
+                  ) : null}
+                  {currentTurningPointLabel ? (
+                    <div className="inline-flex rounded-full border border-[#dbe7ff] bg-[#eff4ff] px-3 py-1 text-[11px] font-bold text-[#315fdc]">
+                      {currentTurningPointLabel}
+                      {currentTurningPoint?.createdAt
+                        ? ` · ${formatRelativeShort(currentTurningPoint.createdAt)}`
+                        : ''}
+                    </div>
+                  ) : null}
                 </div>
+                {currentHotMeta ? (
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-slate-400">1시간 표</div>
+                      <div className="mt-1 text-sm font-black text-slate-900">
+                        {currentHotMeta.vote1h}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-slate-400">1시간 댓글</div>
+                      <div className="mt-1 text-sm font-black text-slate-900">
+                        {currentHotMeta.comment1h}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-slate-400">24시간 공유</div>
+                      <div className="mt-1 text-sm font-black text-slate-900">
+                        {currentHotMeta.share24h}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {(!currentPost.hidden || adminMode) && (
@@ -4995,7 +5398,7 @@ ${shareUrl}`)
                       {controversialPosts.length > 0 && (
                         <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                           <div className="mb-3 text-sm font-bold text-slate-900">
-                            지금 뜨는 논쟁 TOP3
+                            반반이라 더 재밌는 논쟁 TOP3
                           </div>
                           <div className="space-y-2">
                             {controversialPosts.map((item) => (
