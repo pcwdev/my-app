@@ -41,6 +41,7 @@ const REPORT_HIDE_THRESHOLD = 3
 const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
   guestName: 'matnya_guest_name',
+  shareInboxSeen: 'matnya_share_inbox_seen_v1',
 }
 
 const PREFIXES = [
@@ -346,6 +347,20 @@ type RevisitMeta = {
   label: string
 }
 
+type ShareInboxItem = {
+  sessionId: string
+  postId: number
+  title: string
+  ownerChoice: VoteSide | null
+  createdAt: string | null
+  leftCount: number
+  rightCount: number
+  totalCount: number
+  unreadCount: number
+  leftLabel?: string
+  rightLabel?: string
+}
+
 const POST_SIGNAL_STORAGE_KEY = 'matnya_post_signals_v1'
 
 function readStoredPostSignal(postId: number): StoredPostSignal | null {
@@ -388,6 +403,39 @@ function writeStoredPostSignal(
   } catch {
     // noop
   }
+}
+
+function readShareInboxSeenMap(): Record<string, number> {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.shareInboxSeen)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, number>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeShareInboxSeenMap(map: Record<string, number>) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEYS.shareInboxSeen,
+      JSON.stringify(map),
+    )
+  } catch {
+    // noop
+  }
+}
+
+function markShareSessionSeen(sessionId: string, totalCount: number) {
+  if (!sessionId) return
+  const map = readShareInboxSeenMap()
+  map[String(sessionId)] = Number(totalCount ?? 0)
+  writeShareInboxSeenMap(map)
 }
 
 function getLevelTheme(level: number) {
@@ -1713,6 +1761,184 @@ function CreatePostModal({
   )
 }
 
+function ShareInboxModal({
+  open,
+  onClose,
+  items,
+  loading,
+  onOpenItem,
+  onReshare,
+}: {
+  open: boolean
+  onClose: () => void
+  items: ShareInboxItem[]
+  loading: boolean
+  onOpenItem: (item: ShareInboxItem) => void
+  onReshare: (item: ShareInboxItem) => void
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 border-b border-slate-200/80 px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-extrabold tracking-[0.2em] text-[#4f7cff]">
+                SHARE INBOX
+              </div>
+              <div className="mt-1 text-[22px] font-black tracking-[-0.02em] text-slate-950">
+                보낸 공유함
+              </div>
+              <div className="mt-1 text-sm text-slate-500">
+                로그인 없이도 내가 친구에게 던진 논쟁을 다시 모아봄
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="shrink-0 px-5 pt-4">
+          <div className="rounded-[26px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(79,124,255,0.08)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-slate-900">
+                  친구 응답이 오면 여기서 다시 확인
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  지금은 저장용 로그인 없이, 내 브라우저 키로 공유 이력을 묶는
+                  구조
+                </div>
+              </div>
+              <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-black text-[#4f7cff]">
+                {items.length}개
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 space-y-3.5 [webkit-overflow-scrolling:touch]">
+          {loading ? (
+            <div className="rounded-[24px] border border-slate-200/80 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+              보낸 공유함 불러오는 중...
+            </div>
+          ) : null}
+
+          {!loading && items.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-slate-300 bg-white/90 px-4 py-6 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+              <div className="text-base font-bold text-slate-900">
+                아직 보낸 공유가 없음
+              </div>
+              <div className="mt-2 text-sm leading-6 text-slate-500">
+                글에서 먼저 선택하고 친구한테 보내기를 누르면 여기에 차곡차곡
+                쌓임
+              </div>
+            </div>
+          ) : null}
+
+          {!loading &&
+            items.map((item) => {
+              const leadLabel =
+                item.leftCount === item.rightCount
+                  ? '의견 팽팽'
+                  : item.leftCount > item.rightCount
+                    ? `${item.leftLabel ?? '왼쪽'} 우세`
+                    : `${item.rightLabel ?? '오른쪽'} 우세`
+
+              return (
+                <div
+                  key={item.sessionId}
+                  className="overflow-hidden rounded-[28px] border border-white/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] shadow-[0_16px_30px_rgba(15,23,42,0.06)]"
+                >
+                  <div
+                    className={`h-1.5 w-full ${item.unreadCount > 0 ? 'bg-[linear-gradient(90deg,#22c55e_0%,#4ade80_100%)]' : 'bg-[linear-gradient(90deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
+                  />
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-[#dbe7ff] bg-[#eef3ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]">
+                            {item.totalCount === 0
+                              ? '응답 대기중'
+                              : `${item.totalCount}명 반응`}
+                          </span>
+                          {item.unreadCount > 0 ? (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-600">
+                              새 응답 +{item.unreadCount}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-2 line-clamp-2 text-[17px] leading-[1.35] font-black tracking-[-0.02em] text-slate-900">
+                          {item.title}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+                          <span>
+                            {item.createdAt
+                              ? new Date(item.createdAt).toLocaleString('ko-KR')
+                              : '방금 공유'}
+                          </span>
+                          <span>·</span>
+                          <span>{leadLabel}</span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 text-right shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+                        <div className="text-[11px] text-slate-400">
+                          친구 반응
+                        </div>
+                        <div className="mt-1 text-lg font-black text-slate-900">
+                          {item.totalCount}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                        <div className="text-[11px] text-slate-400">
+                          {item.leftLabel ?? '왼쪽'}
+                        </div>
+                        <div className="mt-1 text-base font-black text-slate-900">
+                          {item.leftCount}명
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
+                        <div className="text-[11px] text-slate-400">
+                          {item.rightLabel ?? '오른쪽'}
+                        </div>
+                        <div className="mt-1 text-base font-black text-slate-900">
+                          {item.rightCount}명
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => onOpenItem(item)}
+                        className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_22px_rgba(79,124,255,0.16)]"
+                      >
+                        결과 보기
+                      </button>
+                      <button
+                        onClick={() => onReshare(item)}
+                        className="rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_22px_rgba(250,204,21,0.22)]"
+                      >
+                        친구 더 보내기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function MatnyaApp() {
   const [posts, setPosts] = useState<PostItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -1759,6 +1985,10 @@ export default function MatnyaApp() {
   const [showOwnerShareResults, setShowOwnerShareResults] = useState(false)
   const [sharePulse, setSharePulse] = useState(false)
   const [ownerShareDelta, setOwnerShareDelta] = useState(0)
+  const [shareInboxOpen, setShareInboxOpen] = useState(false)
+  const [shareInboxLoading, setShareInboxLoading] = useState(false)
+  const [shareInboxItems, setShareInboxItems] = useState<ShareInboxItem[]>([])
+  const [shareInboxUnreadCount, setShareInboxUnreadCount] = useState(0)
   const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastShareTotalRef = useRef<number>(0)
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
@@ -2549,13 +2779,144 @@ export default function MatnyaApp() {
     setSharedEntryActive(false)
   }, [])
 
-  useEffect(() => {
-    if (shareId) void loadShareSession()
-  }, [shareId, loadShareSession])
+  const applySeenToShareInbox = useCallback(
+    (sessionId: string, totalCount: number) => {
+      markShareSessionSeen(sessionId, totalCount)
+      setShareInboxItems((prev) =>
+        prev.map((item) =>
+          item.sessionId === sessionId ? { ...item, unreadCount: 0 } : item,
+        ),
+      )
+      setShareInboxUnreadCount((prev) => Math.max(0, prev - 1))
+    },
+    [],
+  )
 
-  useEffect(() => {
-    if (shareId) void loadShareStats()
-  }, [shareId, loadShareStats])
+  const loadOwnerShareInbox = useCallback(
+    async (silent = false) => {
+      if (!voterKey) {
+        setShareInboxItems([])
+        setShareInboxUnreadCount(0)
+        return
+      }
+
+      if (!silent) setShareInboxLoading(true)
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('share_sessions')
+        .select('id, post_id, owner_choice, created_at')
+        .eq('owner_key', voterKey)
+        .order('created_at', { ascending: false })
+        .limit(40)
+
+      if (sessionsError) {
+        console.error('보낸 공유함 조회 실패', sessionsError)
+        if (!silent) setShareInboxLoading(false)
+        return
+      }
+
+      const sessionRows = (sessions ?? []) as Array<{
+        id: string
+        post_id: number | null
+        owner_choice?: VoteSide | null
+        created_at?: string | null
+      }>
+
+      if (sessionRows.length === 0) {
+        setShareInboxItems([])
+        setShareInboxUnreadCount(0)
+        if (!silent) setShareInboxLoading(false)
+        return
+      }
+
+      const sessionIds = sessionRows.map((item) => String(item.id))
+      const postIds = Array.from(
+        new Set(
+          sessionRows
+            .map((item) => Number(item.post_id ?? 0))
+            .filter((value) => value > 0),
+        ),
+      )
+
+      const [
+        { data: statsRows, error: statsError },
+        { data: postRows, error: postError },
+      ] = await Promise.all([
+        supabase
+          .from('share_session_stats')
+          .select('share_session_id, left_count, right_count')
+          .in('share_session_id', sessionIds),
+        supabase
+          .from('posts')
+          .select('id, title, left_label, right_label')
+          .in('id', postIds),
+      ])
+
+      if (statsError) {
+        console.error('보낸 공유함 집계 조회 실패', statsError)
+      }
+      if (postError) {
+        console.error('보낸 공유함 게시글 조회 실패', postError)
+      }
+
+      const statsMap = new Map<string, { left: number; right: number }>()
+      for (const row of (statsRows ?? []) as Array<any>) {
+        statsMap.set(String(row.share_session_id), {
+          left: Number(row.left_count ?? 0),
+          right: Number(row.right_count ?? 0),
+        })
+      }
+
+      const postMap = new Map<
+        number,
+        { title: string; leftLabel?: string; rightLabel?: string }
+      >()
+      for (const row of (postRows ?? []) as Array<any>) {
+        postMap.set(Number(row.id), {
+          title: String(row.title ?? '공유한 글'),
+          leftLabel: row.left_label ?? undefined,
+          rightLabel: row.right_label ?? undefined,
+        })
+      }
+
+      const seenMap = readShareInboxSeenMap()
+      const items: ShareInboxItem[] = sessionRows.map((session) => {
+        const sessionId = String(session.id)
+        const postId = Number(session.post_id ?? 0)
+        const stats = statsMap.get(sessionId) ?? { left: 0, right: 0 }
+        const totalCount = stats.left + stats.right
+        const seenCount = Number(seenMap[sessionId] ?? 0)
+        const unreadCount = Math.max(0, totalCount - seenCount)
+        const postMeta = postMap.get(postId)
+
+        return {
+          sessionId,
+          postId,
+          title: postMeta?.title ?? '공유한 글',
+          ownerChoice: session.owner_choice ?? null,
+          createdAt: session.created_at ?? null,
+          leftCount: stats.left,
+          rightCount: stats.right,
+          totalCount,
+          unreadCount,
+          leftLabel: postMeta?.leftLabel,
+          rightLabel: postMeta?.rightLabel,
+        }
+      })
+
+      setShareInboxItems(items)
+      setShareInboxUnreadCount(
+        items.filter((item) => item.unreadCount > 0).length,
+      )
+      if (!silent) setShareInboxLoading(false)
+    },
+    [voterKey],
+  )
+
+  const openShareInbox = useCallback(() => {
+    setShareInboxOpen(true)
+    void loadOwnerShareInbox()
+  }, [loadOwnerShareInbox])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -2577,6 +2938,101 @@ export default function MatnyaApp() {
 
     return result
   }, [posts, tab, selectedCategory])
+
+  const openOwnerShareSession = useCallback(
+    async (item: ShareInboxItem) => {
+      if (!item.postId) return
+
+      setShareId(item.sessionId)
+      setShareOwnerKey(voterKey || null)
+      setSharedPostId(item.postId)
+      setSharedEntryActive(false)
+      setShowOwnerShareResults(true)
+      syncShareUrl(item.postId, item.sessionId)
+
+      const nextIndexInFiltered = filteredPosts.findIndex(
+        (p) => p.id === item.postId,
+      )
+      if (nextIndexInFiltered >= 0) {
+        setCurrentIndex(nextIndexInFiltered)
+      } else {
+        const fallbackIndex = posts.findIndex((p) => p.id === item.postId)
+        if (fallbackIndex >= 0) {
+          setTab('추천')
+          setSelectedCategory('전체')
+          setCurrentIndex(fallbackIndex)
+        }
+      }
+
+      await loadShareStatsBySessionId(item.sessionId)
+      applySeenToShareInbox(item.sessionId, item.totalCount)
+      setShareInboxOpen(false)
+    },
+    [
+      voterKey,
+      syncShareUrl,
+      filteredPosts,
+      posts,
+      loadShareStatsBySessionId,
+      applySeenToShareInbox,
+    ],
+  )
+
+  const reshareFromInbox = useCallback(
+    async (item: ShareInboxItem) => {
+      if (typeof window === 'undefined') return
+
+      const shareUrl = `${window.location.origin}${window.location.pathname}?post=${item.postId}&share=${item.sessionId}`
+      const shareText = `이거 맞냐?
+${item.title}
+
+너라면 뭐 선택함?`
+
+      void loadOwnerShareInbox(true)
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: item.title,
+            text: shareText,
+            url: shareUrl,
+          })
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(`${shareText}
+${shareUrl}`)
+          showToast('공유 링크 복사 완료')
+        } else {
+          window.prompt('아래 링크를 복사해서 공유해줘', shareUrl)
+        }
+      } catch (error) {
+        console.error('공유 실패', error)
+      }
+    },
+    [showToast],
+  )
+
+  useEffect(() => {
+    if (shareId) void loadShareSession()
+  }, [shareId, loadShareSession])
+
+  useEffect(() => {
+    if (shareId) void loadShareStats()
+  }, [shareId, loadShareStats])
+
+  useEffect(() => {
+    if (!voterKey) return
+    void loadOwnerShareInbox(true)
+  }, [voterKey, loadOwnerShareInbox])
+
+  useEffect(() => {
+    if (!shareInboxOpen || !voterKey) return
+
+    const interval = window.setInterval(() => {
+      void loadOwnerShareInbox(true)
+    }, 5000)
+
+    return () => window.clearInterval(interval)
+  }, [shareInboxOpen, voterKey, loadOwnerShareInbox])
 
   useEffect(() => {
     if (currentIndex > 0 && currentIndex >= filteredPosts.length) {
@@ -2637,6 +3093,7 @@ export default function MatnyaApp() {
       setOwnerShareDelta(diff)
       setSharePulse(true)
       setShowOwnerShareResults(false)
+      void loadOwnerShareInbox(true)
       if (sharePulseTimerRef.current) {
         clearTimeout(sharePulseTimerRef.current)
       }
@@ -2647,7 +3104,12 @@ export default function MatnyaApp() {
     }
 
     lastShareTotalRef.current = shareResponseTotal
-  }, [isSharedOwnerViewingPost, shareResponseTotal, showToast])
+  }, [
+    isSharedOwnerViewingPost,
+    shareResponseTotal,
+    showToast,
+    loadOwnerShareInbox,
+  ])
 
   useEffect(() => {
     if (!currentPost) {
@@ -3778,6 +4240,15 @@ ${shareUrl}`)
           }
         />
 
+        <ShareInboxModal
+          open={shareInboxOpen}
+          onClose={() => setShareInboxOpen(false)}
+          items={shareInboxItems}
+          loading={shareInboxLoading}
+          onOpenItem={(item) => void openOwnerShareSession(item)}
+          onReshare={(item) => void reshareFromInbox(item)}
+        />
+
         <AuthOptionalModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
@@ -4073,12 +4544,25 @@ ${shareUrl}`)
                       )}
 
                       {!isViewingSharedPost ? (
-                        <button
-                          onClick={() => void shareCurrentPost()}
-                          className="w-full rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
-                        >
-                          친구한테 보내기
-                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => void shareCurrentPost()}
+                            className="rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                          >
+                            친구한테 보내기
+                          </button>
+                          <button
+                            onClick={openShareInbox}
+                            className="relative rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.10)]"
+                          >
+                            보낸 공유함
+                            {shareInboxUnreadCount > 0 ? (
+                              <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(16,185,129,0.24)]">
+                                {shareInboxUnreadCount}
+                              </span>
+                            ) : null}
+                          </button>
+                        </div>
                       ) : null}
 
                       {isViewingSharedPost ? (
@@ -4224,6 +4708,15 @@ ${shareUrl}`)
                                   친구 더 보내기
                                 </button>
                               </div>
+
+                              {isSharedOwnerViewingPost ? (
+                                <button
+                                  onClick={openShareInbox}
+                                  className="mt-2.5 w-full rounded-[18px] border border-[#dbe7ff] bg-white/90 px-4 py-3 text-sm font-black text-[#4f7cff] shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
+                                >
+                                  보낸 공유함에서 다른 논쟁도 보기
+                                </button>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -4371,6 +4864,15 @@ ${shareUrl}`)
           onRestoreComment={(commentId) =>
             void adminRestoreDeletedComment(commentId)
           }
+        />
+
+        <ShareInboxModal
+          open={shareInboxOpen}
+          onClose={() => setShareInboxOpen(false)}
+          items={shareInboxItems}
+          loading={shareInboxLoading}
+          onOpenItem={(item) => void openOwnerShareSession(item)}
+          onReshare={(item) => void reshareFromInbox(item)}
         />
 
         <AuthOptionalModal
