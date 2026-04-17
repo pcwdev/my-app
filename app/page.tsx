@@ -857,16 +857,32 @@ function getMinorityLabel(mySide: VoteSide | null, post?: PostItem | null) {
   if (!mySide || !post) return null
 
   const total = Number(post.leftVotes ?? 0) + Number(post.rightVotes ?? 0)
-  if (total < 5) return null
+  if (total < 3) return null
 
   const myVotes =
     mySide === 'left'
       ? Number(post.leftVotes ?? 0)
       : Number(post.rightVotes ?? 0)
   const ratio = myVotes / Math.max(total, 1)
+  const minorityThreshold = total < 10 ? 0.25 : 0.15
+  const minoritySecondaryThreshold = total < 10 ? 0.4 : 0.3
 
-  if (ratio < 0.2) return '😳 너만 틀림'
-  if (ratio < 0.35) return '🤨 소수 의견'
+  if (ratio <= minorityThreshold) {
+    return {
+      text: '😳 너만 틀림',
+      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      helper: '완전 반대로 가는 중',
+    }
+  }
+
+  if (ratio <= minoritySecondaryThreshold) {
+    return {
+      text: '🤨 소수 의견',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      helper: '갈리는 판이라 더 재밌음',
+    }
+  }
+
   return null
 }
 
@@ -5445,14 +5461,16 @@ ${shareUrl}`)
                               </div>
                             ) : null}
                             {currentMinorityLabel ? (
-                              <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700">
-                                {currentMinorityLabel}
+                              <div
+                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentMinorityLabel.toneClass}`}
+                              >
+                                {currentMinorityLabel.text}
                               </div>
                             ) : null}
                           </div>
                           <div className="mt-2 text-[13px] font-semibold text-slate-600">
                             {currentMinorityLabel
-                              ? '남들 의견이랑 갈릴수록 더 보고 싶어지는 글이다.'
+                              ? currentMinorityLabel.helper
                               : currentResultEmotion === '🔥 개싸움'
                                 ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
                                 : currentResultEmotion === '👀 팽팽'
