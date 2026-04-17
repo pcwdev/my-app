@@ -477,7 +477,7 @@ function getShareTensionMeta(left: number, right: number) {
 
 function getShareNextActionText(totalCount: number, unreadCount: number) {
   if (unreadCount > 0)
-    return `새 응답 ${unreadCount}개 도착 · 지금 확인하면 맛있음`
+    return `새 응답 ${unreadCount}개 도착 · 🔥 지금 갈리는 중`
   if (totalCount === 0) return '첫 친구 보내기부터 시작하면 여기서 쌓임'
   if (totalCount === 1) return '한 명 더 모이면 진짜 갈리는지 보이기 시작함'
   if (totalCount === 2)
@@ -1926,7 +1926,7 @@ function ShareInboxModal({
                   : 'border-slate-200 bg-white text-slate-700'
               }`}
             >
-              결과 열린 판 {readyCount}
+              결과 볼 수 있음 {readyCount}
             </button>
             <button
               onClick={() => setFilter('all')}
