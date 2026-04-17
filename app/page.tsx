@@ -5265,7 +5265,7 @@ ${shareUrl}`)
                             {item.title}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
-                            <span>{hotMeta?.vote1h ?? 0}표/1시간</span>
+                            <span>{hotMeta?.vote1h ?? 0}명/1시간</span>
                             <span>·</span>
                             <span>{item.comments.length}댓글</span>
                             <span>·</span>
@@ -5414,7 +5414,7 @@ ${shareUrl}`)
                 {currentHotMeta ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
                     <div className="rounded-2xl border border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                      <div className="text-rose-400">불붙는 표</div>
+                      <div className="text-rose-400">최근 참여자</div>
                       <div className="mt-1 text-sm font-black text-slate-900">
                         {currentHotMeta.vote1h}
                       </div>
