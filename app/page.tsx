@@ -1824,7 +1824,12 @@ export default function MatnyaApp() {
       const result = await ensureProfile()
       setAuthUser(result.user)
       setProfile(result.profile)
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AuthSessionMissingError') {
+        setAuthUser(null)
+        setProfile(null)
+        return
+      }
       console.error('auth/profile 로딩 실패', error)
     }
   }, [])
@@ -2663,6 +2668,72 @@ export default function MatnyaApp() {
     [currentPost, voterKey, syncShareUrl, loadShareStatsBySessionId],
   )
 
+  const saveShareResponse = useCallback(
+    async (sessionId: string, responderKey: string, choice: VoteSide) => {
+      if (!sessionId) {
+        console.error('share_session_id 없음')
+        showToast('공유 세션이 없음')
+        return false
+      }
+
+      const { data: existing, error: existingError } = await supabase
+        .from('share_responses')
+        .select('id')
+        .eq('share_session_id', sessionId)
+        .eq('responder_key', responderKey)
+        .maybeSingle()
+
+      if (existingError) {
+        console.error('기존 share response 조회 실패', existingError)
+        showToast('응답 조회 실패')
+        return false
+      }
+
+      if (existing?.id) {
+        const { data: updated, error: updateError } = await supabase
+          .from('share_responses')
+          .update({
+            choice,
+            created_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .select('id, share_session_id, responder_key, choice')
+          .single()
+
+        if (updateError) {
+          console.error('share response update 실패', updateError)
+          showToast('응답 수정 실패')
+          return false
+        }
+
+        console.log('share response update 성공', updated)
+        return true
+      }
+
+      const payload = {
+        share_session_id: sessionId,
+        responder_key: responderKey,
+        choice,
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('share_responses')
+        .insert(payload)
+        .select('id, share_session_id, responder_key, choice')
+        .single()
+
+      if (insertError) {
+        console.error('share response insert 실패', insertError, payload)
+        showToast('응답 저장 실패')
+        return false
+      }
+
+      console.log('share response insert 성공', inserted)
+      return true
+    },
+    [showToast],
+  )
+
   const shareCurrentPost = useCallback(async () => {
     if (!currentPost) return
 
@@ -2775,83 +2846,6 @@ ${shareUrl}`)
     void increaseView()
   }, [currentPost?.id])
 
-  const saveShareResponse = useCallback(
-    async (
-      sessionId: string,
-      responderKeyValue: string,
-      selectedChoice: VoteSide,
-    ) => {
-      if (!sessionId) {
-        console.error('share_session_id 없음')
-        showToast('공유 세션이 없음')
-        return false
-      }
-
-      const { data: existing, error: existingError } = await supabase
-        .from('share_responses')
-        .select('id')
-        .eq('share_session_id', sessionId)
-        .eq('responder_key', responderKeyValue)
-        .maybeSingle()
-
-      if (existingError) {
-        console.error('기존 share response 조회 실패', existingError, {
-          sessionId,
-          responderKeyValue,
-        })
-        showToast('응답 조회 실패')
-        return false
-      }
-
-      if (existing?.id) {
-        const { data: updated, error: updateError } = await supabase
-          .from('share_responses')
-          .update({
-            choice: selectedChoice,
-            created_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id)
-          .select('id, share_session_id, responder_key, choice')
-          .single()
-
-        if (updateError) {
-          console.error('share response update 실패', updateError, {
-            sessionId,
-            responderKeyValue,
-            selectedChoice,
-          })
-          showToast('응답 수정 실패')
-          return false
-        }
-
-        console.log('share response update 성공', updated)
-        return true
-      }
-
-      const payload = {
-        share_session_id: sessionId,
-        responder_key: responderKeyValue,
-        choice: selectedChoice,
-      }
-
-      const { data: inserted, error: insertError } = await supabase
-        .from('share_responses')
-        .insert(payload)
-        .select('id, share_session_id, responder_key, choice')
-        .single()
-
-      if (insertError) {
-        console.error('share response insert 실패', insertError, payload)
-        showToast('응답 저장 실패')
-        return false
-      }
-
-      console.log('share response insert 성공', inserted)
-      return true
-    },
-    [showToast],
-  )
-
   const handleVote = async (choice: VoteSide) => {
     if (!currentPost || !voterKey) return
 
@@ -2930,10 +2924,7 @@ ${shareUrl}`)
         .maybeSingle()
 
       if (validSessionError) {
-        console.error('share session 검증 실패', validSessionError, {
-          activeShareSessionId,
-          currentPostId: currentPost.id,
-        })
+        console.error('share session 검증 실패', validSessionError)
       } else if (validSession?.id) {
         const normalizedSessionId = String(validSession.id)
         setShareId(normalizedSessionId)
@@ -2960,10 +2951,7 @@ ${shareUrl}`)
           await loadShareStatsBySessionId(normalizedSessionId)
         }
       } else {
-        console.error('share session 없음', {
-          activeShareSessionId,
-          currentPostId: currentPost.id,
-        })
+        console.error('share session 없음', activeShareSessionId)
       }
     }
 
@@ -2974,6 +2962,12 @@ ${shareUrl}`)
       },
       prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
     )
+
+    markPostMeaningful({
+      ...currentPost,
+      leftVotes: nextLeft,
+      rightVotes: nextRight,
+    })
   }
 
   const prev = () => {
