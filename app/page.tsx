@@ -496,6 +496,77 @@ function getPercentPair(left: number, right: number) {
   }
 }
 
+function getOwnerChoiceInsight(
+  ownerChoice: VoteSide | null,
+  left: number,
+  right: number,
+  leftLabel?: string,
+  rightLabel?: string,
+) {
+  const ownerLabel =
+    ownerChoice === 'left'
+      ? (leftLabel ?? '왼쪽')
+      : ownerChoice === 'right'
+        ? (rightLabel ?? '오른쪽')
+        : '선택 안 함'
+
+  const total = left + right
+
+  if (!ownerChoice) {
+    return {
+      ownerLabel,
+      friendLabel: '친구 반응 대기중',
+      relationLabel: '아직 비교 전',
+      relationTone: 'border-slate-200 bg-slate-50 text-slate-600',
+      helper: '내 선택이 저장되면 친구들 의견과 바로 비교됨',
+    }
+  }
+
+  if (total === 0) {
+    return {
+      ownerLabel,
+      friendLabel: '아직 친구 반응 없음',
+      relationLabel: '첫 반응 기다리는 중',
+      relationTone: 'border-slate-200 bg-slate-50 text-slate-600',
+      helper: '첫 친구가 고르면 내 선택과 바로 비교 가능',
+    }
+  }
+
+  const friendMajority =
+    left === right ? 'tie' : left > right ? 'left' : 'right'
+  const friendLabel =
+    friendMajority === 'tie'
+      ? '친구들 의견 팽팽'
+      : friendMajority === 'left'
+        ? `${leftLabel ?? '왼쪽'} 우세`
+        : `${rightLabel ?? '오른쪽'} 우세`
+
+  if (friendMajority === 'tie') {
+    return {
+      ownerLabel,
+      friendLabel,
+      relationLabel: '친구들끼리도 갈리는 중',
+      relationTone: 'border-amber-200 bg-amber-50 text-amber-700',
+      helper:
+        '내 선택이 맞는지 아직 안 끝남. 한 명만 더 와도 흐름 바뀔 수 있음',
+    }
+  }
+
+  const sameSide = ownerChoice === friendMajority
+
+  return {
+    ownerLabel,
+    friendLabel,
+    relationLabel: sameSide ? '내 선택 쪽이 우세' : '친구들은 반대로 가는 중',
+    relationTone: sameSide
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : 'border-rose-200 bg-rose-50 text-rose-700',
+    helper: sameSide
+      ? '내 감이 맞는 흐름. 더 보내면 우세가 굳는지 볼 수 있음'
+      : '내 선택과 친구들 의견이 갈림. 그래서 지금 더 재밌는 판임',
+  }
+}
+
 function markShareSessionSeen(sessionId: string, totalCount: number) {
   if (!sessionId) return
   const map = readShareInboxSeenMap()
@@ -2029,6 +2100,13 @@ function ShareInboxModal({
                 item.totalCount,
                 item.unreadCount,
               )
+              const ownerInsight = getOwnerChoiceInsight(
+                item.ownerChoice,
+                item.leftCount,
+                item.rightCount,
+                item.leftLabel,
+                item.rightLabel,
+              )
 
               return (
                 <div
@@ -2125,8 +2203,37 @@ function ShareInboxModal({
                       </div>
                     </div>
 
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                        <div className="text-[11px] text-slate-400">
+                          내 선택
+                        </div>
+                        <div className="mt-1 text-sm font-black text-slate-900">
+                          {ownerInsight.ownerLabel}
+                        </div>
+                        <div
+                          className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${ownerInsight.relationTone}`}
+                        >
+                          {ownerInsight.relationLabel}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                        <div className="text-[11px] text-slate-400">
+                          친구들 흐름
+                        </div>
+                        <div className="mt-1 text-sm font-black text-slate-900">
+                          {ownerInsight.friendLabel}
+                        </div>
+                        <div
+                          className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${tensionMeta.toneClass}`}
+                        >
+                          {tensionMeta.label}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 text-[12px] leading-5 text-slate-600">
-                      {tensionMeta.helper}
+                      {ownerInsight.helper} · {tensionMeta.helper}
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -3278,6 +3385,50 @@ ${shareUrl}`)
     String(shareOwnerKey) === String(voterKey)
 
   const shareResponseTotal = shareStats.left + shareStats.right
+  const shareTensionMeta = getShareTensionMeta(
+    shareStats.left,
+    shareStats.right,
+  )
+  const ownerChoiceInsight = getOwnerChoiceInsight(
+    votes[currentPost?.id ?? 0] ?? null,
+    shareStats.left,
+    shareStats.right,
+    currentPost?.leftLabel,
+    currentPost?.rightLabel,
+  )
+  const nextHookPost = useMemo(() => {
+    if (!currentPost) return null
+
+    const sameCategory = filteredPosts.filter(
+      (post) =>
+        post.id !== currentPost.id &&
+        post.category === currentPost.category &&
+        !post.hidden,
+    )
+
+    const pool =
+      sameCategory.length > 0
+        ? sameCategory
+        : filteredPosts.filter(
+            (post) => post.id !== currentPost.id && !post.hidden,
+          )
+
+    return (
+      [...pool].sort((a, b) => {
+        const scoreA =
+          a.comments.length * 2 +
+          a.leftVotes +
+          a.rightVotes +
+          Math.min(Math.abs(a.leftVotes - a.rightVotes), 12)
+        const scoreB =
+          b.comments.length * 2 +
+          b.leftVotes +
+          b.rightVotes +
+          Math.min(Math.abs(b.leftVotes - b.rightVotes), 12)
+        return scoreB - scoreA
+      })[0] ?? null
+    )
+  }, [currentPost, filteredPosts])
 
   useEffect(() => {
     if (!isViewingSharedPost) return
@@ -4849,6 +5000,23 @@ ${shareUrl}`)
                                   친구 더 보내기
                                 </button>
                               </div>
+                              {nextHookPost ? (
+                                <button
+                                  onClick={handleNextWithGuard}
+                                  className="w-full rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                                >
+                                  <div className="text-[11px] font-extrabold tracking-[0.16em] text-slate-400">
+                                    NEXT HOOK
+                                  </div>
+                                  <div className="mt-1 line-clamp-1 text-sm font-black text-slate-900">
+                                    {nextHookPost.title}
+                                  </div>
+                                  <div className="mt-1 text-[12px] text-slate-500">
+                                    결과 보기 전에 다른 논쟁 하나 더 보면 더
+                                    오래 머물게 됨
+                                  </div>
+                                </button>
+                              ) : null}
                             </div>
                           ) : (
                             <>
@@ -4905,15 +5073,55 @@ ${shareUrl}`)
                                 </div>
                               </div>
 
-                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                {shareResponseTotal === 0
-                                  ? '아직 친구 반응 없음. 링크를 보내서 의견을 모아봐.'
-                                  : shareStats.left === shareStats.right
-                                    ? '친구들 의견이 팽팽함 👀'
-                                    : shareStats.left > shareStats.right
-                                      ? `친구들은 ${currentPost.leftLabel} 쪽이 더 많음`
-                                      : `친구들은 ${currentPost.rightLabel} 쪽이 더 많음`}
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                  <div className="text-[11px] text-slate-400">
+                                    내 선택
+                                  </div>
+                                  <div className="mt-1 text-sm font-black text-slate-900">
+                                    {ownerChoiceInsight.ownerLabel}
+                                  </div>
+                                  <div
+                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${ownerChoiceInsight.relationTone}`}
+                                  >
+                                    {ownerChoiceInsight.relationLabel}
+                                  </div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                  <div className="text-[11px] text-slate-400">
+                                    친구들 흐름
+                                  </div>
+                                  <div className="mt-1 text-sm font-black text-slate-900">
+                                    {ownerChoiceInsight.friendLabel}
+                                  </div>
+                                  <div
+                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${shareTensionMeta.toneClass}`}
+                                  >
+                                    {shareTensionMeta.label}
+                                  </div>
+                                </div>
                               </div>
+
+                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                {ownerChoiceInsight.helper}
+                              </div>
+
+                              {nextHookPost ? (
+                                <button
+                                  onClick={handleNextWithGuard}
+                                  className="mt-3 w-full rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
+                                >
+                                  <div className="text-[11px] font-extrabold tracking-[0.16em] text-[#4f7cff]">
+                                    NEXT HOOK
+                                  </div>
+                                  <div className="mt-1 text-sm font-black text-slate-900">
+                                    이 판 본 사람은 이것도 많이 눌러봄
+                                  </div>
+                                  <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                                    {nextHookPost.title}
+                                  </div>
+                                </button>
+                              ) : null}
 
                               <div className="mt-3 grid grid-cols-2 gap-2">
                                 {isSharedOwnerViewingPost ? (
