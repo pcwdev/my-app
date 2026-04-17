@@ -431,6 +431,71 @@ function writeShareInboxSeenMap(map: Record<string, number>) {
   }
 }
 
+function getShareTensionMeta(left: number, right: number) {
+  const total = left + right
+
+  if (total === 0) {
+    return {
+      label: '응답 대기중',
+      toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+      helper: '첫 친구 반응이 들어오면 여기서 바로 흐름이 살아남',
+    }
+  }
+
+  const diffRatio = Math.abs(left - right) / Math.max(total, 1)
+
+  if (diffRatio <= 0.12) {
+    return {
+      label: '🔥 개싸움',
+      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      helper: '의견이 거의 반반이라 다시 보내면 더 재밌어짐',
+    }
+  }
+
+  if (diffRatio <= 0.28) {
+    return {
+      label: '👀 팽팽',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      helper: '한두 명만 더 들어와도 분위기 바뀔 수 있음',
+    }
+  }
+
+  if (diffRatio <= 0.5) {
+    return {
+      label: '⚡ 기울는 중',
+      toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+      helper: '한쪽으로 기울지만 아직 뒤집힐 여지는 있음',
+    }
+  }
+
+  return {
+    label: '😴 한쪽 몰림',
+    toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+    helper: '지금은 한쪽 몰림. 다른 친구 반응 받아보면 그림이 달라질 수 있음',
+  }
+}
+
+function getShareNextActionText(totalCount: number, unreadCount: number) {
+  if (unreadCount > 0)
+    return `새 응답 ${unreadCount}개 도착 · 지금 확인하면 맛있음`
+  if (totalCount === 0) return '첫 친구 보내기부터 시작하면 여기서 쌓임'
+  if (totalCount === 1) return '한 명 더 모이면 진짜 갈리는지 보이기 시작함'
+  if (totalCount === 2)
+    return '지금부터 재밌는 구간 · 한 명만 더 오면 분위기 선명해짐'
+  if (totalCount <= 4) return '결과 보는 재미 구간 · 더 보내면 판이 더 커짐'
+  return '이미 판이 열림 · 가장 뜨거운 논쟁인지 확인해봐'
+}
+
+function getPercentPair(left: number, right: number) {
+  const total = left + right
+  if (total === 0) return { left: 50, right: 50 }
+
+  return {
+    left: Math.round((left / total) * 100),
+    right: Math.round((right / total) * 100),
+  }
+}
+
 function markShareSessionSeen(sessionId: string, totalCount: number) {
   if (!sessionId) return
   const map = readShareInboxSeenMap()
@@ -1778,6 +1843,21 @@ function ShareInboxModal({
 }) {
   if (!open) return null
 
+  const hottestItem =
+    items.slice().sort((a, b) => b.totalCount - a.totalCount)[0] ?? null
+  const mostDivisiveItem =
+    items.slice().sort((a, b) => {
+      const aTotal = a.leftCount + a.rightCount
+      const bTotal = b.leftCount + b.rightCount
+      const aScore =
+        aTotal === 0 ? 999 : Math.abs(a.leftCount - a.rightCount) / aTotal
+      const bScore =
+        bTotal === 0 ? 999 : Math.abs(b.leftCount - b.rightCount) / bTotal
+      return aScore - bScore || bTotal - aTotal
+    })[0] ?? null
+  const readyCount = items.filter((item) => item.totalCount > 0).length
+  const totalUnread = items.reduce((sum, item) => sum + item.unreadCount, 0)
+
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -1805,20 +1885,77 @@ function ShareInboxModal({
 
         <div className="shrink-0 px-5 pt-4">
           <div className="rounded-[26px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(79,124,255,0.08)]">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-bold text-slate-900">
-                  친구 응답이 오면 여기서 다시 확인
+                  친구 반응이 쌓이는 판을 다시 모아보는 공간
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  지금은 저장용 로그인 없이, 내 브라우저 키로 공유 이력을 묶는
-                  구조
+                  응답 오면 다시 보고, 갈리면 더 보내고, 핫하면 계속 키우는 흐름
                 </div>
               </div>
               <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-black text-[#4f7cff]">
-                {items.length}개
+                {items.length}판
               </div>
             </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                <div className="text-[11px] text-slate-400">새 응답</div>
+                <div className="mt-1 text-base font-black text-slate-900">
+                  {totalUnread}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                <div className="text-[11px] text-slate-400">결과 열린 판</div>
+                <div className="mt-1 text-base font-black text-slate-900">
+                  {readyCount}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                <div className="text-[11px] text-slate-400">보낸 공유</div>
+                <div className="mt-1 text-base font-black text-slate-900">
+                  {items.length}
+                </div>
+              </div>
+            </div>
+
+            {hottestItem || mostDivisiveItem ? (
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {hottestItem ? (
+                  <div className="rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] px-3.5 py-3">
+                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
+                      HOT PICK
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-900 line-clamp-1">
+                      {hottestItem.title}
+                    </div>
+                    <div className="mt-1 text-[12px] text-slate-600">
+                      가장 반응 많은 내 논쟁 · {hottestItem.totalCount}명 참여
+                    </div>
+                  </div>
+                ) : null}
+                {mostDivisiveItem && mostDivisiveItem.totalCount > 0 ? (
+                  <div className="rounded-2xl border border-rose-200 bg-[linear-gradient(180deg,#fff8fa_0%,#fff1f2_100%)] px-3.5 py-3">
+                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-rose-600">
+                      MOST DIVISIVE
+                    </div>
+                    <div className="mt-1 text-sm font-black text-slate-900 line-clamp-1">
+                      {mostDivisiveItem.title}
+                    </div>
+                    <div className="mt-1 text-[12px] text-slate-600">
+                      가장 갈리는 판 ·{' '}
+                      {
+                        getShareTensionMeta(
+                          mostDivisiveItem.leftCount,
+                          mostDivisiveItem.rightCount,
+                        ).label
+                      }
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -1843,12 +1980,24 @@ function ShareInboxModal({
 
           {!loading &&
             items.map((item) => {
+              const tensionMeta = getShareTensionMeta(
+                item.leftCount,
+                item.rightCount,
+              )
               const leadLabel =
                 item.leftCount === item.rightCount
                   ? '의견 팽팽'
                   : item.leftCount > item.rightCount
                     ? `${item.leftLabel ?? '왼쪽'} 우세`
                     : `${item.rightLabel ?? '오른쪽'} 우세`
+              const percentPair = getPercentPair(
+                item.leftCount,
+                item.rightCount,
+              )
+              const actionText = getShareNextActionText(
+                item.totalCount,
+                item.unreadCount,
+              )
 
               return (
                 <div
@@ -1884,6 +2033,14 @@ function ShareInboxModal({
                           </span>
                           <span>·</span>
                           <span>{leadLabel}</span>
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${tensionMeta.toneClass}`}
+                          >
+                            {tensionMeta.label}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-[12px] leading-5 text-slate-600">
+                          {actionText}
                         </div>
                       </div>
                       <div className="shrink-0 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 text-right shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
@@ -1904,6 +2061,17 @@ function ShareInboxModal({
                         <div className="mt-1 text-base font-black text-slate-900">
                           {item.leftCount}명
                         </div>
+                        <div className="mt-1 text-[11px] font-bold text-slate-500">
+                          {percentPair.left}%
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                            style={{
+                              width: `${Math.max(percentPair.left, item.totalCount === 0 ? 0 : 8)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                       <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-center">
                         <div className="text-[11px] text-slate-400">
@@ -1912,7 +2080,22 @@ function ShareInboxModal({
                         <div className="mt-1 text-base font-black text-slate-900">
                           {item.rightCount}명
                         </div>
+                        <div className="mt-1 text-[11px] font-bold text-slate-500">
+                          {percentPair.right}%
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                            style={{
+                              width: `${Math.max(percentPair.right, item.totalCount === 0 ? 0 : 8)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-3 text-[12px] leading-5 text-slate-600">
+                      {tensionMeta.helper}
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -4606,8 +4789,12 @@ ${shareUrl}`)
                                 {shareResponseTotal === 0
                                   ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
                                   : ownerShareDelta > 0
-                                    ? `방금 친구 응답 +${ownerShareDelta}. 결과 보기 버튼을 눌러 바로 확인해봐.`
-                                    : `친구 응답 ${shareResponseTotal}개 도착. 결과 보기 버튼을 눌러 확인해봐.`}
+                                    ? `방금 친구 응답 +${ownerShareDelta}. 지금 보면 판이 더 재밌음.`
+                                    : shareResponseTotal === 1
+                                      ? '첫 반응 도착. 한 명 더 모이면 진짜 갈리는지 보이기 시작함.'
+                                      : shareResponseTotal === 2
+                                        ? '지금부터 재밌는 구간. 한 명만 더 오면 분위기가 선명해짐.'
+                                        : `친구 응답 ${shareResponseTotal}개 도착. 결과 보면 어디로 기우는지 바로 보임.`}
                               </div>
 
                               <div className="grid grid-cols-2 gap-2">
