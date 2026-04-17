@@ -908,20 +908,23 @@ const VoteOption = React.memo(function VoteOption({
   label,
   value,
   onClick,
+  disabled = false,
 }: {
   active: boolean
   label: string
   value: number
   onClick: () => void
+  disabled?: boolean
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
         active
           ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
-          : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:bg-slate-50 shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
-      }`}
+          : 'border-slate-200/80 bg-white shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
+      } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-slate-50'}`}
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <span
@@ -2571,6 +2574,9 @@ export default function MatnyaApp() {
     Record<number, TurningPointMeta>
   >({})
   const [hotNowPosts, setHotNowPosts] = useState<PostItem[]>([])
+  const [isVoting, setIsVoting] = useState(false)
+  const voteLockRef = useRef(false)
+  const discoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     postsRef.current = posts
@@ -2751,6 +2757,19 @@ export default function MatnyaApp() {
 
     setHotNowPosts(ranked)
   }, [])
+
+  const scheduleDiscoveryRefresh = useCallback(
+    (sourcePosts?: PostItem[]) => {
+      if (discoveryTimerRef.current) {
+        clearTimeout(discoveryTimerRef.current)
+      }
+
+      discoveryTimerRef.current = setTimeout(() => {
+        void loadDiscoveryData(sourcePosts ?? postsRef.current)
+      }, 250)
+    },
+    [loadDiscoveryData],
+  )
 
   const logPostEvent = useCallback(
     async ({
@@ -3403,6 +3422,9 @@ export default function MatnyaApp() {
       if (sharePulseTimerRef.current) {
         clearTimeout(sharePulseTimerRef.current)
       }
+      if (discoveryTimerRef.current) {
+        clearTimeout(discoveryTimerRef.current)
+      }
     }
   }, [])
 
@@ -3998,7 +4020,7 @@ ${shareUrl}`)
         side: choice,
         sessionId: nextShareId,
       })
-      await loadDiscoveryData()
+      scheduleDiscoveryRefresh()
       return nextShareId
     },
     [
@@ -4007,7 +4029,7 @@ ${shareUrl}`)
       syncShareUrl,
       loadShareStatsBySessionId,
       logPostEvent,
-      loadDiscoveryData,
+      scheduleDiscoveryRefresh,
     ],
   )
 
@@ -4192,14 +4214,22 @@ ${shareUrl}`)
       postId: currentPost.id,
       eventType: 'view',
     })
-    void loadDiscoveryData(postsRef.current)
-  }, [currentPost?.id, logPostEvent, loadDiscoveryData])
+    scheduleDiscoveryRefresh(postsRef.current)
+  }, [currentPost?.id, logPostEvent, scheduleDiscoveryRefresh])
 
   const handleVote = async (choice: VoteSide) => {
     if (!currentPost || !voterKey) return
+    if (voteLockRef.current || isVoting) return
 
     const prevChoice = votes[currentPost.id]
     if (prevChoice === choice) return
+
+    voteLockRef.current = true
+    setIsVoting(true)
+
+    const currentPostId = currentPost.id
+    const prevPosts = postsRef.current
+    const prevVotesMap = votes
 
     const nextLeft =
       currentPost.leftVotes +
@@ -4211,144 +4241,152 @@ ${shareUrl}`)
       (prevChoice === 'right' ? -1 : 0) +
       (choice === 'right' ? 1 : 0)
 
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === currentPost.id
-          ? {
-              ...post,
-              leftVotes: nextLeft,
-              rightVotes: nextRight,
-            }
-          : post,
-      ),
-    )
-    setVotes((prev) => ({ ...prev, [currentPost.id]: choice }))
-
-    const { error: voteError } = await supabase.from('votes').upsert(
-      {
-        post_id: currentPost.id,
-        voter_key: voterKey,
-        side: choice,
-      },
-      { onConflict: 'post_id,voter_key' },
+    const optimisticPosts = prevPosts.map((post) =>
+      post.id === currentPostId
+        ? {
+            ...post,
+            leftVotes: nextLeft,
+            rightVotes: nextRight,
+          }
+        : post,
     )
 
-    if (voteError) {
-      console.error('투표 저장 실패', voteError)
-      showToast('투표 저장 실패')
-      void fetchAll(voterKey)
-      return
-    }
+    postsRef.current = optimisticPosts
+    setPosts(optimisticPosts)
+    setVotes((prev) => ({ ...prev, [currentPostId]: choice }))
 
-    const { error: postError } = await supabase
-      .from('posts')
-      .update({
-        left_votes: nextLeft,
-        right_votes: nextRight,
-      })
-      .eq('id', currentPost.id)
+    try {
+      const { error: voteError } = await supabase.from('votes').upsert(
+        {
+          post_id: currentPostId,
+          voter_key: voterKey,
+          side: choice,
+        },
+        { onConflict: 'post_id,voter_key' },
+      )
 
-    if (postError) {
-      console.error('게시글 투표수 업데이트 실패', postError)
-      showToast('투표 반영 실패')
-      void fetchAll(voterKey)
-      return
-    }
-
-    let activeShareSessionId: string | null = shareId
-
-    if (!activeShareSessionId && typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const urlShareId = params.get('share')
-      if (urlShareId) {
-        activeShareSessionId = urlShareId
+      if (voteError) {
+        throw voteError
       }
-    }
 
-    if (activeShareSessionId) {
-      const { data: validSession, error: validSessionError } = await supabase
-        .from('share_sessions')
-        .select('id, post_id, owner_key')
-        .eq('id', activeShareSessionId)
-        .maybeSingle()
-
-      if (validSessionError) {
-        console.error('share session 검증 실패', {
-          message: validSessionError.message,
-          details: validSessionError.details,
-          hint: validSessionError.hint,
-          code: validSessionError.code,
-          activeShareSessionId,
+      const { error: postError } = await supabase
+        .from('posts')
+        .update({
+          left_votes: nextLeft,
+          right_votes: nextRight,
         })
-      } else if (validSession?.id) {
-        const normalizedSessionId = String(validSession.id)
-        const sessionPostId = Number(validSession.post_id ?? 0)
+        .eq('id', currentPostId)
 
-        setShareId(normalizedSessionId)
-        setShareOwnerKey(String(validSession.owner_key ?? ''))
-        if (sessionPostId) {
-          setSharedPostId(sessionPostId)
+      if (postError) {
+        throw postError
+      }
+
+      let activeShareSessionId: string | null = shareId
+
+      if (!activeShareSessionId && typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        const urlShareId = params.get('share')
+        if (urlShareId) {
+          activeShareSessionId = urlShareId
         }
+      }
 
-        if (!sessionPostId || sessionPostId !== Number(currentPost.id)) {
-          console.error('공유 세션 post_id 불일치', {
-            sessionPostId,
-            currentPostId: currentPost.id,
-            normalizedSessionId,
+      if (activeShareSessionId) {
+        const { data: validSession, error: validSessionError } = await supabase
+          .from('share_sessions')
+          .select('id, post_id, owner_key')
+          .eq('id', activeShareSessionId)
+          .maybeSingle()
+
+        if (validSessionError) {
+          console.error('share session 검증 실패', {
+            message: validSessionError.message,
+            details: validSessionError.details,
+            hint: validSessionError.hint,
+            code: validSessionError.code,
+            activeShareSessionId,
           })
-          showToast('공유 글 정보가 맞지 않음')
-        } else if (
-          !validSession.owner_key ||
-          String(validSession.owner_key) !== String(voterKey)
-        ) {
-          const ok = await saveShareResponse(
-            normalizedSessionId,
-            voterKey,
-            choice,
-          )
+        } else if (validSession?.id) {
+          const normalizedSessionId = String(validSession.id)
+          const sessionPostId = Number(validSession.post_id ?? 0)
 
-          if (ok) {
+          setShareId(normalizedSessionId)
+          setShareOwnerKey(String(validSession.owner_key ?? ''))
+          if (sessionPostId) {
+            setSharedPostId(sessionPostId)
+          }
+
+          if (!sessionPostId || sessionPostId !== Number(currentPostId)) {
+            console.error('공유 세션 post_id 불일치', {
+              sessionPostId,
+              currentPostId,
+              normalizedSessionId,
+            })
+            showToast('공유 글 정보가 맞지 않음')
+          } else if (
+            !validSession.owner_key ||
+            String(validSession.owner_key) !== String(voterKey)
+          ) {
+            const ok = await saveShareResponse(
+              normalizedSessionId,
+              voterKey,
+              choice,
+            )
+
+            if (ok) {
+              await loadShareStatsBySessionId(normalizedSessionId)
+              showToast('친구 응답 반영 완료')
+            }
+          } else {
             await loadShareStatsBySessionId(normalizedSessionId)
-            showToast('친구 응답 반영 완료')
           }
         } else {
-          await loadShareStatsBySessionId(normalizedSessionId)
+          console.error('share session 없음', activeShareSessionId)
         }
-      } else {
-        console.error('share session 없음', activeShareSessionId)
       }
-    }
 
-    await logPostEvent({
-      postId: currentPost.id,
-      eventType: 'vote',
-      side: choice,
-    })
-
-    if (activeShareSessionId && isSharedVisitor) {
-      await logPostEvent({
-        postId: currentPost.id,
-        eventType: 'share_vote',
+      void logPostEvent({
+        postId: currentPostId,
+        eventType: 'vote',
         side: choice,
-        sessionId: activeShareSessionId,
       })
+
+      if (activeShareSessionId && isSharedVisitor) {
+        void logPostEvent({
+          postId: currentPostId,
+          eventType: 'share_vote',
+          side: choice,
+          sessionId: activeShareSessionId,
+        })
+      }
+
+      scheduleDiscoveryRefresh(optimisticPosts)
+
+      void updateProgress(
+        {
+          points: 1,
+          votes_count: prevChoice ? 0 : 1,
+        },
+        prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
+      )
+
+      markPostMeaningful({
+        ...currentPost,
+        leftVotes: nextLeft,
+        rightVotes: nextRight,
+      })
+    } catch (error) {
+      console.error('투표 처리 실패', error)
+      postsRef.current = prevPosts
+      setPosts(prevPosts)
+      setVotes(prevVotesMap)
+      showToast('투표 반영 실패')
+    } finally {
+      window.setTimeout(() => {
+        voteLockRef.current = false
+        setIsVoting(false)
+      }, 220)
     }
-
-    await loadDiscoveryData()
-
-    await updateProgress(
-      {
-        points: 1,
-        votes_count: prevChoice ? 0 : 1,
-      },
-      prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
-    )
-
-    markPostMeaningful({
-      ...currentPost,
-      leftVotes: nextLeft,
-      rightVotes: nextRight,
-    })
   }
 
   const prev = () => {
@@ -4478,7 +4516,7 @@ ${shareUrl}`)
       side,
       refId: newComment.id,
     })
-    await loadDiscoveryData()
+    scheduleDiscoveryRefresh()
 
     await updateProgress(
       {
@@ -4772,7 +4810,7 @@ ${shareUrl}`)
     setCommentOpen(false)
     setActivityOpen(false)
     markPostMeaningful(newPost)
-    await loadDiscoveryData([newPost, ...posts])
+    scheduleDiscoveryRefresh([newPost, ...posts])
     showToast('내가 쓴 글 등록 완료')
 
     await updateProgress(
@@ -5442,12 +5480,14 @@ ${shareUrl}`)
                     label={currentPost.leftLabel}
                     value={p.left}
                     onClick={() => void handleVote('left')}
+                    disabled={isVoting}
                   />
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
                     value={p.right}
                     onClick={() => void handleVote('right')}
+                    disabled={isVoting}
                   />
 
                   {votes[currentPost.id] ? (
