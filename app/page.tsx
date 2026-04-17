@@ -1824,7 +1824,19 @@ export default function MatnyaApp() {
       const result = await ensureProfile()
       setAuthUser(result.user)
       setProfile(result.profile)
-    } catch (error) {
+    } catch (error: any) {
+      const code = String(error?.code ?? '')
+      const name = String(error?.name ?? '')
+      const message = String(error?.message ?? '')
+      if (
+        code === 'AuthSessionMissingError' ||
+        name === 'AuthSessionMissingError' ||
+        message.includes('Auth session missing')
+      ) {
+        setAuthUser(null)
+        setProfile(null)
+        return
+      }
       console.error('auth/profile 로딩 실패', error)
     }
   }, [])
@@ -2854,20 +2866,14 @@ ${shareUrl}`)
 
       if (validSessionError) {
         console.error('share session 검증 실패', validSessionError)
-        showToast('공유 세션 확인 실패')
       } else if (!validSession?.id) {
-        console.error('share session 없음', activeShareSessionId)
-        showToast('공유 세션을 찾지 못함')
+        console.error('share session 없음', { activeShareSessionId })
       } else {
         const normalizedSessionId = String(validSession.id)
-        const normalizedSessionPostId = Number(validSession.post_id)
-
         setShareId(normalizedSessionId)
-        setShareOwnerKey(
-          validSession.owner_key ? String(validSession.owner_key) : null,
-        )
-        if (!Number.isNaN(normalizedSessionPostId)) {
-          setSharedPostId(normalizedSessionPostId)
+        setShareOwnerKey(String(validSession.owner_key ?? ''))
+        if (validSession.post_id) {
+          setSharedPostId(Number(validSession.post_id))
         }
 
         if (
@@ -2880,7 +2886,7 @@ ${shareUrl}`)
             choice,
           }
 
-          const { data: insertedResponse, error: shareResponseError } =
+          const { data: insertedShareResponse, error: shareResponseError } =
             await supabase
               .from('share_responses')
               .upsert(responsePayload, {
@@ -2890,22 +2896,23 @@ ${shareUrl}`)
               .single()
 
           if (shareResponseError) {
-            console.error(
-              'share response 저장 실패',
+            console.error('share response 저장 실패', {
               shareResponseError,
               responsePayload,
-            )
+              normalizedSessionId,
+              currentPostId: currentPost.id,
+              sessionPostId: validSession.post_id,
+            })
             showToast('친구 응답 저장 실패')
-          } else if (!insertedResponse?.share_session_id) {
-            console.error(
-              'share response 저장 결과 이상',
-              insertedResponse,
+          } else if (!insertedShareResponse?.share_session_id) {
+            console.error('share response 저장 결과 비정상', {
+              insertedShareResponse,
               responsePayload,
-            )
-            showToast('친구 응답 저장 결과 확인 필요')
+            })
+            showToast('친구 응답 저장 결과 비정상')
           } else {
             await loadShareStatsBySessionId(normalizedSessionId)
-            showToast('친구 응답 반영 완료')
+            showToast('친구 응답 저장 완료')
           }
         } else {
           await loadShareStatsBySessionId(normalizedSessionId)
