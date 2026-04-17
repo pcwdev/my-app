@@ -1841,6 +1841,21 @@ function ShareInboxModal({
   onOpenItem: (item: ShareInboxItem) => void
   onReshare: (item: ShareInboxItem) => void
 }) {
+  const [filter, setFilter] = useState<'new' | 'ready' | 'all'>('all')
+
+  useEffect(() => {
+    if (!open) return
+    if (items.some((item) => item.unreadCount > 0)) {
+      setFilter('new')
+      return
+    }
+    if (items.some((item) => item.totalCount > 0)) {
+      setFilter('ready')
+      return
+    }
+    setFilter('all')
+  }, [open, items])
+
   if (!open) return null
 
   const hottestItem =
@@ -1857,6 +1872,17 @@ function ShareInboxModal({
     })[0] ?? null
   const readyCount = items.filter((item) => item.totalCount > 0).length
   const totalUnread = items.reduce((sum, item) => sum + item.unreadCount, 0)
+  const filteredItems = items.filter((item) => {
+    if (filter === 'new') return item.unreadCount > 0
+    if (filter === 'ready') return item.totalCount > 0
+    return true
+  })
+  const filterDescription =
+    filter === 'new'
+      ? '새 응답 온 판만 모아보는 중'
+      : filter === 'ready'
+        ? '지금 결과 볼 만한 판만 모아보는 중'
+        : '내가 보낸 공유 전체를 보는 중'
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -1885,15 +1911,39 @@ function ShareInboxModal({
 
         <div className="shrink-0 border-b border-slate-200/70 px-5 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-3 py-1 text-[12px] font-bold text-[#4f7cff]">
+            <button
+              onClick={() => setFilter('new')}
+              className={`inline-flex rounded-full border px-3 py-1 text-[12px] font-bold transition ${
+                filter === 'new'
+                  ? 'border-[#bfd2ff] bg-[#4f7cff] text-white shadow-[0_10px_18px_rgba(79,124,255,0.18)]'
+                  : 'border-[#dbe7ff] bg-[#f4f8ff] text-[#4f7cff]'
+              }`}
+            >
               새 응답 {totalUnread}
-            </span>
-            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-bold text-slate-700">
+            </button>
+            <button
+              onClick={() => setFilter('ready')}
+              className={`inline-flex rounded-full border px-3 py-1 text-[12px] font-bold transition ${
+                filter === 'ready'
+                  ? 'border-[#bfd2ff] bg-[#4f7cff] text-white shadow-[0_10px_18px_rgba(79,124,255,0.18)]'
+                  : 'border-slate-200 bg-white text-slate-700'
+              }`}
+            >
               결과 열린 판 {readyCount}
-            </span>
-            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-bold text-slate-700">
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`inline-flex rounded-full border px-3 py-1 text-[12px] font-bold transition ${
+                filter === 'all'
+                  ? 'border-[#bfd2ff] bg-[#4f7cff] text-white shadow-[0_10px_18px_rgba(79,124,255,0.18)]'
+                  : 'border-slate-200 bg-white text-slate-700'
+              }`}
+            >
               보낸 공유 {items.length}
-            </span>
+            </button>
+          </div>
+          <div className="mt-2 text-[12px] font-semibold text-slate-500">
+            {filterDescription}
           </div>
           {hottestItem ||
           (mostDivisiveItem && mostDivisiveItem.totalCount > 0) ? (
@@ -1943,8 +1993,27 @@ function ShareInboxModal({
             </div>
           ) : null}
 
+          {!loading && items.length > 0 && filteredItems.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-slate-300 bg-white/90 px-4 py-6 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+              <div className="text-base font-bold text-slate-900">
+                {filter === 'new'
+                  ? '새 응답 온 공유가 아직 없음'
+                  : filter === 'ready'
+                    ? '아직 결과 볼 만큼 열린 판이 없음'
+                    : '보낸 공유가 아직 없음'}
+              </div>
+              <div className="mt-2 text-sm leading-6 text-slate-500">
+                {filter === 'new'
+                  ? '친구 반응이 도착하면 여기서 바로 확인 가능'
+                  : filter === 'ready'
+                    ? '친구 반응이 1개 이상 쌓이면 여기에 나타남'
+                    : '다른 글에서 친구에게 보내기를 누르면 여기에 쌓임'}
+              </div>
+            </div>
+          ) : null}
+
           {!loading &&
-            items.map((item) => {
+            filteredItems.map((item) => {
               const tensionMeta = getShareTensionMeta(
                 item.leftCount,
                 item.rightCount,
