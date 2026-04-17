@@ -2036,7 +2036,7 @@ export default function MatnyaApp() {
         .order('created_at', { ascending: false })
 
     if (deletedCommentsError) {
-      console.error('삭제된 댓글 불러오기 실패.', deletedCommentsError)
+      console.error('삭제된 댓글 불러오기 실패', deletedCommentsError)
       return
     }
 
@@ -2446,6 +2446,32 @@ export default function MatnyaApp() {
     void loadAuthorMeta()
   }, [posts, loadAuthorMeta])
 
+  const loadShareStatsBySessionId = useCallback(
+    async (sessionId: string | null) => {
+      if (!sessionId) {
+        setShareStats({ left: 0, right: 0 })
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('share_session_stats')
+        .select('left_count, right_count')
+        .eq('share_session_id', sessionId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('share stats 조회 실패', error)
+        return
+      }
+
+      setShareStats({
+        left: Number(data?.left_count ?? 0),
+        right: Number(data?.right_count ?? 0),
+      })
+    },
+    [],
+  )
+
   const loadShareSession = useCallback(async () => {
     if (!shareId) return
 
@@ -2461,36 +2487,14 @@ export default function MatnyaApp() {
     }
 
     if (data) {
+      setShareId(String(data.id))
       setShareOwnerKey(data.owner_key ?? null)
       if (data.post_id) setSharedPostId(Number(data.post_id))
+      await loadShareStatsBySessionId(String(data.id))
     }
-  }, [shareId])
-
-  const loadShareStatsBySessionId = useCallback(
-    async (sessionId: string | null) => {
-      if (!sessionId) return
-
-      const { data, error } = await supabase
-        .from('share_session_stats')
-        .select('left_count, right_count')
-        .eq('share_session_id', sessionId)
-        .maybeSingle()
-
-      if (error) {
-        console.error('share stats 조회 실패', error)
-        return
-      }
-
-      setShareStats({
-        left: Number((data as any)?.left_count ?? 0),
-        right: Number((data as any)?.right_count ?? 0),
-      })
-    },
-    [],
-  )
+  }, [shareId, loadShareStatsBySessionId])
 
   const loadShareStats = useCallback(async () => {
-    if (!shareId) return
     await loadShareStatsBySessionId(shareId)
   }, [shareId, loadShareStatsBySessionId])
 
@@ -2648,15 +2652,15 @@ export default function MatnyaApp() {
         return null
       }
 
-      const nextShareId = String((data as any).id)
-
+      const nextShareId = String(data.id)
       setShareId(nextShareId)
-      setShareOwnerKey(((data as any).owner_key ?? voterKey) as string)
-      setSharedPostId(Number((data as any).post_id ?? currentPost.id))
-      syncShareUrl(Number((data as any).post_id ?? currentPost.id), nextShareId)
+      setShareOwnerKey(String(data.owner_key ?? voterKey))
+      setSharedPostId(Number(data.post_id ?? currentPost.id))
+      syncShareUrl(currentPost.id, nextShareId)
+      await loadShareStatsBySessionId(nextShareId)
       return nextShareId
     },
-    [currentPost, voterKey, syncShareUrl],
+    [currentPost, voterKey, syncShareUrl, loadShareStatsBySessionId],
   )
 
   const shareCurrentPost = useCallback(async () => {
@@ -2682,6 +2686,9 @@ export default function MatnyaApp() {
         return
       }
       setSharedEntryActive(false)
+    } else if (activeShareId) {
+      await loadShareStatsBySessionId(activeShareId)
+      syncShareUrl(currentPost.id, activeShareId)
     }
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
@@ -2707,7 +2714,16 @@ ${shareUrl}`)
     } catch (error) {
       console.error('공유 실패', error)
     }
-  }, [currentPost, shareId, sharedPostId, votes, createShareSession, showToast])
+  }, [
+    currentPost,
+    shareId,
+    sharedPostId,
+    votes,
+    createShareSession,
+    loadShareStatsBySessionId,
+    syncShareUrl,
+    showToast,
+  ])
 
   const controversialPosts = useMemo(() => {
     if (!currentPost) return []
@@ -2819,61 +2835,59 @@ ${shareUrl}`)
       return
     }
 
-    let activeShareId = shareId
+    let activeShareSessionId: string | null = shareId
 
-    if (!activeShareId && typeof window !== 'undefined') {
+    if (!activeShareSessionId && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const urlShareId = params.get('share')
       if (urlShareId) {
-        activeShareId = urlShareId
+        activeShareSessionId = urlShareId
       }
     }
 
-    if (!activeShareId) {
-      activeShareId = await createShareSession(choice)
-    }
-
-    if (
-      activeShareId &&
-      (!shareOwnerKey || String(shareOwnerKey) !== String(voterKey))
-    ) {
+    if (activeShareSessionId) {
       const { data: validSession, error: validSessionError } = await supabase
         .from('share_sessions')
-        .select('id, post_id')
-        .eq('id', activeShareId)
+        .select('id, post_id, owner_key')
+        .eq('id', activeShareSessionId)
         .maybeSingle()
 
       if (validSessionError) {
         console.error('share session 검증 실패', validSessionError)
       } else if (
-        !validSession ||
-        Number((validSession as any).post_id) !== Number(currentPost.id)
+        validSession?.id &&
+        Number(validSession.post_id) === Number(currentPost.id)
       ) {
-        console.error('현재 글과 share session 불일치', {
-          activeShareId,
-          currentPostId: currentPost.id,
-          sessionPostId: (validSession as any)?.post_id,
-        })
-      } else {
-        const { error: shareResponseError } = await supabase
-          .from('share_responses')
-          .upsert(
-            {
-              share_session_id: activeShareId,
-              responder_key: voterKey,
-              choice,
-            },
-            { onConflict: 'share_session_id,responder_key' },
-          )
+        const normalizedSessionId = String(validSession.id)
+        setShareId(normalizedSessionId)
+        setShareOwnerKey(String(validSession.owner_key ?? ''))
+        setSharedPostId(Number(validSession.post_id))
 
-        if (shareResponseError) {
-          console.error('share response 저장 실패', shareResponseError)
+        if (
+          !validSession.owner_key ||
+          String(validSession.owner_key) !== String(voterKey)
+        ) {
+          const { error: shareResponseError } = await supabase
+            .from('share_responses')
+            .upsert(
+              {
+                share_session_id: normalizedSessionId,
+                responder_key: voterKey,
+                choice,
+              },
+              { onConflict: 'share_session_id,responder_key' },
+            )
+
+          if (shareResponseError) {
+            console.error('share response 저장 실패', shareResponseError)
+            showToast('친구 응답 저장 실패')
+          } else {
+            await loadShareStatsBySessionId(normalizedSessionId)
+          }
         } else {
-          await loadShareStatsBySessionId(activeShareId)
+          await loadShareStatsBySessionId(normalizedSessionId)
         }
       }
-    } else if (!activeShareId) {
-      console.error('share_session_id 없음')
     }
 
     await updateProgress(
