@@ -785,36 +785,43 @@ function resolveAuthorMeta(
 function getHotBadge(meta?: HotMeta | null) {
   if (!meta) return null
 
-  if (meta.comment1h >= 6) {
+  if (meta.vote1h >= 15) {
+    return {
+      label: '🔥 지금 난리남',
+      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+    }
+  }
+
+  if (meta.comment1h >= 10) {
     return {
       label: '💬 댓글 폭발',
       toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
     }
   }
 
-  if (meta.vote1h >= 5) {
+  if (meta.share24h >= 5) {
     return {
-      label: '🔥 급상승',
-      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-    }
-  }
-
-  if (meta.share24h >= 3) {
-    return {
-      label: '📨 공유 도는 중',
+      label: '📤 퍼지는 중',
       toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
     }
   }
 
-  if (meta.view1h >= 8) {
+  if (meta.view1h >= 30) {
     return {
-      label: '👀 보는 사람 많음',
+      label: '👀 계속 보는 중',
       toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
     }
   }
 
+  if (meta.vote1h >= 8 || meta.comment1h >= 6) {
+    return {
+      label: '⚡ 슬슬 붙는 중',
+      toneClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    }
+  }
+
   return {
-    label: '✨ 반응 쌓이는 중',
+    label: '✨ 반응 올라오는 중',
     toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
   }
 }
@@ -824,14 +831,43 @@ function getTurningPointLabel(eventLabel?: string | null) {
     case 'flipped':
       return '⚡ 방금 뒤집힘'
     case 'tied':
-      return '👀 지금 팽팽'
+      return '👀 지금 반반'
     case 'landslide':
-      return '😵 한쪽 몰림'
+      return '😴 한쪽 몰림'
     case 'first_lead':
-      return '📈 우세 형성'
+      return '🚀 판 시작됨'
     default:
       return null
   }
+}
+
+function getResultEmotion(left: number, right: number) {
+  const total = left + right
+  if (total === 0) return null
+
+  const diff = Math.abs(left - right) / total
+
+  if (diff <= 0.1) return '🔥 개싸움'
+  if (diff <= 0.25) return '👀 팽팽'
+  if (diff <= 0.5) return '⚡ 기우는 중'
+  return '😴 한쪽 몰림'
+}
+
+function getMinorityLabel(mySide: VoteSide | null, post?: PostItem | null) {
+  if (!mySide || !post) return null
+
+  const total = Number(post.leftVotes ?? 0) + Number(post.rightVotes ?? 0)
+  if (total < 5) return null
+
+  const myVotes =
+    mySide === 'left'
+      ? Number(post.leftVotes ?? 0)
+      : Number(post.rightVotes ?? 0)
+  const ratio = myVotes / Math.max(total, 1)
+
+  if (ratio < 0.2) return '😳 너만 틀림'
+  if (ratio < 0.35) return '🤨 소수 의견'
+  return null
 }
 
 function formatRelativeShort(value?: string | null) {
@@ -3750,6 +3786,11 @@ ${shareUrl}`)
   const currentTurningPointLabel = getTurningPointLabel(
     currentTurningPoint?.eventLabel,
   )
+  const currentVoteSide = votes[currentPost?.id ?? 0] ?? null
+  const currentMinorityLabel = getMinorityLabel(currentVoteSide, currentPost)
+  const currentResultEmotion = currentPost
+    ? getResultEmotion(currentPost.leftVotes, currentPost.rightVotes)
+    : null
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
 
@@ -5186,6 +5227,9 @@ ${shareUrl}`)
               <div className="mt-2 text-sm font-black text-slate-900">
                 지금 판 커지는 글
               </div>
+              <div className="mt-1 text-[12px] font-semibold text-slate-500">
+                방금 불붙는 글부터 먼저 보게 만드는 실시간 보드
+              </div>
               <div className="mt-3 space-y-2">
                 {discoveryTopPosts.map((item, index) => {
                   const hotMeta = hotScoreMap[item.id]
@@ -5217,6 +5261,17 @@ ${shareUrl}`)
                             getHotBadge(hotMeta)?.label ??
                             '반응 중'}
                         </div>
+                      </div>
+                      <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                        {getTurningPointLabel(turningMeta?.eventLabel)
+                          ? '지금 분위기가 바뀌는 중'
+                          : getHotBadge(hotMeta)?.label === '🔥 지금 난리남'
+                            ? '들어가면 바로 반응 쏟아지는 글'
+                            : getHotBadge(hotMeta)?.label === '💬 댓글 폭발'
+                              ? '댓글창에서 싸움 붙는 중'
+                              : getHotBadge(hotMeta)?.label === '📤 퍼지는 중'
+                                ? '공유 타고 퍼지는 글'
+                                : '반응이 계속 올라오는 글'}
                       </div>
                     </button>
                   )
@@ -5342,20 +5397,20 @@ ${shareUrl}`)
                 </div>
                 {currentHotMeta ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                      <div className="text-slate-400">1시간 표</div>
+                    <div className="rounded-2xl border border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-rose-400">불붙는 표</div>
                       <div className="mt-1 text-sm font-black text-slate-900">
                         {currentHotMeta.vote1h}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                      <div className="text-slate-400">1시간 댓글</div>
+                    <div className="rounded-2xl border border-violet-100 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-violet-400">붙는 댓글</div>
                       <div className="mt-1 text-sm font-black text-slate-900">
                         {currentHotMeta.comment1h}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                      <div className="text-slate-400">24시간 공유</div>
+                    <div className="rounded-2xl border border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                      <div className="text-amber-500">퍼진 공유</div>
                       <div className="mt-1 text-sm font-black text-slate-900">
                         {currentHotMeta.share24h}
                       </div>
@@ -5381,6 +5436,34 @@ ${shareUrl}`)
 
                   {votes[currentPost.id] ? (
                     <div className="space-y-4">
+                      {(currentResultEmotion || currentMinorityLabel) && (
+                        <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {currentResultEmotion ? (
+                              <div className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700">
+                                {currentResultEmotion}
+                              </div>
+                            ) : null}
+                            {currentMinorityLabel ? (
+                              <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700">
+                                {currentMinorityLabel}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                            {currentMinorityLabel
+                              ? '남들 의견이랑 갈릴수록 더 보고 싶어지는 글이다.'
+                              : currentResultEmotion === '🔥 개싸움'
+                                ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
+                                : currentResultEmotion === '👀 팽팽'
+                                  ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
+                                  : currentResultEmotion === '⚡ 기우는 중'
+                                    ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
+                                    : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                          </div>
+                        </div>
+                      )}
+
                       <button
                         onClick={handleNextWithGuard}
                         className="w-full rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left transition-all shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
@@ -5401,7 +5484,7 @@ ${shareUrl}`)
                       {controversialPosts.length > 0 && (
                         <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                           <div className="mb-3 text-sm font-bold text-slate-900">
-                            반반이라 더 재밌는 논쟁 TOP3
+                            지금 들어가면 바로 갈릴 논쟁 TOP3
                           </div>
                           <div className="space-y-2">
                             {controversialPosts.map((item) => (
