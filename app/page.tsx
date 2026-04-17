@@ -2036,7 +2036,7 @@ export default function MatnyaApp() {
         .order('created_at', { ascending: false })
 
     if (deletedCommentsError) {
-      console.error('삭제된 댓글 불러오기 실패', deletedCommentsError)
+      console.error('삭제된 댓글 불러오기 실패.', deletedCommentsError)
       return
     }
 
