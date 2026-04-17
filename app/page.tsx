@@ -2855,45 +2855,54 @@ ${shareUrl}`)
       if (validSessionError) {
         console.error('share session 검증 실패', validSessionError)
         showToast('공유 세션 확인 실패')
-      } else if (validSession?.id) {
+      } else if (!validSession?.id) {
+        console.error('share session 없음', activeShareSessionId)
+        showToast('공유 세션을 찾지 못함')
+      } else {
         const normalizedSessionId = String(validSession.id)
+        const normalizedSessionPostId = Number(validSession.post_id)
+
         setShareId(normalizedSessionId)
-        setShareOwnerKey(String(validSession.owner_key ?? ''))
-        if (validSession.post_id) {
-          setSharedPostId(Number(validSession.post_id))
+        setShareOwnerKey(
+          validSession.owner_key ? String(validSession.owner_key) : null,
+        )
+        if (!Number.isNaN(normalizedSessionPostId)) {
+          setSharedPostId(normalizedSessionPostId)
         }
 
         if (
           !validSession.owner_key ||
           String(validSession.owner_key) !== String(voterKey)
         ) {
-          const shareResponsePayload = {
+          const responsePayload = {
             share_session_id: normalizedSessionId,
             responder_key: voterKey,
             choice,
           }
 
-          const { data: savedResponse, error: shareResponseError } =
+          const { data: insertedResponse, error: shareResponseError } =
             await supabase
               .from('share_responses')
-              .upsert(shareResponsePayload, {
+              .upsert(responsePayload, {
                 onConflict: 'share_session_id,responder_key',
               })
               .select('id, share_session_id, responder_key, choice')
               .single()
 
           if (shareResponseError) {
-            console.error('share response 저장 실패', {
+            console.error(
+              'share response 저장 실패',
               shareResponseError,
-              shareResponsePayload,
-            })
+              responsePayload,
+            )
             showToast('친구 응답 저장 실패')
-          } else if (!savedResponse?.share_session_id) {
-            console.error('share response 저장 결과 비정상', {
-              savedResponse,
-              shareResponsePayload,
-            })
-            showToast('친구 응답 저장 확인 실패')
+          } else if (!insertedResponse?.share_session_id) {
+            console.error(
+              'share response 저장 결과 이상',
+              insertedResponse,
+              responsePayload,
+            )
+            showToast('친구 응답 저장 결과 확인 필요')
           } else {
             await loadShareStatsBySessionId(normalizedSessionId)
             showToast('친구 응답 반영 완료')
@@ -2901,9 +2910,6 @@ ${shareUrl}`)
         } else {
           await loadShareStatsBySessionId(normalizedSessionId)
         }
-      } else {
-        console.error('share session 없음', activeShareSessionId)
-        showToast('공유 세션을 찾지 못함')
       }
     }
 
