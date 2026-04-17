@@ -2581,6 +2581,12 @@ export default function MatnyaApp() {
     !!currentPost &&
     Number(currentPost.id) === Number(sharedPostId)
 
+  const isSharedVisitor =
+    isViewingSharedPost &&
+    !!shareOwnerKey &&
+    !!voterKey &&
+    String(shareOwnerKey) !== String(voterKey)
+
   useEffect(() => {
     if (!isViewingSharedPost) return
     void loadShareStats()
@@ -3913,9 +3919,11 @@ ${shareUrl}`)
                     : currentPost.content}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {sharedEntryActive && (
+                  {isSharedVisitor && (
                     <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                      🔗 공유 링크로 들어온 논쟁
+                      {votes[currentPost.id]
+                        ? '✨ 친구랑 결과 보는 중'
+                        : '🔥 친구가 보낸 맞냐 · 선택하면 바로 결과 공개'}
                     </div>
                   )}
                   {isOwnCurrentPost && (
