@@ -2459,6 +2459,7 @@ function ShareInboxModal({
 
 export default function MatnyaApp() {
   const [posts, setPosts] = useState<PostItem[]>([])
+  const postsRef = useRef<PostItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
@@ -2518,6 +2519,10 @@ export default function MatnyaApp() {
     Record<number, TurningPointMeta>
   >({})
   const [hotNowPosts, setHotNowPosts] = useState<PostItem[]>([])
+
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
 
   const featuredBadge = badges[0] ?? null
   const currentActorKey = authUser?.id ?? voterKey ?? null
@@ -2613,90 +2618,87 @@ export default function MatnyaApp() {
     [],
   )
 
-  const loadDiscoveryData = useCallback(
-    async (sourcePosts?: PostItem[]) => {
-      const basePosts = sourcePosts ?? posts
+  const loadDiscoveryData = useCallback(async (sourcePosts?: PostItem[]) => {
+    const basePosts = sourcePosts ?? postsRef.current
 
-      if (basePosts.length === 0) {
-        setHotScoreMap({})
-        setTurningPointMap({})
-        setHotNowPosts([])
-        return
+    if (basePosts.length === 0) {
+      setHotScoreMap({})
+      setTurningPointMap({})
+      setHotNowPosts([])
+      return
+    }
+
+    const postIds = basePosts.map((post) => post.id)
+
+    const [hotResult, turningResult] = await Promise.all([
+      supabase
+        .from('post_hot_scores')
+        .select(
+          'post_id, score, view_1h, vote_1h, comment_1h, share_24h, controversy_ratio, updated_at',
+        )
+        .in('post_id', postIds),
+      supabase
+        .from('post_turning_points')
+        .select(
+          'post_id, event_label, leader_side, snapshot_left_votes, snapshot_right_votes, created_at',
+        )
+        .in('post_id', postIds)
+        .order('created_at', { ascending: false }),
+    ])
+
+    if (hotResult.error) {
+      console.error('post_hot_scores 불러오기 실패', hotResult.error)
+    }
+
+    if (turningResult.error) {
+      console.error('post_turning_points 불러오기 실패', turningResult.error)
+    }
+
+    const nextHotMap: Record<number, HotMeta> = {}
+    ;(hotResult.data ?? []).forEach((row: any) => {
+      nextHotMap[Number(row.post_id)] = {
+        score: Number(row.score ?? 0),
+        view1h: Number(row.view_1h ?? 0),
+        vote1h: Number(row.vote_1h ?? 0),
+        comment1h: Number(row.comment_1h ?? 0),
+        share24h: Number(row.share_24h ?? 0),
+        controversyRatio: Number(row.controversy_ratio ?? 1),
+        updatedAt: row.updated_at ?? null,
       }
+    })
+    setHotScoreMap(nextHotMap)
 
-      const postIds = basePosts.map((post) => post.id)
-
-      const [hotResult, turningResult] = await Promise.all([
-        supabase
-          .from('post_hot_scores')
-          .select(
-            'post_id, score, view_1h, vote_1h, comment_1h, share_24h, controversy_ratio, updated_at',
-          )
-          .in('post_id', postIds),
-        supabase
-          .from('post_turning_points')
-          .select(
-            'post_id, event_label, leader_side, snapshot_left_votes, snapshot_right_votes, created_at',
-          )
-          .in('post_id', postIds)
-          .order('created_at', { ascending: false }),
-      ])
-
-      if (hotResult.error) {
-        console.error('post_hot_scores 불러오기 실패', hotResult.error)
+    const nextTurningMap: Record<number, TurningPointMeta> = {}
+    ;(turningResult.data ?? []).forEach((row: any) => {
+      const postId = Number(row.post_id)
+      if (nextTurningMap[postId]) return
+      nextTurningMap[postId] = {
+        eventLabel: row.event_label,
+        leaderSide: row.leader_side ?? null,
+        leftVotes: Number(row.snapshot_left_votes ?? 0),
+        rightVotes: Number(row.snapshot_right_votes ?? 0),
+        createdAt: row.created_at ?? null,
       }
+    })
+    setTurningPointMap(nextTurningMap)
 
-      if (turningResult.error) {
-        console.error('post_turning_points 불러오기 실패', turningResult.error)
-      }
-
-      const nextHotMap: Record<number, HotMeta> = {}
-      ;(hotResult.data ?? []).forEach((row: any) => {
-        nextHotMap[Number(row.post_id)] = {
-          score: Number(row.score ?? 0),
-          view1h: Number(row.view_1h ?? 0),
-          vote1h: Number(row.vote_1h ?? 0),
-          comment1h: Number(row.comment_1h ?? 0),
-          share24h: Number(row.share_24h ?? 0),
-          controversyRatio: Number(row.controversy_ratio ?? 1),
-          updatedAt: row.updated_at ?? null,
-        }
+    const ranked = [...basePosts]
+      .filter((post) => !post.hidden)
+      .sort((a, b) => {
+        const scoreA = nextHotMap[a.id]?.score ?? 0
+        const scoreB = nextHotMap[b.id]?.score ?? 0
+        if (scoreB !== scoreA) return scoreB - scoreA
+        return (
+          b.comments.length +
+          b.leftVotes +
+          b.rightVotes -
+          (a.comments.length + a.leftVotes + a.rightVotes)
+        )
       })
-      setHotScoreMap(nextHotMap)
+      .slice(0, 3)
 
-      const nextTurningMap: Record<number, TurningPointMeta> = {}
-      ;(turningResult.data ?? []).forEach((row: any) => {
-        const postId = Number(row.post_id)
-        if (nextTurningMap[postId]) return
-        nextTurningMap[postId] = {
-          eventLabel: row.event_label,
-          leaderSide: row.leader_side ?? null,
-          leftVotes: Number(row.snapshot_left_votes ?? 0),
-          rightVotes: Number(row.snapshot_right_votes ?? 0),
-          createdAt: row.created_at ?? null,
-        }
-      })
-      setTurningPointMap(nextTurningMap)
-
-      const ranked = [...basePosts]
-        .filter((post) => !post.hidden)
-        .sort((a, b) => {
-          const scoreA = nextHotMap[a.id]?.score ?? 0
-          const scoreB = nextHotMap[b.id]?.score ?? 0
-          if (scoreB !== scoreA) return scoreB - scoreA
-          return (
-            b.comments.length +
-            b.leftVotes +
-            b.rightVotes -
-            (a.comments.length + a.leftVotes + a.rightVotes)
-          )
-        })
-        .slice(0, 3)
-
-      setHotNowPosts(ranked)
-    },
-    [posts],
-  )
+    setHotNowPosts(ranked)
+  }, [])
 
   const logPostEvent = useCallback(
     async ({
@@ -3311,7 +3313,8 @@ export default function MatnyaApp() {
     const key = getOrCreateVoterKey()
     setVoterKey(key)
     void fetchAll(key)
-  }, [fetchAll])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -4132,7 +4135,7 @@ ${shareUrl}`)
       postId: currentPost.id,
       eventType: 'view',
     })
-    void loadDiscoveryData()
+    void loadDiscoveryData(postsRef.current)
   }, [currentPost?.id, logPostEvent, loadDiscoveryData])
 
   const handleVote = async (choice: VoteSide) => {
