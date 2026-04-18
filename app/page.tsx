@@ -4662,10 +4662,15 @@ ${shareUrl}`)
     (watchlistItems.find((item) => item.postId === currentPost.id)
       ?.unreadOutcome ??
       false)
+  const canAdminWriteOutcome = isAdmin && adminMode
   const canWriteOutcome =
-    !!currentPost?.authorKey &&
-    !!currentActorKey &&
-    String(currentPost.authorKey) === String(currentActorKey)
+    (!!currentPost?.authorKey &&
+      !!currentActorKey &&
+      String(currentPost.authorKey) === String(currentActorKey)) ||
+    canAdminWriteOutcome
+  const outcomeActionLabel = canAdminWriteOutcome
+    ? '관리자 후기 등록'
+    : '작성자 후기 남기기'
   const currentPostReactionSummary =
     (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
     EMPTY_POST_REACTION_SUMMARY
@@ -5444,12 +5449,14 @@ ${shareUrl}`)
     if (!currentPost) return
 
     const authorKey = currentPost.authorKey ?? null
-    if (
-      !authorKey ||
-      !currentActorKey ||
-      String(authorKey) !== String(currentActorKey)
-    ) {
-      showToast('작성자만 후기 등록 가능')
+    const isAuthor =
+      !!authorKey &&
+      !!currentActorKey &&
+      String(authorKey) === String(currentActorKey)
+    const canManageOutcome = isAuthor || (isAdmin && adminMode)
+
+    if (!canManageOutcome) {
+      showToast('작성자 또는 관리자만 후기 등록 가능')
       return
     }
 
@@ -6274,6 +6281,15 @@ ${shareUrl}`)
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
+                  {unreadWatchlistCount > 0 ? (
+                    <button
+                      onClick={() => setActivityOpen(true)}
+                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                    >
+                      <span>새 후기 도착</span>
+                      <span>{unreadWatchlistCount}개</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6417,6 +6433,15 @@ ${shareUrl}`)
                     ⚡ 연속 판단 {currentVoteStreak.currentCount}회
                   </div>
                 ) : null}
+                {unreadWatchlistCount > 0 ? (
+                  <button
+                    onClick={() => setActivityOpen(true)}
+                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                  >
+                    <span>새 후기 도착</span>
+                    <span>{unreadWatchlistCount}개</span>
+                  </button>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -6435,7 +6460,7 @@ ${shareUrl}`)
                 ) : (
                   <button
                     onClick={() => setActivityOpen(true)}
-                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
                       {getLevelTheme(levelInfo.level).icon}
@@ -6443,6 +6468,11 @@ ${shareUrl}`)
                     <span className="text-xs font-bold">
                       Lv.{levelInfo.level}
                     </span>
+                    {unreadWatchlistCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                        {unreadWatchlistCount}
+                      </span>
+                    ) : null}
                   </button>
                 )}
 
@@ -6845,7 +6875,9 @@ ${shareUrl}`)
                                   onClick={() => setOutcomeModalOpen(true)}
                                   className="rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]"
                                 >
-                                  후기 추가
+                                  {canAdminWriteOutcome
+                                    ? '관리자 후기 등록'
+                                    : '후기 추가'}
                                 </button>
                               ) : null}
                             </div>
@@ -6860,7 +6892,7 @@ ${shareUrl}`)
                               AUTHOR UPDATE
                             </div>
                             <div className="mt-1 text-sm font-bold text-slate-900">
-                              작성자 후기 남기기
+                              {outcomeActionLabel}
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
                               이 글의 이후 상황이나 결말을 짧게 등록할 수 있음
