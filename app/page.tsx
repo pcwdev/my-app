@@ -273,6 +273,15 @@ type ChoicePathTopItem = {
   count: number
 }
 
+type PostTensionState = {
+  postId: number
+  tensionType: 'flip_imminent' | 'tight' | 'brawl' | 'leaning' | 'landslide'
+  voteDiff: number
+  totalVotes: number
+  isFlipImminent: boolean
+  updatedAt: string | null
+}
+
 type AuthorMeta = {
   level: number
   badgeName: string | null
@@ -929,6 +938,73 @@ function getTurningPointLabel(eventLabel?: string | null) {
       return '🚀 판 시작됨'
     default:
       return null
+  }
+}
+
+function buildPostTensionState(
+  postId: number,
+  left: number,
+  right: number,
+): PostTensionState {
+  const totalVotes = Number(left ?? 0) + Number(right ?? 0)
+  const voteDiff = Math.abs(Number(left ?? 0) - Number(right ?? 0))
+
+  let tensionType: PostTensionState['tensionType'] = 'landslide'
+  let isFlipImminent = false
+
+  if (totalVotes >= 4 && voteDiff === 1) {
+    tensionType = 'flip_imminent'
+    isFlipImminent = true
+  } else if (totalVotes >= 8 && voteDiff / Math.max(totalVotes, 1) <= 0.12) {
+    tensionType = 'brawl'
+  } else if (totalVotes >= 4 && voteDiff <= 2) {
+    tensionType = 'tight'
+  } else if (totalVotes > 0 && voteDiff / Math.max(totalVotes, 1) <= 0.35) {
+    tensionType = 'leaning'
+  }
+
+  return {
+    postId,
+    tensionType,
+    voteDiff,
+    totalVotes,
+    isFlipImminent,
+    updatedAt: null,
+  }
+}
+
+function getTensionMeta(tension?: PostTensionState | null) {
+  switch (tension?.tensionType) {
+    case 'flip_imminent':
+      return {
+        label: '⚡ 한 명만 더 오면 뒤집힘',
+        helper: '지금 네 선택이 흐름을 바꿀 수도 있음',
+        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      }
+    case 'brawl':
+      return {
+        label: '🔥 지금 개싸움',
+        helper: '계속 갈리는 판이라 다음 반응도 궁금해짐',
+        toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      }
+    case 'tight':
+      return {
+        label: '👀 지금 팽팽',
+        helper: '한두 표만 더 들어와도 분위기가 달라질 수 있음',
+        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+      }
+    case 'leaning':
+      return {
+        label: '⚡ 한쪽으로 기우는 중',
+        helper: '기울고는 있지만 아직 끝난 판은 아님',
+        toneClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      }
+    default:
+      return {
+        label: '😴 한쪽 몰림',
+        helper: '지금은 몰리지만 댓글에서 다시 붙을 수도 있음',
+        toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+      }
   }
 }
 
@@ -3123,6 +3199,9 @@ export default function MatnyaApp() {
   const [choicePathTopMap, setChoicePathTopMap] = useState<
     Record<string, ChoicePathTopItem>
   >({})
+  const [postTensionMap, setPostTensionMap] = useState<
+    Record<number, PostTensionState>
+  >({})
   const [hotNowPosts, setHotNowPosts] = useState<PostItem[]>([])
   const [isVoting, setIsVoting] = useState(false)
   const voteLockRef = useRef(false)
@@ -3484,32 +3563,42 @@ export default function MatnyaApp() {
 
   const loadDramaEnhancementData = useCallback(
     async (postIds: number[]) => {
-      const [flipRes, choicePathRes, shadowRes] = await Promise.all([
-        postIds.length > 0
-          ? supabase
-              .from('post_flip_events')
-              .select(
-                'post_id, before_leader, after_leader, before_left_votes, before_right_votes, after_left_votes, after_right_votes, created_at',
-              )
-              .in('post_id', postIds)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: null } as any),
-        postIds.length > 0
-          ? supabase
-              .from('v_choice_path_top')
-              .select('from_post_id, to_post_id, chosen_side, path_count')
-              .in('from_post_id', postIds)
-          : Promise.resolve({ data: [], error: null } as any),
-        currentActorUnifiedKey && postIds.length > 0
-          ? supabase
-              .from('user_shadow_watchlist')
-              .select(
-                'post_id, view_count, is_auto_saved, first_seen_at, last_seen_at',
-              )
-              .eq('actor_key', currentActorUnifiedKey)
-              .in('post_id', postIds)
-          : Promise.resolve({ data: [], error: null } as any),
-      ])
+      const [flipRes, choicePathRes, shadowRes, tensionRes] = await Promise.all(
+        [
+          postIds.length > 0
+            ? supabase
+                .from('post_flip_events')
+                .select(
+                  'post_id, before_leader, after_leader, before_left_votes, before_right_votes, after_left_votes, after_right_votes, created_at',
+                )
+                .in('post_id', postIds)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('v_choice_path_top')
+                .select('from_post_id, to_post_id, chosen_side, path_count')
+                .in('from_post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          currentActorUnifiedKey && postIds.length > 0
+            ? supabase
+                .from('user_shadow_watchlist')
+                .select(
+                  'post_id, view_count, is_auto_saved, first_seen_at, last_seen_at',
+                )
+                .eq('actor_key', currentActorUnifiedKey)
+                .in('post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('post_tension_state')
+                .select(
+                  'post_id, tension_type, vote_diff, total_votes, is_flip_imminent, updated_at',
+                )
+                .in('post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
+        ],
+      )
 
       if (!flipRes.error) {
         const nextMap: Record<number, PostFlipEventItem> = {}
@@ -3555,6 +3644,22 @@ export default function MatnyaApp() {
           }
         })
         setShadowWatchMap(nextMap)
+      }
+
+      if (!tensionRes.error) {
+        const nextMap: Record<number, PostTensionState> = {}
+        ;(tensionRes.data ?? []).forEach((row: any) => {
+          nextMap[Number(row.post_id)] = {
+            postId: Number(row.post_id),
+            tensionType: (row.tension_type ??
+              'landslide') as PostTensionState['tensionType'],
+            voteDiff: Number(row.vote_diff ?? 0),
+            totalVotes: Number(row.total_votes ?? 0),
+            isFlipImminent: Boolean(row.is_flip_imminent ?? false),
+            updatedAt: row.updated_at ?? null,
+          }
+        })
+        setPostTensionMap(nextMap)
       }
     },
     [currentActorUnifiedKey],
@@ -4931,6 +5036,10 @@ ${shareUrl}`)
     ? (shadowWatchMap[currentPost.id] ?? null)
     : null
   const currentShadowDrama = getShadowWatchLabel(currentShadowWatch)
+  const currentTension = currentPost
+    ? (postTensionMap[currentPost.id] ?? null)
+    : null
+  const currentTensionMeta = getTensionMeta(currentTension)
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -5352,32 +5461,42 @@ ${shareUrl}`)
     return discoveryTopPosts.slice(0, 3).map((item, index) => {
       const hotMeta = hotScoreMap[item.id]
       const turningMeta = turningPointMap[item.id]
+      const tension = postTensionMap[item.id]
+      const tensionMeta = getTensionMeta(tension)
       const totalVotes =
         Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
       const commentBurst = Number(hotMeta?.comment1h ?? 0)
       const voteBurst = Number(hotMeta?.vote1h ?? 0)
       const turningLabel = getTurningPointLabel(turningMeta?.eventLabel)
       const hotBadgeLabel = getHotBadge(hotMeta)?.label
-      const emotionLabel = turningLabel ?? hotBadgeLabel ?? '👀 반응 붙는 중'
+      const emotionLabel =
+        turningLabel ??
+        (tension?.isFlipImminent ? tensionMeta.label : null) ??
+        hotBadgeLabel ??
+        '👀 반응 붙는 중'
 
       const shortMetric = turningLabel
         ? '방금 판 뒤집힘'
-        : commentBurst >= 8
-          ? `댓글 ${commentBurst}개 확 붙음`
-          : voteBurst >= 1
-            ? `지금 ${voteBurst}명 붙는 중`
-            : totalVotes >= 1
-              ? `현재 ${totalVotes}명 참여중`
-              : '첫 반응 기다리는 중'
+        : tension?.isFlipImminent
+          ? '지금 네 한 표가 흐름 바꿀 수 있음'
+          : commentBurst >= 8
+            ? `댓글 ${commentBurst}개 확 붙음`
+            : voteBurst >= 1
+              ? `지금 ${voteBurst}명 붙는 중`
+              : totalVotes >= 1
+                ? `현재 ${totalVotes}명 참여중`
+                : '첫 반응 기다리는 중'
 
       const liveBadgeLabel =
         turningLabel != null
           ? '방금 뒤집힘'
-          : commentBurst >= 8
-            ? '댓글 폭발'
-            : voteBurst >= 8
-              ? '지금 뜨는 판'
-              : '실시간 논쟁'
+          : tension?.isFlipImminent
+            ? '역전 임박'
+            : commentBurst >= 8
+              ? '댓글 폭발'
+              : voteBurst >= 8
+                ? '지금 뜨는 판'
+                : '실시간 논쟁'
 
       const rankToneClass =
         index === 0
@@ -5397,7 +5516,7 @@ ${shareUrl}`)
         rankToneClass,
       }
     })
-  }, [discoveryTopPosts, hotScoreMap, turningPointMap])
+  }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
 
   useEffect(() => {
     if (liveTickerItems.length <= 1) return
@@ -5532,10 +5651,22 @@ ${shareUrl}`)
           }
         : post,
     )
+    const optimisticTension = buildPostTensionState(
+      currentPostId,
+      nextLeft,
+      nextRight,
+    )
 
     postsRef.current = optimisticPosts
     setPosts(optimisticPosts)
     setVotes((prev) => ({ ...prev, [currentPostId]: choice }))
+    setPostTensionMap((prev) => ({
+      ...prev,
+      [currentPostId]: {
+        ...optimisticTension,
+        updatedAt: new Date().toISOString(),
+      },
+    }))
 
     try {
       const { error: voteError } = await supabase.from('votes').upsert(
@@ -5594,6 +5725,10 @@ ${shareUrl}`)
           p_after_right_votes: nextRight,
         })
       }
+
+      void supabase.rpc('refresh_post_tension_state', {
+        p_post_id: currentPostId,
+      })
 
       let activeShareSessionId: string | null = shareId
 
@@ -5703,6 +5838,17 @@ ${shareUrl}`)
       postsRef.current = prevPosts
       setPosts(prevPosts)
       setVotes(prevVotesMap)
+      const fallbackPost = prevPosts.find((post) => post.id === currentPostId)
+      if (fallbackPost) {
+        setPostTensionMap((prev) => ({
+          ...prev,
+          [currentPostId]: buildPostTensionState(
+            currentPostId,
+            fallbackPost.leftVotes,
+            fallbackPost.rightVotes,
+          ),
+        }))
+      }
       showToast('투표 반영 실패')
     } finally {
       window.setTimeout(() => {
@@ -7279,6 +7425,13 @@ ${shareUrl}`)
                       : ''}
                   </div>
                 ) : null}
+                {currentTension?.isFlipImminent ? (
+                  <div
+                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
+                  >
+                    {currentTensionMeta.label}
+                  </div>
+                ) : null}
                 {latestOutcome ? (
                   <div
                     className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getOutcomeTone(latestOutcome.outcomeType)}`}
@@ -7330,9 +7483,18 @@ ${shareUrl}`)
 
                 {votes[currentPost.id] ? (
                   <div className="space-y-4">
-                    {(currentResultEmotion || currentMinorityLabel) && (
+                    {(currentResultEmotion ||
+                      currentMinorityLabel ||
+                      currentTensionMeta) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex flex-wrap items-center gap-2">
+                          {currentTensionMeta ? (
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
+                            >
+                              {currentTensionMeta.label}
+                            </div>
+                          ) : null}
                           {currentResultEmotion ? (
                             <div className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700">
                               {currentResultEmotion}
@@ -7347,15 +7509,19 @@ ${shareUrl}`)
                           ) : null}
                         </div>
                         <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                          {currentMinorityLabel
-                            ? currentMinorityLabel.helper
-                            : currentResultEmotion === '🔥 개싸움'
-                              ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
-                              : currentResultEmotion === '👀 팽팽'
-                                ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
-                                : currentResultEmotion === '⚡ 기우는 중'
-                                  ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
-                                  : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                          {currentTension?.isFlipImminent
+                            ? currentTensionMeta.helper
+                            : currentMinorityLabel
+                              ? currentMinorityLabel.helper
+                              : currentResultEmotion === '🔥 개싸움'
+                                ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
+                                : currentResultEmotion === '👀 팽팽'
+                                  ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
+                                  : currentResultEmotion === '⚡ 기우는 중'
+                                    ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
+                                    : currentTensionMeta
+                                      ? currentTensionMeta.helper
+                                      : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
                         </div>
                       </div>
                     )}
