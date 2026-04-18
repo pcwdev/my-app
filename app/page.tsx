@@ -121,6 +121,18 @@ type NextQueueItem = {
   score: number
 }
 
+type WatchlistItem = {
+  id: number
+  postId: number
+  title: string
+  category: string
+  ageGroup: string
+  createdAt: string | null
+  latestOutcomeType: PostOutcomeItem['outcomeType'] | null
+  latestOutcomeSummary: string | null
+  hasOutcome: boolean
+}
+
 type PostItem = {
   id: number
   category: string
@@ -1405,6 +1417,7 @@ function MyActivityModal({
   onClose,
   myPosts,
   myComments,
+  watchlistItems,
   onOpenPost,
   onOpenComment,
   onLogout,
@@ -1416,6 +1429,7 @@ function MyActivityModal({
   onClose: () => void
   myPosts: MyPostItem[]
   myComments: MyCommentItem[]
+  watchlistItems: WatchlistItem[]
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
@@ -1423,7 +1437,7 @@ function MyActivityModal({
   stats: UserStatsRow
   badges: string[]
 }) {
-  const [tab, setTab] = useState<'posts' | 'comments'>('posts')
+  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>('posts')
 
   useEffect(() => {
     if (open) setTab('posts')
@@ -1565,6 +1579,16 @@ function MyActivityModal({
             >
               내가 남긴 댓글
             </button>
+            <button
+              onClick={() => setTab('watchlist')}
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+                tab === 'watchlist'
+                  ? 'bg-[#4f7cff] text-slate-900'
+                  : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              궁금한 글
+            </button>
           </div>
         </div>
 
@@ -1577,6 +1601,11 @@ function MyActivityModal({
           {tab === 'comments' && myComments.length === 0 && (
             <div className="text-sm text-slate-500">
               로그인 후 작성한 댓글이 없음
+            </div>
+          )}
+          {tab === 'watchlist' && watchlistItems.length === 0 && (
+            <div className="text-sm text-slate-500">
+              결말궁금으로 저장한 글이 없음
             </div>
           )}
 
@@ -1610,6 +1639,41 @@ function MyActivityModal({
                 </div>
                 <div className="mt-2 text-xs text-slate-400">
                   댓글 단 글로 이동
+                </div>
+              </button>
+            ))}
+
+          {tab === 'watchlist' &&
+            watchlistItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onOpenPost(item.postId)}
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-xs text-slate-500">
+                    {item.category} · {item.ageGroup}
+                  </div>
+                  {item.latestOutcomeType ? (
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
+                    >
+                      {getOutcomeLabel(item.latestOutcomeType)}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                      후기 대기중
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 font-bold text-slate-900">
+                  {item.title}
+                </div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
+                </div>
+                <div className="mt-2 text-xs text-slate-400">
+                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
                 </div>
               </button>
             ))}
@@ -2824,6 +2888,10 @@ export default function MatnyaApp() {
   const [nextQueueMap, setNextQueueMap] = useState<
     Record<number, NextQueueItem[]>
   >({})
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
+  const [myWatchlistMap, setMyWatchlistMap] = useState<Record<number, boolean>>(
+    {},
+  )
   const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastShareTotalRef = useRef<number>(0)
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
@@ -2890,6 +2958,8 @@ export default function MatnyaApp() {
     setDeletedOpen(false)
     setMyPosts([])
     setMyComments([])
+    setWatchlistItems([])
+    setMyWatchlistMap({})
     setStats(
       normalizeStats({
         points: 0,
@@ -3178,10 +3248,11 @@ export default function MatnyaApp() {
       if (!currentActorUnifiedKey) {
         setMyCommentReactions({})
         setMyPostReactions({})
+        setMyWatchlistMap({})
         return
       }
 
-      const [commentReactionRes, postReactionRes, streakRes] =
+      const [commentReactionRes, postReactionRes, streakRes, watchlistRes] =
         await Promise.all([
           commentIds.length > 0
             ? supabase
@@ -3201,6 +3272,14 @@ export default function MatnyaApp() {
             .from('user_streaks')
             .select('streak_type, current_count, best_count, last_action_at')
             .eq('actor_key', currentActorUnifiedKey),
+          postIds.length > 0
+            ? supabase
+                .from('post_watchlist')
+                .select('post_id')
+                .eq('actor_key', currentActorUnifiedKey)
+                .eq('watch_type', 'curious')
+                .in('post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
         ])
 
       if (!commentReactionRes.error) {
@@ -3230,6 +3309,14 @@ export default function MatnyaApp() {
           }
         })
         setStreakMap(nextMap)
+      }
+
+      if (!watchlistRes.error) {
+        const nextMap: Record<number, boolean> = {}
+        ;(watchlistRes.data ?? []).forEach((row: any) => {
+          nextMap[Number(row.post_id)] = true
+        })
+        setMyWatchlistMap(nextMap)
       }
     },
     [currentActorUnifiedKey],
@@ -3879,6 +3966,101 @@ export default function MatnyaApp() {
     }
   }, [])
 
+  const fetchWatchlist = useCallback(async (actorKey: string | null) => {
+    if (!actorKey) {
+      setWatchlistItems([])
+      setMyWatchlistMap({})
+      return
+    }
+
+    const { data: watchRows, error: watchError } = await supabase
+      .from('post_watchlist')
+      .select('id, post_id, created_at')
+      .eq('actor_key', actorKey)
+      .eq('watch_type', 'curious')
+      .order('created_at', { ascending: false })
+
+    if (watchError) {
+      console.error('궁금한 글 불러오기 실패', watchError)
+      return
+    }
+
+    const rows = (watchRows ?? []).map((row: any) => ({
+      id: Number(row.id),
+      postId: Number(row.post_id),
+      createdAt: row.created_at ?? null,
+    }))
+
+    if (rows.length === 0) {
+      setWatchlistItems([])
+      setMyWatchlistMap({})
+      return
+    }
+
+    const postIds = [...new Set(rows.map((row) => row.postId))]
+    const [watchPostsRes, outcomesRes] = await Promise.all([
+      supabase
+        .from('posts')
+        .select('id, title, category, age_group')
+        .in('id', postIds),
+      supabase
+        .from('post_outcomes')
+        .select('id, post_id, outcome_type, summary, created_at')
+        .in('post_id', postIds)
+        .order('created_at', { ascending: false }),
+    ])
+
+    if (watchPostsRes.error) {
+      console.error('궁금한 글 게시글 불러오기 실패', watchPostsRes.error)
+      return
+    }
+
+    const postMap = new Map<number, any>()
+    ;(watchPostsRes.data ?? []).forEach((row: any) => {
+      postMap.set(Number(row.id), row)
+    })
+
+    const outcomeMap = new Map<number, any>()
+    ;(outcomesRes.data ?? []).forEach((row: any) => {
+      const postId = Number(row.post_id)
+      if (!outcomeMap.has(postId)) {
+        outcomeMap.set(postId, row)
+      }
+    })
+
+    const watchedMap: Record<number, boolean> = {}
+    const items: WatchlistItem[] = rows
+      .map((row) => {
+        const post = postMap.get(row.postId)
+        if (!post) return null
+        const latestOutcome = outcomeMap.get(row.postId) ?? null
+        watchedMap[row.postId] = true
+        return {
+          id: row.id,
+          postId: row.postId,
+          title: post.title,
+          category: post.category,
+          ageGroup: post.age_group,
+          createdAt: row.createdAt,
+          latestOutcomeType: latestOutcome?.outcome_type ?? null,
+          latestOutcomeSummary: latestOutcome?.summary ?? null,
+          hasOutcome: !!latestOutcome,
+        } satisfies WatchlistItem
+      })
+      .filter(Boolean) as WatchlistItem[]
+
+    items.sort((a, b) => {
+      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+      return (
+        new Date(b.createdAt ?? 0).getTime() -
+        new Date(a.createdAt ?? 0).getTime()
+      )
+    })
+
+    setWatchlistItems(items)
+    setMyWatchlistMap(watchedMap)
+  }, [])
+
   useEffect(() => {
     if (authUser?.id) {
       void fetchMyActivity(authUser.id)
@@ -3887,6 +4069,10 @@ export default function MatnyaApp() {
       setMyComments([])
     }
   }, [authUser?.id, fetchMyActivity])
+
+  useEffect(() => {
+    void fetchWatchlist(currentActorUnifiedKey)
+  }, [currentActorUnifiedKey, fetchWatchlist])
 
   useEffect(() => {
     if (!voterKey) return
@@ -4309,6 +4495,7 @@ ${shareUrl}`)
     ? (postOutcomeMap[currentPost.id] ?? [])
     : []
   const latestOutcome = currentOutcomeItems[0] ?? null
+  const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const currentPostReactionSummary =
     (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
     EMPTY_POST_REACTION_SUMMARY
@@ -5024,6 +5211,97 @@ ${shareUrl}`)
     }
 
     showToast('반응 반영')
+  }
+
+  const toggleCurrentPostWatchlist = async () => {
+    if (!currentPost || !currentActorUnifiedKey) return
+
+    const alreadyActive = !!myWatchlistMap[currentPost.id]
+
+    setMyWatchlistMap((prev) => ({
+      ...prev,
+      [currentPost.id]: !alreadyActive,
+    }))
+
+    if (alreadyActive) {
+      setWatchlistItems((prev) =>
+        prev.filter((item) => item.postId !== currentPost.id),
+      )
+      const { error } = await supabase
+        .from('post_watchlist')
+        .delete()
+        .eq('post_id', currentPost.id)
+        .eq('actor_key', currentActorUnifiedKey)
+        .eq('watch_type', 'curious')
+
+      if (error) {
+        console.error('궁금한 글 해제 실패', error)
+        showToast('결말궁금 반영 실패')
+        void fetchWatchlist(currentActorUnifiedKey)
+        return
+      }
+
+      showToast('궁금한 글 해제')
+      return
+    }
+
+    const optimisticItem: WatchlistItem = {
+      id: -currentPost.id,
+      postId: currentPost.id,
+      title: currentPost.title,
+      category: currentPost.category,
+      ageGroup: currentPost.ageGroup,
+      createdAt: new Date().toISOString(),
+      latestOutcomeType: latestOutcome?.outcomeType ?? null,
+      latestOutcomeSummary: latestOutcome?.summary ?? null,
+      hasOutcome: !!latestOutcome,
+    }
+
+    setWatchlistItems((prev) => {
+      const next = [
+        optimisticItem,
+        ...prev.filter((item) => item.postId !== currentPost.id),
+      ]
+      next.sort((a, b) => {
+        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+        return (
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime()
+        )
+      })
+      return next
+    })
+
+    const { data, error } = await supabase
+      .from('post_watchlist')
+      .insert({
+        post_id: currentPost.id,
+        actor_key: currentActorUnifiedKey,
+        watch_type: 'curious',
+      })
+      .select('id, created_at')
+      .single()
+
+    if (error) {
+      console.error('궁금한 글 등록 실패', error)
+      showToast('결말궁금 반영 실패')
+      void fetchWatchlist(currentActorUnifiedKey)
+      return
+    }
+
+    setWatchlistItems((prev) =>
+      prev.map((item) =>
+        item.postId === currentPost.id
+          ? {
+              ...item,
+              id: Number(data?.id ?? item.id),
+              createdAt: data?.created_at ?? item.createdAt,
+            }
+          : item,
+      ),
+    )
+
+    showToast('결말궁금 저장')
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -5743,6 +6021,7 @@ ${shareUrl}`)
           onClose={() => setActivityOpen(false)}
           myPosts={myPosts}
           myComments={myComments}
+          watchlistItems={watchlistItems}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
@@ -6197,6 +6476,25 @@ ${shareUrl}`)
                               </button>
                             )
                           })}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            onClick={() => void toggleCurrentPostWatchlist()}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-bold transition ${
+                              currentWatchlisted
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-600'
+                            }`}
+                          >
+                            <span>
+                              {currentWatchlisted ? '결말기다림 ✓' : '결말궁금'}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {currentWatchlisted
+                                ? '내 활동에서 다시 보기'
+                                : '나중에 결과 보기'}
+                            </span>
+                          </button>
                         </div>
                         {latestOutcome ? (
                           <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
@@ -6702,6 +7000,7 @@ ${shareUrl}`)
           onClose={() => setActivityOpen(false)}
           myPosts={myPosts}
           myComments={myComments}
+          watchlistItems={watchlistItems}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
