@@ -282,6 +282,27 @@ type PostTensionState = {
   updatedAt: string | null
 }
 
+type ResultUnlockItem = {
+  postId: number
+  voterKey: string
+  unlockLevel: number
+  commentReads: number
+  isWatchlisted: boolean
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+type ResultRevealStage = {
+  level: number
+  label: string
+  helper: string
+  toneClass: string
+  leftValue: number
+  rightValue: number
+  showExact: boolean
+  showOutcome: boolean
+}
+
 type AuthorMeta = {
   level: number
   badgeName: string | null
@@ -1103,6 +1124,78 @@ function getMinorityLabel(mySide: VoteSide | null, post?: PostItem | null) {
   }
 
   return null
+}
+
+function roundPairToStep(left: number, right: number, step: number) {
+  const roundedLeft = Math.round(left / step) * step
+  const boundedLeft = Math.max(step, Math.min(100 - step, roundedLeft))
+  return {
+    left: boundedLeft,
+    right: 100 - boundedLeft,
+  }
+}
+
+function getResultRevealStage(
+  unlockLevel: number,
+  leftVotes: number,
+  rightVotes: number,
+  hasOutcome: boolean,
+): ResultRevealStage {
+  const exact = percent(leftVotes, rightVotes)
+
+  if (unlockLevel >= 4) {
+    return {
+      level: 4,
+      label: hasOutcome ? '결말까지 공개됨' : '최종 결과 공개',
+      helper: hasOutcome
+        ? '이제 결과뿐 아니라 후기와 결말까지 같이 보면 됨'
+        : '정확한 결과가 전부 공개된 상태',
+      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      leftValue: exact.left,
+      rightValue: exact.right,
+      showExact: true,
+      showOutcome: true,
+    }
+  }
+
+  if (unlockLevel >= 3) {
+    return {
+      level: 3,
+      label: '정확한 결과 공개',
+      helper: '이제 정확한 퍼센트와 흐름을 확인할 수 있음',
+      toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
+      leftValue: exact.left,
+      rightValue: exact.right,
+      showExact: true,
+      showOutcome: false,
+    }
+  }
+
+  if (unlockLevel >= 2) {
+    const approx = roundPairToStep(exact.left, exact.right, 5)
+    return {
+      level: 2,
+      label: '대략 공개',
+      helper: '댓글 분위기까지 보면 생각보다 더 갈리는지 바로 느낌 옴',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      leftValue: approx.left,
+      rightValue: approx.right,
+      showExact: false,
+      showOutcome: false,
+    }
+  }
+
+  const hidden = roundPairToStep(exact.left, exact.right, 10)
+  return {
+    level: 1,
+    label: '감정만 먼저 공개',
+    helper: '지금은 분위기만 먼저 보여주고, 더 보면 결과가 조금씩 열림',
+    toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
+    leftValue: hidden.left,
+    rightValue: hidden.right,
+    showExact: false,
+    showOutcome: false,
+  }
 }
 
 function formatRelativeShort(value?: string | null) {
@@ -2118,6 +2211,7 @@ function CommentModal({
   commentReactionMap,
   myCommentReactions,
   onReactComment,
+  onExposeComments,
 }: {
   post: PostItem | null
   open: boolean
@@ -2140,6 +2234,7 @@ function CommentModal({
     commentId: number,
     reactionType: CommentReactionType,
   ) => void | Promise<void>
+  onExposeComments?: (count: number) => void
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -2163,6 +2258,20 @@ function CommentModal({
   useEffect(() => {
     if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
   }, [open, post?.id, sortType])
+
+  useEffect(() => {
+    if (!open || !post) return
+
+    const exposedCount = Math.min(
+      3,
+      (post.comments ?? []).filter((comment) => !comment.hidden || adminMode)
+        .length,
+    )
+
+    if (exposedCount > 0) {
+      onExposeComments?.(exposedCount)
+    }
+  }, [open, post?.id])
 
   const sortedComments = useMemo(() => {
     if (!post) return []
@@ -2360,9 +2469,10 @@ function CommentModal({
 
           {hasMoreComments && (
             <button
-              onClick={() =>
+              onClick={() => {
                 setVisibleCount((prev) => prev + INITIAL_COMMENT_BATCH)
-              }
+                onExposeComments?.(INITIAL_COMMENT_BATCH)
+              }}
               className="w-full rounded-[22px] border border-slate-200/80 bg-white/90 px-4 py-3 text-sm font-bold text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
             >
               반응 더보기
@@ -3179,6 +3289,9 @@ export default function MatnyaApp() {
   )
   const [watchOutcomeSeenMap, setWatchOutcomeSeenMap] = useState<
     Record<number, string | null>
+  >({})
+  const [resultUnlockMap, setResultUnlockMap] = useState<
+    Record<number, ResultUnlockItem>
   >({})
   const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastShareTotalRef = useRef<number>(0)
@@ -4522,6 +4635,53 @@ export default function MatnyaApp() {
     void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
 
+  const loadResultUnlocks = useCallback(
+    async (postIds: number[]) => {
+      if (!currentActorUnifiedKey || postIds.length === 0) {
+        setResultUnlockMap({})
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('post_result_unlocks')
+        .select(
+          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+        )
+        .eq('voter_key', currentActorUnifiedKey)
+        .in('post_id', postIds)
+
+      if (error) {
+        console.error('결과 공개 단계 불러오기 실패', error)
+        return
+      }
+
+      const nextMap: Record<number, ResultUnlockItem> = {}
+      ;(data ?? []).forEach((row: any) => {
+        const postId = Number(row.post_id)
+        nextMap[postId] = {
+          postId,
+          voterKey: String(row.voter_key ?? currentActorUnifiedKey),
+          unlockLevel: Math.max(1, Number(row.unlock_level ?? 1)),
+          commentReads: Number(row.comment_reads ?? 0),
+          isWatchlisted: Boolean(row.is_watchlisted ?? false),
+          createdAt: row.created_at ?? null,
+          updatedAt: row.updated_at ?? null,
+        }
+      })
+      setResultUnlockMap(nextMap)
+    },
+    [currentActorUnifiedKey],
+  )
+
+  useEffect(() => {
+    const postIds = posts.map((post) => post.id)
+    if (!currentActorUnifiedKey || postIds.length === 0) {
+      setResultUnlockMap({})
+      return
+    }
+    void loadResultUnlocks(postIds)
+  }, [currentActorUnifiedKey, posts, loadResultUnlocks])
+
   const refreshLightweightMetaNow = useCallback(async () => {
     if (!currentActorUnifiedKey) return
 
@@ -4543,6 +4703,7 @@ export default function MatnyaApp() {
         fetchWatchlist(currentActorUnifiedKey),
         loadReactionAndOutcomeData(postIds, commentIds),
         loadDramaEnhancementData(postIds),
+        loadResultUnlocks(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -4565,6 +4726,7 @@ export default function MatnyaApp() {
     fetchWatchlist,
     loadDramaEnhancementData,
     loadReactionAndOutcomeData,
+    loadResultUnlocks,
     posts,
   ])
 
@@ -4598,6 +4760,119 @@ export default function MatnyaApp() {
       }, delay)
     },
     [currentActorUnifiedKey, refreshLightweightMetaNow],
+  )
+
+  const upsertResultUnlock = useCallback(
+    async (
+      postId: number,
+      patch: {
+        unlockLevel?: number
+        commentReadsDelta?: number
+        forceCommentReads?: number
+        isWatchlisted?: boolean
+      },
+    ) => {
+      if (!currentActorUnifiedKey || !postId) return null
+
+      const existing = resultUnlockMap[postId] ?? null
+      let base = existing
+
+      if (!base) {
+        const { count, error: countError } = await supabase
+          .from('post_result_unlocks')
+          .select('*', { count: 'exact', head: true })
+          .eq('voter_key', currentActorUnifiedKey)
+
+        if (countError) {
+          console.error('결과 공개 단계 개수 조회 실패', countError)
+        }
+
+        base = {
+          postId,
+          voterKey: currentActorUnifiedKey,
+          unlockLevel: Number(count ?? 0) < 3 ? 3 : 1,
+          commentReads: 0,
+          isWatchlisted: !!myWatchlistMap[postId],
+          createdAt: null,
+          updatedAt: null,
+        }
+      }
+
+      const nextUnlockLevel = Math.max(
+        base.unlockLevel,
+        Number(patch.unlockLevel ?? base.unlockLevel),
+      )
+      const nextCommentReads =
+        typeof patch.forceCommentReads === 'number'
+          ? Math.max(0, patch.forceCommentReads)
+          : Math.max(
+              0,
+              base.commentReads + Number(patch.commentReadsDelta ?? 0),
+            )
+      const nextItem: ResultUnlockItem = {
+        ...base,
+        unlockLevel: nextUnlockLevel,
+        commentReads: nextCommentReads,
+        isWatchlisted:
+          typeof patch.isWatchlisted === 'boolean'
+            ? patch.isWatchlisted
+            : base.isWatchlisted,
+        updatedAt: new Date().toISOString(),
+      }
+
+      setResultUnlockMap((prev) => ({
+        ...prev,
+        [postId]: nextItem,
+      }))
+
+      const { data, error } = await supabase
+        .from('post_result_unlocks')
+        .upsert(
+          {
+            post_id: postId,
+            voter_key: currentActorUnifiedKey,
+            unlock_level: nextItem.unlockLevel,
+            comment_reads: nextItem.commentReads,
+            is_watchlisted: nextItem.isWatchlisted,
+            updated_at: nextItem.updatedAt,
+          },
+          {
+            onConflict: 'post_id,voter_key',
+          },
+        )
+        .select(
+          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+        )
+        .maybeSingle()
+
+      if (error) {
+        console.error('결과 공개 단계 저장 실패', error)
+        return null
+      }
+
+      if (data) {
+        const savedItem: ResultUnlockItem = {
+          postId: Number(data.post_id),
+          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
+          unlockLevel: Math.max(
+            1,
+            Number(data.unlock_level ?? nextItem.unlockLevel),
+          ),
+          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
+          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
+          createdAt: data.created_at ?? nextItem.createdAt,
+          updatedAt: data.updated_at ?? nextItem.updatedAt,
+        }
+        setResultUnlockMap((prev) => ({
+          ...prev,
+          [postId]: savedItem,
+        }))
+        return savedItem
+      }
+
+      return nextItem
+    },
+    [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
 
   useEffect(() => {
@@ -5049,6 +5324,22 @@ ${shareUrl}`)
     (watchlistItems.find((item) => item.postId === currentPost.id)
       ?.unreadOutcome ??
       false)
+  const currentResultUnlock =
+    currentPost && votes[currentPost.id]
+      ? (resultUnlockMap[currentPost.id] ?? null)
+      : null
+  const currentResultUnlockLevel =
+    currentPost && votes[currentPost.id]
+      ? Math.max(1, currentResultUnlock?.unlockLevel ?? 1)
+      : 0
+  const currentResultReveal = currentPost
+    ? getResultRevealStage(
+        currentResultUnlockLevel,
+        currentPost.leftVotes,
+        currentPost.rightVotes,
+        !!latestOutcome,
+      )
+    : null
   const canAdminWriteOutcome = isAdmin && adminMode
   const canWriteOutcome =
     (!!currentPost?.authorKey &&
@@ -5104,6 +5395,42 @@ ${shareUrl}`)
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (currentWatchlisted) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 3,
+        isWatchlisted: true,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    currentWatchlisted,
+    votes,
+    upsertResultUnlock,
+  ])
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (latestOutcome || revisitMeta) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 4,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    latestOutcome?.id,
+    revisitMeta?.label,
+    votes,
+    upsertResultUnlock,
+  ])
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
@@ -5828,6 +6155,11 @@ ${shareUrl}`)
         (streakMap.daily_vote?.currentCount ?? 0) + 1,
       )
 
+      void upsertResultUnlock(currentPostId, {
+        unlockLevel: latestOutcome ? 4 : currentWatchlisted ? 3 : undefined,
+        isWatchlisted: currentWatchlisted,
+      })
+
       markPostMeaningful({
         ...currentPost,
         leftVotes: nextLeft,
@@ -6213,6 +6545,10 @@ ${shareUrl}`)
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
+    void upsertResultUnlock(currentPost.id, {
+      unlockLevel: 4,
+      isWatchlisted: currentWatchlisted,
+    })
     requestLightweightMetaRefresh({ immediate: true, delay: 0 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
@@ -6232,6 +6568,9 @@ ${shareUrl}`)
       setWatchlistItems((prev) =>
         prev.filter((item) => item.postId !== currentPost.id),
       )
+      void upsertResultUnlock(currentPost.id, {
+        isWatchlisted: false,
+      })
       const { error } = await supabase
         .from('post_watchlist')
         .delete()
@@ -6318,6 +6657,10 @@ ${shareUrl}`)
         }),
     )
 
+    void upsertResultUnlock(currentPost.id, {
+      unlockLevel: 3,
+      isWatchlisted: true,
+    })
     showToast('결말궁금 저장')
   }
 
@@ -7094,6 +7437,12 @@ ${shareUrl}`)
   }
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
+  const displayedPercent = currentResultReveal
+    ? {
+        left: currentResultReveal.leftValue,
+        right: currentResultReveal.rightValue,
+      }
+    : p
   const levelInfo = getLevelInfo(stats.points)
   const isOwnCurrentPost =
     !!currentActorKey &&
@@ -7469,14 +7818,16 @@ ${shareUrl}`)
                 <VoteOption
                   active={votes[currentPost.id] === 'left'}
                   label={currentPost.leftLabel}
-                  value={p.left}
+                  value={votes[currentPost.id] ? displayedPercent.left : p.left}
                   onClick={() => void handleVote('left')}
                   disabled={isVoting}
                 />
                 <VoteOption
                   active={votes[currentPost.id] === 'right'}
                   label={currentPost.rightLabel}
-                  value={p.right}
+                  value={
+                    votes[currentPost.id] ? displayedPercent.right : p.right
+                  }
                   onClick={() => void handleVote('right')}
                   disabled={isVoting}
                 />
@@ -7485,7 +7836,8 @@ ${shareUrl}`)
                   <div className="space-y-4">
                     {(currentResultEmotion ||
                       currentMinorityLabel ||
-                      currentTensionMeta) && (
+                      currentTensionMeta ||
+                      currentResultReveal) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex flex-wrap items-center gap-2">
                           {currentTensionMeta ? (
@@ -7507,7 +7859,61 @@ ${shareUrl}`)
                               {currentMinorityLabel.text}
                             </div>
                           ) : null}
+                          {currentResultReveal ? (
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentResultReveal.toneClass}`}
+                            >
+                              {currentResultReveal.label}
+                            </div>
+                          ) : null}
                         </div>
+
+                        {currentResultReveal ? (
+                          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                            <div className="flex items-end justify-between gap-3">
+                              <div>
+                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                  RESULT FLOW
+                                </div>
+                                <div className="mt-1 text-base font-black text-slate-900">
+                                  {currentResultReveal.showExact
+                                    ? `${displayedPercent.left}% vs ${displayedPercent.right}%`
+                                    : `약 ${displayedPercent.left}% vs ${displayedPercent.right}%`}
+                                </div>
+                              </div>
+                              <div
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${currentResultReveal.toneClass}`}
+                              >
+                                {currentResultUnlockLevel > 0
+                                  ? `공개 ${currentResultUnlockLevel}/4`
+                                  : '공개 0/4'}
+                              </div>
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentResultReveal.helper}
+                            </div>
+
+                            {currentResultUnlockLevel < 3 ? (
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => setCommentOpen(true)}
+                                  className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
+                                >
+                                  댓글 보면 더 공개
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    void toggleCurrentPostWatchlist()
+                                  }
+                                  className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
+                                >
+                                  결말궁금 저장
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+
                         <div className="mt-2 text-[13px] font-semibold text-slate-600">
                           {currentTension?.isFlipImminent
                             ? currentTensionMeta.helper
@@ -7521,7 +7927,8 @@ ${shareUrl}`)
                                     ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
                                     : currentTensionMeta
                                       ? currentTensionMeta.helper
-                                      : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                                      : (currentResultReveal?.helper ??
+                                        '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.')}
                         </div>
                       </div>
                     )}
@@ -7631,7 +8038,7 @@ ${shareUrl}`)
                           </span>
                         </button>
                       </div>
-                      {latestOutcome ? (
+                      {latestOutcome && currentResultReveal?.showOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
@@ -7657,6 +8064,22 @@ ${shareUrl}`)
                           </div>
                           <div className="mt-1">{latestOutcome.summary}</div>
                         </div>
+                      ) : latestOutcome ? (
+                        <button
+                          onClick={() => void toggleCurrentPostWatchlist()}
+                          className="mt-3 w-full rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf7_0%,#fff7db_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(250,204,21,0.12)]"
+                        >
+                          <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
+                            OUTCOME TEASER
+                          </div>
+                          <div className="mt-1 text-sm font-bold text-slate-900">
+                            후기 도착 · 저장하면 결말까지 공개
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            지금은 일부만 열려 있음. 결말궁금에 넣으면 이 글의
+                            이후 상황까지 바로 확인 가능
+                          </div>
+                        </button>
                       ) : canWriteOutcome ? (
                         <button
                           onClick={() => setOutcomeModalOpen(true)}
@@ -8153,6 +8576,17 @@ ${shareUrl}`)
           onReactComment={(commentId, reactionType) =>
             void reactToComment(commentId, reactionType)
           }
+          onExposeComments={(count) => {
+            if (!currentPost?.id || !votes[currentPost.id]) return
+            const currentReads =
+              resultUnlockMap[currentPost.id]?.commentReads ?? 0
+            const nextReads = currentReads + count
+            void upsertResultUnlock(currentPost.id, {
+              commentReadsDelta: count,
+              unlockLevel: nextReads >= 3 ? 2 : undefined,
+              isWatchlisted: currentWatchlisted,
+            })
+          }}
         />
 
         <CreatePostModal
