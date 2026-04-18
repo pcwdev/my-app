@@ -247,6 +247,32 @@ type TurningPointMeta = {
   createdAt: string | null
 }
 
+type PostFlipEventItem = {
+  postId: number
+  beforeLeader: 'left' | 'right' | 'tie' | null
+  afterLeader: 'left' | 'right' | 'tie' | null
+  beforeLeftVotes: number
+  beforeRightVotes: number
+  afterLeftVotes: number
+  afterRightVotes: number
+  createdAt: string | null
+}
+
+type ShadowWatchItem = {
+  postId: number
+  viewCount: number
+  isAutoSaved: boolean
+  firstSeenAt: string | null
+  lastSeenAt: string | null
+}
+
+type ChoicePathTopItem = {
+  fromPostId: number
+  toPostId: number
+  chosenSide: VoteSide
+  count: number
+}
+
 type AuthorMeta = {
   level: number
   badgeName: string | null
@@ -903,6 +929,58 @@ function getTurningPointLabel(eventLabel?: string | null) {
       return '🚀 판 시작됨'
     default:
       return null
+  }
+}
+
+function getLeaderSideFromVotes(
+  left: number,
+  right: number,
+): 'left' | 'right' | 'tie' {
+  if (left === right) return 'tie'
+  return left > right ? 'left' : 'right'
+}
+
+function getFlipDramaLabel(flip?: PostFlipEventItem | null) {
+  if (!flip) return null
+
+  if (flip.afterLeader === 'tie') {
+    return {
+      text: '👀 방금 다시 반반됨',
+      helper: '한두 표만 더 들어와도 흐름이 또 바뀔 수 있음',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  if (flip.beforeLeader === 'tie') {
+    return {
+      text: '⚡ 방금 한쪽이 앞서기 시작함',
+      helper: '막 붙기 시작한 판이라 다시 흔들릴 가능성도 큼',
+      toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+    }
+  }
+
+  return {
+    text: '🔥 방금 판 뒤집힘',
+    helper: '내가 아까 본 결과랑 지금 흐름이 달라졌음',
+    toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+  }
+}
+
+function getShadowWatchLabel(item?: ShadowWatchItem | null) {
+  if (!item || item.viewCount < 2) return null
+
+  if (item.viewCount >= 4) {
+    return {
+      text: '🫣 계속 신경 쓰는 글',
+      helper: `벌써 ${item.viewCount}번 다시 봄`,
+      toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
+    }
+  }
+
+  return {
+    text: '👀 자꾸 다시 보는 글',
+    helper: `${item.viewCount}번째 확인 중`,
+    toneClass: 'border-slate-200 bg-slate-50 text-slate-700',
   }
 }
 
@@ -3036,6 +3114,15 @@ export default function MatnyaApp() {
   const [turningPointMap, setTurningPointMap] = useState<
     Record<number, TurningPointMeta>
   >({})
+  const [postFlipMap, setPostFlipMap] = useState<
+    Record<number, PostFlipEventItem>
+  >({})
+  const [shadowWatchMap, setShadowWatchMap] = useState<
+    Record<number, ShadowWatchItem>
+  >({})
+  const [choicePathTopMap, setChoicePathTopMap] = useState<
+    Record<string, ChoicePathTopItem>
+  >({})
   const [hotNowPosts, setHotNowPosts] = useState<PostItem[]>([])
   const [isVoting, setIsVoting] = useState(false)
   const voteLockRef = useRef(false)
@@ -3044,10 +3131,19 @@ export default function MatnyaApp() {
   const metaRefreshInFlightRef = useRef(false)
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
+  const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     postsRef.current = posts
   }, [posts])
+
+  useEffect(() => {
+    return () => {
+      if (shadowViewTimerRef.current) {
+        clearTimeout(shadowViewTimerRef.current)
+      }
+    }
+  }, [])
 
   const featuredBadge = badges[0] ?? null
   const currentActorKey = authUser?.id ?? voterKey ?? null
@@ -3386,6 +3482,84 @@ export default function MatnyaApp() {
     [],
   )
 
+  const loadDramaEnhancementData = useCallback(
+    async (postIds: number[]) => {
+      const [flipRes, choicePathRes, shadowRes] = await Promise.all([
+        postIds.length > 0
+          ? supabase
+              .from('post_flip_events')
+              .select(
+                'post_id, before_leader, after_leader, before_left_votes, before_right_votes, after_left_votes, after_right_votes, created_at',
+              )
+              .in('post_id', postIds)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+        postIds.length > 0
+          ? supabase
+              .from('v_choice_path_top')
+              .select('from_post_id, to_post_id, chosen_side, path_count')
+              .in('from_post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        currentActorUnifiedKey && postIds.length > 0
+          ? supabase
+              .from('user_shadow_watchlist')
+              .select(
+                'post_id, view_count, is_auto_saved, first_seen_at, last_seen_at',
+              )
+              .eq('actor_key', currentActorUnifiedKey)
+              .in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ])
+
+      if (!flipRes.error) {
+        const nextMap: Record<number, PostFlipEventItem> = {}
+        ;(flipRes.data ?? []).forEach((row: any) => {
+          const postId = Number(row.post_id)
+          if (nextMap[postId]) return
+          nextMap[postId] = {
+            postId,
+            beforeLeader: row.before_leader ?? null,
+            afterLeader: row.after_leader ?? null,
+            beforeLeftVotes: Number(row.before_left_votes ?? 0),
+            beforeRightVotes: Number(row.before_right_votes ?? 0),
+            afterLeftVotes: Number(row.after_left_votes ?? 0),
+            afterRightVotes: Number(row.after_right_votes ?? 0),
+            createdAt: row.created_at ?? null,
+          }
+        })
+        setPostFlipMap(nextMap)
+      }
+
+      if (!choicePathRes.error) {
+        const nextMap: Record<string, ChoicePathTopItem> = {}
+        ;(choicePathRes.data ?? []).forEach((row: any) => {
+          nextMap[`${Number(row.from_post_id)}:${row.chosen_side}`] = {
+            fromPostId: Number(row.from_post_id),
+            toPostId: Number(row.to_post_id),
+            chosenSide: row.chosen_side,
+            count: Number(row.path_count ?? 0),
+          }
+        })
+        setChoicePathTopMap(nextMap)
+      }
+
+      if (!shadowRes.error) {
+        const nextMap: Record<number, ShadowWatchItem> = {}
+        ;(shadowRes.data ?? []).forEach((row: any) => {
+          nextMap[Number(row.post_id)] = {
+            postId: Number(row.post_id),
+            viewCount: Number(row.view_count ?? 0),
+            isAutoSaved: Boolean(row.is_auto_saved ?? false),
+            firstSeenAt: row.first_seen_at ?? null,
+            lastSeenAt: row.last_seen_at ?? null,
+          }
+        })
+        setShadowWatchMap(nextMap)
+      }
+    },
+    [currentActorUnifiedKey],
+  )
+
   const loadActorReactionSelections = useCallback(
     async (postIds: number[], commentIds: number[]) => {
       if (!currentActorUnifiedKey) {
@@ -3544,6 +3718,7 @@ export default function MatnyaApp() {
         post.comments.map((comment) => comment.id),
       )
       await loadReactionAndOutcomeData(postIds, commentIds)
+      await loadDramaEnhancementData(postIds)
       await loadActorReactionSelections(postIds, commentIds)
 
       setLoading(false)
@@ -3551,6 +3726,7 @@ export default function MatnyaApp() {
     [
       loadActorReactionSelections,
       loadDiscoveryData,
+      loadDramaEnhancementData,
       loadReactionAndOutcomeData,
     ],
   )
@@ -4261,6 +4437,7 @@ export default function MatnyaApp() {
       await Promise.all([
         fetchWatchlist(currentActorUnifiedKey),
         loadReactionAndOutcomeData(postIds, commentIds),
+        loadDramaEnhancementData(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -4281,6 +4458,7 @@ export default function MatnyaApp() {
   }, [
     currentActorUnifiedKey,
     fetchWatchlist,
+    loadDramaEnhancementData,
     loadReactionAndOutcomeData,
     posts,
   ])
@@ -4745,6 +4923,14 @@ ${shareUrl}`)
     ? (postOutcomeMap[currentPost.id] ?? [])
     : []
   const latestOutcome = currentOutcomeItems[0] ?? null
+  const currentFlipEvent = currentPost
+    ? (postFlipMap[currentPost.id] ?? null)
+    : null
+  const currentFlipDrama = getFlipDramaLabel(currentFlipEvent)
+  const currentShadowWatch = currentPost
+    ? (shadowWatchMap[currentPost.id] ?? null)
+    : null
+  const currentShadowDrama = getShadowWatchLabel(currentShadowWatch)
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -4767,6 +4953,10 @@ ${shareUrl}`)
     (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
     EMPTY_POST_REACTION_SUMMARY
   const currentVoteStreak = streakMap.consecutive_votes ?? null
+  const currentChoicePathTop =
+    currentPost && currentVoteSide
+      ? (choicePathTopMap[`${currentPost.id}:${currentVoteSide}`] ?? null)
+      : null
   const queuedNextPost = useMemo(() => {
     if (!currentPost) return null
     const queue = nextQueueMap[currentPost.id] ?? []
@@ -4780,9 +4970,31 @@ ${shareUrl}`)
     return target ?? null
   }, [currentPost, nextQueueMap, posts])
 
-  const nextRecommendationReason = queuedNextPost
-    ? getNextReasonLabel(queuedNextPost.item.reasonType)
-    : '다음 맞냐'
+  const choicePathNextPost = useMemo(() => {
+    if (!currentChoicePathTop) return null
+    return (
+      posts.find(
+        (post) => post.id === currentChoicePathTop.toPostId && !post.hidden,
+      ) ?? null
+    )
+  }, [currentChoicePathTop, posts])
+
+  const nextRecommendationReason = choicePathNextPost
+    ? '너처럼 고른 사람들 다음 판'
+    : queuedNextPost
+      ? getNextReasonLabel(queuedNextPost.item.reasonType)
+      : '다음 맞냐'
+
+  const nextRecommendationTitle =
+    choicePathNextPost?.title ||
+    queuedNextPost?.post?.title ||
+    filteredPosts[Math.min(currentIndex + 1, filteredPosts.length - 1)]
+      ?.title ||
+    '다음 글 보기'
+
+  const nextRecommendationHelper = choicePathNextPost
+    ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
+    : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
@@ -5249,6 +5461,44 @@ ${shareUrl}`)
     scheduleDiscoveryRefresh(postsRef.current)
   }, [currentPost?.id, logPostEvent, scheduleDiscoveryRefresh])
 
+  useEffect(() => {
+    if (!currentPost?.id || !currentActorUnifiedKey) return
+
+    if (shadowViewTimerRef.current) {
+      clearTimeout(shadowViewTimerRef.current)
+    }
+
+    shadowViewTimerRef.current = setTimeout(() => {
+      const postId = currentPost.id
+
+      setShadowWatchMap((prev) => {
+        const existing = prev[postId]
+        const nextCount = Number(existing?.viewCount ?? 0) + 1
+        return {
+          ...prev,
+          [postId]: {
+            postId,
+            viewCount: nextCount,
+            isAutoSaved: nextCount >= 3 || Boolean(existing?.isAutoSaved),
+            firstSeenAt: existing?.firstSeenAt ?? new Date().toISOString(),
+            lastSeenAt: new Date().toISOString(),
+          },
+        }
+      })
+
+      void supabase.rpc('record_shadow_view', {
+        p_actor_key: currentActorUnifiedKey,
+        p_post_id: postId,
+      })
+    }, 1600)
+
+    return () => {
+      if (shadowViewTimerRef.current) {
+        clearTimeout(shadowViewTimerRef.current)
+      }
+    }
+  }, [currentActorUnifiedKey, currentPost?.id])
+
   const handleVote = async (choice: VoteSide) => {
     if (!currentPost || !voterKey) return
     if (voteLockRef.current || isVoting) return
@@ -5311,6 +5561,38 @@ ${shareUrl}`)
 
       if (postError) {
         throw postError
+      }
+
+      const beforeLeader = getLeaderSideFromVotes(
+        currentPost.leftVotes,
+        currentPost.rightVotes,
+      )
+      const afterLeader = getLeaderSideFromVotes(nextLeft, nextRight)
+
+      if (beforeLeader !== afterLeader) {
+        const optimisticFlip: PostFlipEventItem = {
+          postId: currentPostId,
+          beforeLeader,
+          afterLeader,
+          beforeLeftVotes: currentPost.leftVotes,
+          beforeRightVotes: currentPost.rightVotes,
+          afterLeftVotes: nextLeft,
+          afterRightVotes: nextRight,
+          createdAt: new Date().toISOString(),
+        }
+
+        setPostFlipMap((prev) => ({
+          ...prev,
+          [currentPostId]: optimisticFlip,
+        }))
+
+        void supabase.rpc('record_post_flip_event', {
+          p_post_id: currentPostId,
+          p_before_left_votes: currentPost.leftVotes,
+          p_before_right_votes: currentPost.rightVotes,
+          p_after_left_votes: nextLeft,
+          p_after_right_votes: nextRight,
+        })
       }
 
       let activeShareSessionId: string | null = shareId
@@ -5465,16 +5747,47 @@ ${shareUrl}`)
     }
   }, [])
 
+  const recordChoicePath = useCallback(
+    (fromPostId: number, toPostId: number) => {
+      if (!currentActorUnifiedKey || fromPostId === toPostId) return
+
+      const chosenSide = votes[fromPostId]
+      if (!chosenSide) return
+
+      void supabase.rpc('record_choice_path', {
+        p_actor_key: currentActorUnifiedKey,
+        p_from_post_id: fromPostId,
+        p_to_post_id: toPostId,
+        p_chosen_side: chosenSide,
+      })
+    },
+    [currentActorUnifiedKey, votes],
+  )
+
   const prev = () => {
+    const targetIndex = Math.max(currentIndex - 1, 0)
+    const targetPost = filteredPosts[targetIndex]
+
+    if (currentPost && targetPost) {
+      recordChoicePath(currentPost.id, targetPost.id)
+    }
+
     endSharedEntryMode()
-    setCurrentIndex((i) => Math.max(i - 1, 0))
+    setCurrentIndex(targetIndex)
     requestLightweightMetaRefresh()
     focusCurrentPostCard()
   }
 
   const next = () => {
+    const targetIndex = Math.min(currentIndex + 1, filteredPosts.length - 1)
+    const targetPost = filteredPosts[targetIndex]
+
+    if (currentPost && targetPost) {
+      recordChoicePath(currentPost.id, targetPost.id)
+    }
+
     endSharedEntryMode()
-    setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
+    setCurrentIndex(targetIndex)
     requestLightweightMetaRefresh()
     focusCurrentPostCard()
   }
@@ -5497,6 +5810,7 @@ ${shareUrl}`)
 
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
+      recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
       focusCurrentPostCard()
@@ -5505,6 +5819,7 @@ ${shareUrl}`)
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
+      recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -5517,6 +5832,9 @@ ${shareUrl}`)
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
       const latestSeenAt = postOutcomeMap[postId]?.[0]?.createdAt ?? null
+      if (currentPost) {
+        recordChoicePath(currentPost.id, postId)
+      }
       endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -5532,6 +5850,9 @@ ${shareUrl}`)
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
+      if (currentPost) {
+        recordChoicePath(currentPost.id, postId)
+      }
       endSharedEntryMode()
       setTab('추천')
       setSelectedCategory('전체')
@@ -7039,6 +7360,64 @@ ${shareUrl}`)
                       </div>
                     )}
 
+                    {currentFlipDrama ||
+                    currentShadowDrama ||
+                    currentChoicePathTop ? (
+                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                          DRAMA SIGNAL
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {currentFlipDrama ? (
+                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                              <div
+                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
+                              >
+                                {currentFlipDrama.text}
+                              </div>
+                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                                {currentFlipDrama.helper}
+                              </div>
+                            </div>
+                          ) : null}
+                          {currentShadowDrama ? (
+                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                              <div
+                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
+                              >
+                                {currentShadowDrama.text}
+                              </div>
+                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                                {currentShadowDrama.helper}
+                              </div>
+                            </div>
+                          ) : null}
+                          {currentChoicePathTop && choicePathNextPost ? (
+                            <button
+                              onClick={() =>
+                                moveToPostWithGuard(choicePathNextPost.id)
+                              }
+                              className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
+                            >
+                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                                SAME SIDE NEXT
+                              </div>
+                              <div className="mt-1 text-sm font-black text-slate-900">
+                                너처럼 고른 사람들 다음으로 이 글 봄
+                              </div>
+                              <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                                {choicePathNextPost.title}
+                              </div>
+                              <div className="mt-1 text-[12px] text-slate-500">
+                                같은 선택 흐름에서 {currentChoicePathTop.count}
+                                번 이어짐
+                              </div>
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                       <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
                         QUICK REACTION
@@ -7132,6 +7511,10 @@ ${shareUrl}`)
 
                     <button
                       onClick={() => {
+                        if (choicePathNextPost) {
+                          moveToPostWithGuard(choicePathNextPost.id)
+                          return
+                        }
                         if (queuedNextPost?.post) {
                           moveToPostWithGuard(queuedNextPost.post.id)
                           return
@@ -7144,14 +7527,10 @@ ${shareUrl}`)
                         {nextRecommendationReason}
                       </div>
                       <div className="mt-1 text-base font-bold text-slate-900">
-                        {queuedNextPost?.post?.title ||
-                          filteredPosts[
-                            Math.min(currentIndex + 1, filteredPosts.length - 1)
-                          ]?.title ||
-                          '다음 글 보기'}
+                        {nextRecommendationTitle}
                       </div>
                       <div className="mt-1 text-xs text-slate-500">
-                        지금 가장 오래 보게 만들 다음 판으로 이동
+                        {nextRecommendationHelper}
                       </div>
                     </button>
 
