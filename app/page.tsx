@@ -69,6 +69,58 @@ type CommentItem = {
   hidden: boolean
 }
 
+type CommentReactionType = 'agree' | 'disagree' | 'wow' | 'relatable' | 'absurd'
+
+type PostReactionType =
+  | 'controversial'
+  | 'curious'
+  | 'suspicious'
+  | 'minority'
+  | 'shareworthy'
+
+type CommentReactionSummary = Record<CommentReactionType, number>
+
+type PostReactionSummary = {
+  controversial: number
+  curious: number
+  suspicious: number
+  minority: number
+  shareworthy: number
+}
+
+type PostOutcomeItem = {
+  id: number
+  postId: number
+  outcomeType: 'resolved' | 'update' | 'author_followup' | 'twist'
+  summary: string
+  createdAt: string | null
+}
+
+type UserStreakRow = {
+  streakType:
+    | 'daily_visit'
+    | 'daily_vote'
+    | 'consecutive_votes'
+    | 'majority_hit'
+    | 'minority_pick'
+  currentCount: number
+  bestCount: number
+  lastActionAt?: string | null
+}
+
+type NextQueueItem = {
+  fromPostId: number
+  toPostId: number
+  reasonType:
+    | 'hot'
+    | 'controversial'
+    | 'same_category'
+    | 'opposite_majority'
+    | 'comment_burst'
+    | 'followup'
+  score: number
+}
+
 type PostItem = {
   id: number
   category: string
@@ -903,6 +955,146 @@ function formatRelativeShort(value?: string | null) {
   return `${days}일 전`
 }
 
+const EMPTY_COMMENT_REACTION_SUMMARY: CommentReactionSummary = {
+  agree: 0,
+  disagree: 0,
+  wow: 0,
+  relatable: 0,
+  absurd: 0,
+}
+
+const EMPTY_POST_REACTION_SUMMARY: PostReactionSummary = {
+  controversial: 0,
+  curious: 0,
+  suspicious: 0,
+  minority: 0,
+  shareworthy: 0,
+}
+
+const COMMENT_REACTION_META: Record<
+  CommentReactionType,
+  { label: string; activeClass: string; idleClass: string }
+> = {
+  agree: {
+    label: '맞말',
+    activeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  disagree: {
+    label: '억까',
+    activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  wow: {
+    label: '소름',
+    activeClass: 'border-violet-200 bg-violet-50 text-violet-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  relatable: {
+    label: '공감',
+    activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  absurd: {
+    label: '어이없음',
+    activeClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+}
+
+const POST_REACTION_META: Record<
+  PostReactionType,
+  { label: string; activeClass: string; idleClass: string }
+> = {
+  controversial: {
+    label: '개갈림',
+    activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  curious: {
+    label: '결말궁금',
+    activeClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  suspicious: {
+    label: '주작같음',
+    activeClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  minority: {
+    label: '내가 소수네',
+    activeClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  shareworthy: {
+    label: '친구보내기',
+    activeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+}
+
+function getActorUnifiedKey(userId?: string | null, voterKey?: string | null) {
+  if (userId) return `user:${userId}`
+  if (voterKey) return `voter:${voterKey}`
+  return null
+}
+
+function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
+  switch (outcomeType) {
+    case 'resolved':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'update':
+      return 'border-sky-200 bg-sky-50 text-sky-700'
+    case 'author_followup':
+      return 'border-violet-200 bg-violet-50 text-violet-700'
+    case 'twist':
+      return 'border-rose-200 bg-rose-50 text-rose-700'
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600'
+  }
+}
+
+function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
+  switch (outcomeType) {
+    case 'resolved':
+      return '결말 나옴'
+    case 'update':
+      return '후기 있음'
+    case 'author_followup':
+      return '작성자 후기'
+    case 'twist':
+      return '반전 있음'
+    default:
+      return '업데이트'
+  }
+}
+
+function getStreakTone(count: number) {
+  if (count >= 10) return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (count >= 5) return 'border-violet-200 bg-violet-50 text-violet-700'
+  if (count >= 3) return 'border-sky-200 bg-sky-50 text-sky-700'
+  return 'border-slate-200 bg-slate-50 text-slate-600'
+}
+
+function getNextReasonLabel(reasonType?: NextQueueItem['reasonType']) {
+  switch (reasonType) {
+    case 'hot':
+      return '지금 뜨는 판'
+    case 'controversial':
+      return '더 갈리는 판'
+    case 'same_category':
+      return '같은 카테고리'
+    case 'opposite_majority':
+      return '너랑 반대 많은 판'
+    case 'comment_burst':
+      return '댓글 붙는 판'
+    case 'followup':
+      return '후속 흐름'
+    default:
+      return '다음 맞냐'
+  }
+}
+
 const VoteOption = React.memo(function VoteOption({
   active,
   label,
@@ -1058,6 +1250,9 @@ const CommentCard = React.memo(function CommentCard({
   onAdminRestoreComment,
   onAdminDeleteComment,
   authorMeta,
+  reactionSummary = EMPTY_COMMENT_REACTION_SUMMARY,
+  myReactionMap = {},
+  onReactComment,
 }: {
   comment: CommentItem
   leftLabel: string
@@ -1069,6 +1264,12 @@ const CommentCard = React.memo(function CommentCard({
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
   authorMeta?: AuthorMeta
+  reactionSummary?: CommentReactionSummary
+  myReactionMap?: Partial<Record<CommentReactionType, boolean>>
+  onReactComment: (
+    commentId: number,
+    reactionType: CommentReactionType,
+  ) => void | Promise<void>
 }) {
   if (comment.hidden && !adminMode) return null
 
@@ -1130,9 +1331,29 @@ const CommentCard = React.memo(function CommentCard({
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-          {!comment.hidden ? (
-            <>
+        {!comment.hidden ? (
+          <div className="mt-3 space-y-2.5">
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              {(
+                Object.keys(COMMENT_REACTION_META) as CommentReactionType[]
+              ).map((reactionType) => {
+                const meta = COMMENT_REACTION_META[reactionType]
+                const count = Number(reactionSummary[reactionType] ?? 0)
+                const active = !!myReactionMap[reactionType]
+                return (
+                  <button
+                    key={reactionType}
+                    onClick={() => onReactComment(comment.id, reactionType)}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-bold transition ${active ? meta.activeClass : meta.idleClass}`}
+                  >
+                    <span>{meta.label}</span>
+                    <span>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 text-xs">
               <button
                 onClick={() => onLikeComment(comment.id)}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
@@ -1154,26 +1375,26 @@ const CommentCard = React.memo(function CommentCard({
               >
                 <MoreHorizontal className="h-4 w-4" />
               </button>
-            </>
-          ) : null}
-
-          {adminMode && comment.hidden && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => onAdminRestoreComment(comment.id)}
-                className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
-              >
-                숨김 해제
-              </button>
-              <button
-                onClick={() => onAdminDeleteComment(comment.id)}
-                className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white"
-              >
-                삭제
-              </button>
             </div>
-          )}
-        </div>
+          </div>
+        ) : null}
+
+        {adminMode && comment.hidden && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => onAdminRestoreComment(comment.id)}
+              className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
+            >
+              숨김 해제
+            </button>
+            <button
+              onClick={() => onAdminDeleteComment(comment.id)}
+              className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white"
+            >
+              삭제
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1548,6 +1769,9 @@ function CommentModal({
   currentUserLevel,
   authorMetaMap,
   currentActorKey,
+  commentReactionMap,
+  myCommentReactions,
+  onReactComment,
 }: {
   post: PostItem | null
   open: boolean
@@ -1564,6 +1788,12 @@ function CommentModal({
   currentUserLevel?: number
   authorMetaMap: Record<string, AuthorMeta>
   currentActorKey?: string | null
+  commentReactionMap: Record<number, CommentReactionSummary>
+  myCommentReactions: Record<string, boolean>
+  onReactComment: (
+    commentId: number,
+    reactionType: CommentReactionType,
+  ) => void | Promise<void>
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
@@ -1758,6 +1988,18 @@ function CommentModal({
                 adminMode={adminMode}
                 onAdminRestoreComment={onAdminRestoreComment}
                 onAdminDeleteComment={onAdminDeleteComment}
+                reactionSummary={
+                  commentReactionMap[comment.id] ??
+                  EMPTY_COMMENT_REACTION_SUMMARY
+                }
+                myReactionMap={{
+                  agree: !!myCommentReactions[`${comment.id}:agree`],
+                  disagree: !!myCommentReactions[`${comment.id}:disagree`],
+                  wow: !!myCommentReactions[`${comment.id}:wow`],
+                  relatable: !!myCommentReactions[`${comment.id}:relatable`],
+                  absurd: !!myCommentReactions[`${comment.id}:absurd`],
+                }}
+                onReactComment={onReactComment}
                 authorMeta={resolveAuthorMeta(
                   comment,
                   authorMetaMap,
@@ -2563,6 +2805,25 @@ export default function MatnyaApp() {
   const [shareInboxLoading, setShareInboxLoading] = useState(false)
   const [shareInboxItems, setShareInboxItems] = useState<ShareInboxItem[]>([])
   const [shareInboxUnreadCount, setShareInboxUnreadCount] = useState(0)
+  const [commentReactionMap, setCommentReactionMap] = useState<
+    Record<number, CommentReactionSummary>
+  >({})
+  const [myCommentReactions, setMyCommentReactions] = useState<
+    Record<string, boolean>
+  >({})
+  const [postReactionSummaryMap, setPostReactionSummaryMap] = useState<
+    Record<number, PostReactionSummary>
+  >({})
+  const [myPostReactions, setMyPostReactions] = useState<
+    Record<string, boolean>
+  >({})
+  const [postOutcomeMap, setPostOutcomeMap] = useState<
+    Record<number, PostOutcomeItem[]>
+  >({})
+  const [streakMap, setStreakMap] = useState<Record<string, UserStreakRow>>({})
+  const [nextQueueMap, setNextQueueMap] = useState<
+    Record<number, NextQueueItem[]>
+  >({})
   const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastShareTotalRef = useRef<number>(0)
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
@@ -2584,6 +2845,10 @@ export default function MatnyaApp() {
 
   const featuredBadge = badges[0] ?? null
   const currentActorKey = authUser?.id ?? voterKey ?? null
+  const currentActorUnifiedKey = getActorUnifiedKey(
+    authUser?.id ?? null,
+    voterKey,
+  )
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
   const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
@@ -2814,6 +3079,162 @@ export default function MatnyaApp() {
     [voterKey],
   )
 
+  const loadReactionAndOutcomeData = useCallback(
+    async (postIds: number[], commentIds: number[]) => {
+      const [commentSummaryRes, postSummaryRes, outcomesRes, nextQueueRes] =
+        await Promise.all([
+          commentIds.length > 0
+            ? supabase
+                .from('v_comment_reaction_summary')
+                .select('*')
+                .in('comment_id', commentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('v_post_reaction_summary')
+                .select('*')
+                .in('post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('post_outcomes')
+                .select('id, post_id, outcome_type, summary, created_at')
+                .in('post_id', postIds)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('post_next_queue')
+                .select('from_post_id, to_post_id, reason_type, score')
+                .in('from_post_id', postIds)
+                .order('score', { ascending: false })
+            : Promise.resolve({ data: [], error: null } as any),
+        ])
+
+      if (!commentSummaryRes.error) {
+        const nextMap: Record<number, CommentReactionSummary> = {}
+        ;(commentSummaryRes.data ?? []).forEach((row: any) => {
+          nextMap[Number(row.comment_id)] = {
+            agree: Number(row.agree_count ?? 0),
+            disagree: Number(row.disagree_count ?? 0),
+            wow: Number(row.wow_count ?? 0),
+            relatable: Number(row.relatable_count ?? 0),
+            absurd: Number(row.absurd_count ?? 0),
+          }
+        })
+        setCommentReactionMap(nextMap)
+      }
+
+      if (!postSummaryRes.error) {
+        const nextMap: Record<number, PostReactionSummary> = {}
+        ;(postSummaryRes.data ?? []).forEach((row: any) => {
+          nextMap[Number(row.post_id)] = {
+            controversial: Number(row.controversial_count ?? 0),
+            curious: Number(row.curious_count ?? 0),
+            suspicious: Number(row.suspicious_count ?? 0),
+            minority: Number(row.minority_count ?? 0),
+            shareworthy: Number(row.shareworthy_count ?? 0),
+          }
+        })
+        setPostReactionSummaryMap(nextMap)
+      }
+
+      if (!outcomesRes.error) {
+        const nextMap: Record<number, PostOutcomeItem[]> = {}
+        ;(outcomesRes.data ?? []).forEach((row: any) => {
+          const postId = Number(row.post_id)
+          if (!nextMap[postId]) nextMap[postId] = []
+          nextMap[postId].push({
+            id: Number(row.id),
+            postId,
+            outcomeType: row.outcome_type,
+            summary: row.summary,
+            createdAt: row.created_at ?? null,
+          })
+        })
+        setPostOutcomeMap(nextMap)
+      }
+
+      if (!nextQueueRes.error) {
+        const nextMap: Record<number, NextQueueItem[]> = {}
+        ;(nextQueueRes.data ?? []).forEach((row: any) => {
+          const fromPostId = Number(row.from_post_id)
+          if (!nextMap[fromPostId]) nextMap[fromPostId] = []
+          nextMap[fromPostId].push({
+            fromPostId,
+            toPostId: Number(row.to_post_id),
+            reasonType: row.reason_type,
+            score: Number(row.score ?? 0),
+          })
+        })
+        setNextQueueMap(nextMap)
+      }
+    },
+    [],
+  )
+
+  const loadActorReactionSelections = useCallback(
+    async (postIds: number[], commentIds: number[]) => {
+      if (!currentActorUnifiedKey) {
+        setMyCommentReactions({})
+        setMyPostReactions({})
+        return
+      }
+
+      const [commentReactionRes, postReactionRes, streakRes] =
+        await Promise.all([
+          commentIds.length > 0
+            ? supabase
+                .from('comment_reactions')
+                .select('comment_id, reaction_type')
+                .eq('reactor_key', currentActorUnifiedKey)
+                .in('comment_id', commentIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          postIds.length > 0
+            ? supabase
+                .from('post_reactions')
+                .select('post_id, reaction_type')
+                .eq('reactor_key', currentActorUnifiedKey)
+                .in('post_id', postIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          supabase
+            .from('user_streaks')
+            .select('streak_type, current_count, best_count, last_action_at')
+            .eq('actor_key', currentActorUnifiedKey),
+        ])
+
+      if (!commentReactionRes.error) {
+        const nextMap: Record<string, boolean> = {}
+        ;(commentReactionRes.data ?? []).forEach((row: any) => {
+          nextMap[`${Number(row.comment_id)}:${row.reaction_type}`] = true
+        })
+        setMyCommentReactions(nextMap)
+      }
+
+      if (!postReactionRes.error) {
+        const nextMap: Record<string, boolean> = {}
+        ;(postReactionRes.data ?? []).forEach((row: any) => {
+          nextMap[`${Number(row.post_id)}:${row.reaction_type}`] = true
+        })
+        setMyPostReactions(nextMap)
+      }
+
+      if (!streakRes.error) {
+        const nextMap: Record<string, UserStreakRow> = {}
+        ;(streakRes.data ?? []).forEach((row: any) => {
+          nextMap[row.streak_type] = {
+            streakType: row.streak_type,
+            currentCount: Number(row.current_count ?? 0),
+            bestCount: Number(row.best_count ?? 0),
+            lastActionAt: row.last_action_at ?? null,
+          }
+        })
+        setStreakMap(nextMap)
+      }
+    },
+    [currentActorUnifiedKey],
+  )
+
   const fetchAll = useCallback(
     async (key: string) => {
       setLoading(true)
@@ -2888,10 +3309,30 @@ export default function MatnyaApp() {
       setVotes(voteMap)
       await loadDiscoveryData(merged)
 
+      const postIds = merged.map((post) => post.id)
+      const commentIds = merged.flatMap((post) =>
+        post.comments.map((comment) => comment.id),
+      )
+      await loadReactionAndOutcomeData(postIds, commentIds)
+      await loadActorReactionSelections(postIds, commentIds)
+
       setLoading(false)
     },
-    [loadDiscoveryData],
+    [
+      loadActorReactionSelections,
+      loadDiscoveryData,
+      loadReactionAndOutcomeData,
+    ],
   )
+
+  useEffect(() => {
+    const postIds = posts.map((post) => post.id)
+    const commentIds = posts.flatMap((post) =>
+      post.comments.map((comment) => comment.id),
+    )
+    if (postIds.length === 0 && commentIds.length === 0) return
+    void loadActorReactionSelections(postIds, commentIds)
+  }, [posts, loadActorReactionSelections])
 
   const fetchMyActivity = useCallback(async (userId: string) => {
     if (!userId) return
@@ -3148,6 +3589,41 @@ export default function MatnyaApp() {
       newlyEarned.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
     },
     [authUser?.id, voterKey, badges, showToast],
+  )
+
+  const upsertStreak = useCallback(
+    async (streakType: UserStreakRow['streakType'], nextCount: number) => {
+      if (!currentActorUnifiedKey) return
+
+      const prev = streakMap[streakType]
+      const nextRow: UserStreakRow = {
+        streakType,
+        currentCount: nextCount,
+        bestCount: Math.max(prev?.bestCount ?? 0, nextCount),
+        lastActionAt: new Date().toISOString(),
+      }
+
+      setStreakMap((prevMap) => ({
+        ...prevMap,
+        [streakType]: nextRow,
+      }))
+
+      const { error } = await supabase.from('user_streaks').upsert(
+        {
+          actor_key: currentActorUnifiedKey,
+          streak_type: streakType,
+          current_count: nextRow.currentCount,
+          best_count: nextRow.bestCount,
+          last_action_at: nextRow.lastActionAt,
+        },
+        { onConflict: 'actor_key,streak_type' },
+      )
+
+      if (error) {
+        console.error('streak 업데이트 실패', error)
+      }
+    },
+    [currentActorUnifiedKey, streakMap],
   )
 
   const updateProgress = useCallback(
@@ -3829,6 +4305,31 @@ ${shareUrl}`)
   const currentResultEmotion = currentPost
     ? getResultEmotion(currentPost.leftVotes, currentPost.rightVotes)
     : null
+  const currentOutcomeItems = currentPost
+    ? (postOutcomeMap[currentPost.id] ?? [])
+    : []
+  const latestOutcome = currentOutcomeItems[0] ?? null
+  const currentPostReactionSummary =
+    (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
+    EMPTY_POST_REACTION_SUMMARY
+  const currentVoteStreak = streakMap.consecutive_votes ?? null
+  const queuedNextPost = useMemo(() => {
+    if (!currentPost) return null
+    const queue = nextQueueMap[currentPost.id] ?? []
+    if (queue.length === 0) return null
+    const target = queue
+      .map((item) => ({
+        item,
+        post: posts.find((post) => post.id === item.toPostId) ?? null,
+      }))
+      .find((entry) => !!entry.post && !entry.post.hidden)
+    return target ?? null
+  }, [currentPost, nextQueueMap, posts])
+
+  const nextRecommendationReason = queuedNextPost
+    ? getNextReasonLabel(queuedNextPost.item.reasonType)
+    : '다음 맞냐'
+
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
 
@@ -4369,6 +4870,14 @@ ${shareUrl}`)
         },
         prevChoice ? '판단 변경 완료' : '🔥 +1 포인트',
       )
+      void upsertStreak(
+        'consecutive_votes',
+        (streakMap.consecutive_votes?.currentCount ?? 0) + 1,
+      )
+      void upsertStreak(
+        'daily_vote',
+        (streakMap.daily_vote?.currentCount ?? 0) + 1,
+      )
 
       markPostMeaningful({
         ...currentPost,
@@ -4452,6 +4961,129 @@ ${shareUrl}`)
       setActivityOpen(false)
       setCommentOpen(true)
     }
+  }
+
+  const reactToComment = async (
+    commentId: number,
+    reactionType: CommentReactionType,
+  ) => {
+    if (!currentActorUnifiedKey) return
+
+    const mapKey = `${commentId}:${reactionType}`
+    const alreadyActive = !!myCommentReactions[mapKey]
+
+    setMyCommentReactions((prev) => ({
+      ...prev,
+      [mapKey]: !alreadyActive,
+    }))
+
+    setCommentReactionMap((prev) => {
+      const base = prev[commentId] ?? EMPTY_COMMENT_REACTION_SUMMARY
+      return {
+        ...prev,
+        [commentId]: {
+          ...base,
+          [reactionType]: Math.max(
+            0,
+            Number(base[reactionType] ?? 0) + (alreadyActive ? -1 : 1),
+          ),
+        },
+      }
+    })
+
+    if (alreadyActive) {
+      const { error } = await supabase
+        .from('comment_reactions')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('reactor_key', currentActorUnifiedKey)
+        .eq('reaction_type', reactionType)
+
+      if (error) {
+        console.error('댓글 반응 삭제 실패', error)
+        showToast('댓글 반응 반영 실패')
+        void fetchAll(voterKey)
+        return
+      }
+
+      showToast('반응 취소')
+      return
+    }
+
+    const { error } = await supabase.from('comment_reactions').insert({
+      comment_id: commentId,
+      reactor_key: currentActorUnifiedKey,
+      reaction_type: reactionType,
+    })
+
+    if (error) {
+      console.error('댓글 반응 등록 실패', error)
+      showToast('댓글 반응 반영 실패')
+      void fetchAll(voterKey)
+      return
+    }
+
+    showToast('반응 반영')
+  }
+
+  const reactToPost = async (reactionType: PostReactionType) => {
+    if (!currentPost || !currentActorUnifiedKey) return
+
+    const mapKey = `${currentPost.id}:${reactionType}`
+    const alreadyActive = !!myPostReactions[mapKey]
+
+    setMyPostReactions((prev) => ({
+      ...prev,
+      [mapKey]: !alreadyActive,
+    }))
+
+    setPostReactionSummaryMap((prev) => {
+      const base = prev[currentPost.id] ?? EMPTY_POST_REACTION_SUMMARY
+      return {
+        ...prev,
+        [currentPost.id]: {
+          ...base,
+          [reactionType]: Math.max(
+            0,
+            Number(base[reactionType] ?? 0) + (alreadyActive ? -1 : 1),
+          ),
+        },
+      }
+    })
+
+    if (alreadyActive) {
+      const { error } = await supabase
+        .from('post_reactions')
+        .delete()
+        .eq('post_id', currentPost.id)
+        .eq('reactor_key', currentActorUnifiedKey)
+        .eq('reaction_type', reactionType)
+
+      if (error) {
+        console.error('게시글 반응 삭제 실패', error)
+        showToast('게시글 반응 반영 실패')
+        void fetchAll(voterKey)
+        return
+      }
+
+      showToast('반응 취소')
+      return
+    }
+
+    const { error } = await supabase.from('post_reactions').insert({
+      post_id: currentPost.id,
+      reactor_key: currentActorUnifiedKey,
+      reaction_type: reactionType,
+    })
+
+    if (error) {
+      console.error('게시글 반응 등록 실패', error)
+      showToast('게시글 반응 반영 실패')
+      void fetchAll(voterKey)
+      return
+    }
+
+    showToast('반응 반영')
   }
 
   const addComment = async (text: string, side: Side) => {
@@ -5168,6 +5800,13 @@ ${shareUrl}`)
                 <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                   이거 맞냐?
                 </div>
+                {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
+                  <div
+                    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
+                  >
+                    ⚡ 연속 판단 {currentVoteStreak.currentCount}회
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -5448,6 +6087,13 @@ ${shareUrl}`)
                         : ''}
                     </div>
                   ) : null}
+                  {latestOutcome ? (
+                    <div
+                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getOutcomeTone(latestOutcome.outcomeType)}`}
+                    >
+                      {getOutcomeLabel(latestOutcome.outcomeType)}
+                    </div>
+                  ) : null}
                 </div>
                 {currentHotMeta ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
@@ -5522,20 +6168,71 @@ ${shareUrl}`)
                         </div>
                       )}
 
+                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                          QUICK REACTION
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(
+                            Object.keys(
+                              POST_REACTION_META,
+                            ) as PostReactionType[]
+                          ).map((reactionType) => {
+                            const meta = POST_REACTION_META[reactionType]
+                            const count = Number(
+                              currentPostReactionSummary[reactionType] ?? 0,
+                            )
+                            const active =
+                              !!myPostReactions[
+                                `${currentPost.id}:${reactionType}`
+                              ]
+                            return (
+                              <button
+                                key={reactionType}
+                                onClick={() => void reactToPost(reactionType)}
+                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${active ? meta.activeClass : meta.idleClass}`}
+                              >
+                                <span>{meta.label}</span>
+                                <span>{count}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {latestOutcome ? (
+                          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                              {getOutcomeLabel(latestOutcome.outcomeType)}
+                            </div>
+                            <div className="mt-1">{latestOutcome.summary}</div>
+                          </div>
+                        ) : null}
+                      </div>
+
                       <button
-                        onClick={handleNextWithGuard}
+                        onClick={() => {
+                          if (queuedNextPost?.post) {
+                            moveToPostWithGuard(queuedNextPost.post.id)
+                            return
+                          }
+                          handleNextWithGuard()
+                        }}
                         className="w-full rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left transition-all shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
                       >
                         <div className="text-xs font-bold text-[#4f7cff]">
-                          다음 맞냐
+                          {nextRecommendationReason}
                         </div>
                         <div className="mt-1 text-base font-bold text-slate-900">
-                          {filteredPosts[
-                            Math.min(currentIndex + 1, filteredPosts.length - 1)
-                          ]?.title || '다음 글 보기'}
+                          {queuedNextPost?.post?.title ||
+                            filteredPosts[
+                              Math.min(
+                                currentIndex + 1,
+                                filteredPosts.length - 1,
+                              )
+                            ]?.title ||
+                            '다음 글 보기'}
                         </div>
                         <div className="mt-1 text-xs text-slate-500">
-                          눌러서 바로 이동
+                          지금 가장 오래 보게 만들 다음 판으로 이동
                         </div>
                       </button>
 
@@ -5986,6 +6683,11 @@ ${shareUrl}`)
           currentUserLevel={stats.level}
           authorMetaMap={authorMetaMap}
           currentActorKey={authUser?.id ?? voterKey}
+          commentReactionMap={commentReactionMap}
+          myCommentReactions={myCommentReactions}
+          onReactComment={(commentId, reactionType) =>
+            void reactToComment(commentId, reactionType)
+          }
         />
 
         <CreatePostModal
