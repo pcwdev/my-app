@@ -5203,6 +5203,14 @@ ${shareUrl}`)
     }
   }, [liveTickerIndex, liveTickerItems.length])
 
+  const activeLiveTickerItem =
+    liveTickerItems[liveTickerIndex] ?? liveTickerItems[0] ?? null
+
+  const handleLiveTickerOpen = () => {
+    if (!activeLiveTickerItem) return
+    moveToPostWithGuard(activeLiveTickerItem.id)
+  }
+
   useEffect(() => {
     if (!currentPost?.id) return
 
@@ -6764,28 +6772,25 @@ ${shareUrl}`)
         </div>
 
         <main className="px-4 pb-32 pt-2">
-          {liveTickerItems.length > 0 ? (
+          {activeLiveTickerItem ? (
             <div className="mb-3 overflow-hidden rounded-[18px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_28px_rgba(79,124,255,0.12)]">
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2.5 py-1 text-[10px] font-black tracking-[0.08em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-80" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
                   </span>
                   <span>
-                    {liveTickerItems[liveTickerIndex]?.liveBadgeLabel ??
-                      '실시간 논쟁'}
+                    {activeLiveTickerItem.liveBadgeLabel ?? '실시간 논쟁'}
                   </span>
                 </div>
 
                 <div className="relative h-[24px] min-w-0 flex-1 overflow-hidden">
                   <AnimatePresence mode="wait">
                     <motion.button
-                      key={liveTickerItems[liveTickerIndex]?.id}
+                      key={activeLiveTickerItem.id}
                       type="button"
-                      onClick={() =>
-                        moveToPostWithGuard(liveTickerItems[liveTickerIndex].id)
-                      }
+                      onClick={handleLiveTickerOpen}
                       initial={{ y: 18, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       exit={{ y: -18, opacity: 0 }}
@@ -6793,29 +6798,36 @@ ${shareUrl}`)
                       className="absolute inset-0 flex w-full items-center gap-2 text-left"
                     >
                       <span
-                        className={`shrink-0 text-[12px] font-black ${liveTickerItems[liveTickerIndex].rankToneClass}`}
+                        className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
                       >
-                        {liveTickerItems[liveTickerIndex].rank}위
-                      </span>
-                      <span className="shrink-0 rounded-full border border-slate-200 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                        {liveTickerItems[liveTickerIndex].category}
+                        {activeLiveTickerItem.rank}위
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
-                        {liveTickerItems[liveTickerIndex].title}
+                        {activeLiveTickerItem.title}
                       </span>
-                      <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">
-                        {liveTickerItems[liveTickerIndex].emotionLabel}
+                      <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
+                        {activeLiveTickerItem.emotionLabel}
                       </span>
                     </motion.button>
                   </AnimatePresence>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-slate-200/70 bg-white/70 px-3 py-2">
-                <div className="min-w-0 truncate text-[11px] font-semibold text-slate-600">
-                  {liveTickerItems[liveTickerIndex]?.shortMetric} · 사람들이
-                  많이 보는 판이 자동으로 바뀜
-                </div>
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200/70 bg-white/70 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={handleLiveTickerOpen}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                    <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                      {activeLiveTickerItem.category}
+                    </span>
+                    <span className="truncate">
+                      {activeLiveTickerItem.shortMetric}
+                    </span>
+                  </div>
+                </button>
 
                 <div className="flex shrink-0 items-center gap-1.5">
                   {liveTickerItems.map((item, index) => {
