@@ -2949,7 +2949,10 @@ function ShareInboxModal({
 export default function MatnyaApp() {
   const [posts, setPosts] = useState<PostItem[]>([])
   const postsRef = useRef<PostItem[]>([])
+  const currentPostCardRef = useRef<HTMLDivElement | null>(null)
+  const postFocusPulseTimerRef = useRef<number | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [postFocusPulse, setPostFocusPulse] = useState(false)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
   const [votes, setVotes] = useState<Record<number, VoteSide>>({})
@@ -5394,16 +5397,53 @@ ${shareUrl}`)
     }
   }
 
+  const focusCurrentPostCard = useCallback(
+    (behavior: ScrollBehavior = 'smooth') => {
+      if (typeof window === 'undefined') return
+
+      window.requestAnimationFrame(() => {
+        const target = currentPostCardRef.current
+        if (!target) return
+
+        const rect = target.getBoundingClientRect()
+        const absoluteTop = window.scrollY + rect.top
+        const topOffset = 84
+        const nextTop = Math.max(absoluteTop - topOffset, 0)
+
+        window.scrollTo({ top: nextTop, behavior })
+
+        setPostFocusPulse(true)
+        if (postFocusPulseTimerRef.current) {
+          window.clearTimeout(postFocusPulseTimerRef.current)
+        }
+        postFocusPulseTimerRef.current = window.setTimeout(() => {
+          setPostFocusPulse(false)
+        }, 900)
+      })
+    },
+    [],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (postFocusPulseTimerRef.current) {
+        window.clearTimeout(postFocusPulseTimerRef.current)
+      }
+    }
+  }, [])
+
   const prev = () => {
     endSharedEntryMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
     requestLightweightMetaRefresh()
+    focusCurrentPostCard()
   }
 
   const next = () => {
     endSharedEntryMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
     requestLightweightMetaRefresh()
+    focusCurrentPostCard()
   }
 
   const handleNextWithGuard = () => {
@@ -5426,6 +5466,7 @@ ${shareUrl}`)
     if (nextIndexInFiltered >= 0) {
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
+      focusCurrentPostCard()
       return
     }
 
@@ -5435,6 +5476,7 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
+      focusCurrentPostCard()
     }
   }
 
@@ -5446,6 +5488,7 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
+      focusCurrentPostCard()
       setActivityOpen(false)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
@@ -6763,11 +6806,12 @@ ${shareUrl}`)
           <AnimatePresence mode="wait">
             <motion.div
               key={`${tab}-${selectedCategory}-${currentPost.id}`}
+              ref={currentPostCardRef}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.18 }}
-              className="rounded-[30px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur"
+              className={`rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur transition-all duration-300 ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_22px_48px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/90'}`}
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
