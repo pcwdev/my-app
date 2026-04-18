@@ -429,11 +429,13 @@ function percent(
   leftVotes: number,
   rightVotes: number,
 ): { left: number; right: number } {
-  const total = leftVotes + rightVotes
-  if (!total) return { left: 50, right: 50 }
+  const left = Math.max(0, Number(leftVotes ?? 0))
+  const right = Math.max(0, Number(rightVotes ?? 0))
+  const total = left + right
+  if (total <= 0) return { left: 50, right: 50 }
   return {
-    left: Math.round((leftVotes / total) * 100),
-    right: Math.round((rightVotes / total) * 100),
+    left: Math.round((left / total) * 100),
+    right: Math.round((right / total) * 100),
   }
 }
 
@@ -649,12 +651,14 @@ function getShareNextActionText(totalCount: number, unreadCount: number) {
 }
 
 function getPercentPair(left: number, right: number) {
-  const total = left + right
-  if (total === 0) return { left: 50, right: 50 }
+  const safeLeft = Math.max(0, Number(left ?? 0))
+  const safeRight = Math.max(0, Number(right ?? 0))
+  const total = safeLeft + safeRight
+  if (total <= 0) return { left: 50, right: 50 }
 
   return {
-    left: Math.round((left / total) * 100),
-    right: Math.round((right / total) * 100),
+    left: Math.round((safeLeft / total) * 100),
+    right: Math.round((safeRight / total) * 100),
   }
 }
 
@@ -5949,25 +5953,36 @@ ${shareUrl}`)
     if (!currentPost || !voterKey) return
     if (voteLockRef.current || isVoting) return
 
-    const prevChoice = votes[currentPost.id]
-    if (prevChoice === choice) return
+    const currentPostId = currentPost.id
+    const prevPosts = postsRef.current
+    const prevVotesMap = votes
+    const prevChoice = prevVotesMap[currentPostId]
+
+    if (prevChoice === choice) {
+      showToast('이미 이쪽으로 선택한 글임')
+      return
+    }
+
+    const latestPost = prevPosts.find((post) => post.id === currentPostId)
+    if (!latestPost) return
 
     voteLockRef.current = true
     setIsVoting(true)
 
-    const currentPostId = currentPost.id
-    const prevPosts = postsRef.current
-    const prevVotesMap = votes
+    const safeLeft = Math.max(0, Number(latestPost.leftVotes ?? 0))
+    const safeRight = Math.max(0, Number(latestPost.rightVotes ?? 0))
 
-    const nextLeft =
-      currentPost.leftVotes +
-      (prevChoice === 'left' ? -1 : 0) +
-      (choice === 'left' ? 1 : 0)
+    const nextLeft = Math.max(
+      0,
+      safeLeft + (prevChoice === 'left' ? -1 : 0) + (choice === 'left' ? 1 : 0),
+    )
 
-    const nextRight =
-      currentPost.rightVotes +
-      (prevChoice === 'right' ? -1 : 0) +
-      (choice === 'right' ? 1 : 0)
+    const nextRight = Math.max(
+      0,
+      safeRight +
+        (prevChoice === 'right' ? -1 : 0) +
+        (choice === 'right' ? 1 : 0),
+    )
 
     const optimisticPosts = prevPosts.map((post) =>
       post.id === currentPostId
@@ -6009,11 +6024,61 @@ ${shareUrl}`)
         throw voteError
       }
 
+      const [leftCountResult, rightCountResult] = await Promise.all([
+        supabase
+          .from('votes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', currentPostId)
+          .eq('side', 'left'),
+        supabase
+          .from('votes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', currentPostId)
+          .eq('side', 'right'),
+      ])
+
+      if (leftCountResult.error) throw leftCountResult.error
+      if (rightCountResult.error) throw rightCountResult.error
+
+      const authoritativeLeft = Math.max(
+        0,
+        Number(leftCountResult.count ?? nextLeft),
+      )
+      const authoritativeRight = Math.max(
+        0,
+        Number(rightCountResult.count ?? nextRight),
+      )
+
+      const syncedPosts = postsRef.current.map((post) =>
+        post.id === currentPostId
+          ? {
+              ...post,
+              leftVotes: authoritativeLeft,
+              rightVotes: authoritativeRight,
+            }
+          : post,
+      )
+      const syncedTension = buildPostTensionState(
+        currentPostId,
+        authoritativeLeft,
+        authoritativeRight,
+      )
+
+      postsRef.current = syncedPosts
+      setPosts(syncedPosts)
+      setPostTensionMap((prev) => ({
+        ...prev,
+        [currentPostId]: {
+          ...syncedTension,
+          updatedAt: new Date().toISOString(),
+        },
+      }))
+
       const { error: postError } = await supabase
         .from('posts')
         .update({
-          left_votes: nextLeft,
-          right_votes: nextRight,
+          left_votes: authoritativeLeft,
+          right_votes: authoritativeRight,
         })
         .eq('id', currentPostId)
 
@@ -6021,21 +6086,21 @@ ${shareUrl}`)
         throw postError
       }
 
-      const beforeLeader = getLeaderSideFromVotes(
-        currentPost.leftVotes,
-        currentPost.rightVotes,
+      const beforeLeader = getLeaderSideFromVotes(safeLeft, safeRight)
+      const afterLeader = getLeaderSideFromVotes(
+        authoritativeLeft,
+        authoritativeRight,
       )
-      const afterLeader = getLeaderSideFromVotes(nextLeft, nextRight)
 
       if (beforeLeader !== afterLeader) {
         const optimisticFlip: PostFlipEventItem = {
           postId: currentPostId,
           beforeLeader,
           afterLeader,
-          beforeLeftVotes: currentPost.leftVotes,
-          beforeRightVotes: currentPost.rightVotes,
-          afterLeftVotes: nextLeft,
-          afterRightVotes: nextRight,
+          beforeLeftVotes: safeLeft,
+          beforeRightVotes: safeRight,
+          afterLeftVotes: authoritativeLeft,
+          afterRightVotes: authoritativeRight,
           createdAt: new Date().toISOString(),
         }
 
@@ -6046,10 +6111,10 @@ ${shareUrl}`)
 
         void supabase.rpc('record_post_flip_event', {
           p_post_id: currentPostId,
-          p_before_left_votes: currentPost.leftVotes,
-          p_before_right_votes: currentPost.rightVotes,
-          p_after_left_votes: nextLeft,
-          p_after_right_votes: nextRight,
+          p_before_left_votes: safeLeft,
+          p_before_right_votes: safeRight,
+          p_after_left_votes: authoritativeLeft,
+          p_after_right_votes: authoritativeRight,
         })
       }
 
@@ -6136,7 +6201,7 @@ ${shareUrl}`)
         })
       }
 
-      scheduleDiscoveryRefresh(optimisticPosts)
+      scheduleDiscoveryRefresh(syncedPosts)
       requestLightweightMetaRefresh({ immediate: true })
 
       void updateProgress(
@@ -6161,9 +6226,9 @@ ${shareUrl}`)
       })
 
       markPostMeaningful({
-        ...currentPost,
-        leftVotes: nextLeft,
-        rightVotes: nextRight,
+        ...latestPost,
+        leftVotes: authoritativeLeft,
+        rightVotes: authoritativeRight,
       })
     } catch (error) {
       console.error('투표 처리 실패', error)
@@ -6176,8 +6241,8 @@ ${shareUrl}`)
           ...prev,
           [currentPostId]: buildPostTensionState(
             currentPostId,
-            fallbackPost.leftVotes,
-            fallbackPost.rightVotes,
+            Math.max(0, Number(fallbackPost.leftVotes ?? 0)),
+            Math.max(0, Number(fallbackPost.rightVotes ?? 0)),
           ),
         }))
       }
