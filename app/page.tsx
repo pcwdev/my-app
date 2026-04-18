@@ -1531,6 +1531,7 @@ function MyActivityModal({
   myComments,
   watchlistItems,
   unreadWatchlistCount,
+  initialTab = 'posts',
   onOpenPost,
   onOpenComment,
   onLogout,
@@ -1544,6 +1545,7 @@ function MyActivityModal({
   myComments: MyCommentItem[]
   watchlistItems: WatchlistItem[]
   unreadWatchlistCount: number
+  initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
@@ -1551,11 +1553,11 @@ function MyActivityModal({
   stats: UserStatsRow
   badges: string[]
 }) {
-  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>('posts')
+  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
 
   useEffect(() => {
-    if (open) setTab('posts')
-  }, [open])
+    if (open) setTab(initialTab)
+  }, [open, initialTab])
 
   if (!open) return null
 
@@ -3057,6 +3059,9 @@ export default function MatnyaApp() {
   const [commentOpen, setCommentOpen] = useState(false)
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [activityInitialTab, setActivityInitialTab] = useState<
+    'posts' | 'comments' | 'watchlist'
+  >('posts')
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -3103,6 +3108,7 @@ export default function MatnyaApp() {
     setBadges([])
     setCommentOpen(false)
     setActivityOpen(false)
+    setActivityInitialTab('posts')
   }, [])
 
   const loadAuthState = useCallback(async () => {
@@ -4229,6 +4235,37 @@ export default function MatnyaApp() {
   }, [currentActorUnifiedKey, fetchWatchlist])
 
   useEffect(() => {
+    if (!currentActorUnifiedKey) return
+
+    const watchedPostIds = Object.keys(myWatchlistMap)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+
+    if (watchedPostIds.length === 0) return
+
+    const channel = supabase
+      .channel(`watchlist-outcomes-${currentActorUnifiedKey}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'post_outcomes',
+        },
+        (payload) => {
+          const nextPostId = Number((payload.new as any)?.post_id)
+          if (!watchedPostIds.includes(nextPostId)) return
+          void fetchWatchlist(currentActorUnifiedKey)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [currentActorUnifiedKey, myWatchlistMap, fetchWatchlist])
+
+  useEffect(() => {
     if (!voterKey) return
     void loadProgress()
   }, [voterKey, authUser?.id, loadProgress])
@@ -5329,6 +5366,11 @@ ${shareUrl}`)
     }
   }
 
+  const openWatchlistActivity = () => {
+    setActivityInitialTab('watchlist')
+    setActivityOpen(true)
+  }
+
   const reactToComment = async (
     commentId: number,
     reactionType: CommentReactionType,
@@ -5528,6 +5570,7 @@ ${shareUrl}`)
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
+    await fetchWatchlist(currentActorUnifiedKey)
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -6283,7 +6326,7 @@ ${shareUrl}`)
                   </div>
                   {unreadWatchlistCount > 0 ? (
                     <button
-                      onClick={() => setActivityOpen(true)}
+                      onClick={openWatchlistActivity}
                       className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
                     >
                       <span>새 후기 도착</span>
@@ -6302,7 +6345,7 @@ ${shareUrl}`)
                     </button>
                   ) : (
                     <button
-                      onClick={() => setActivityOpen(true)}
+                      onClick={openWatchlistActivity}
                       className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <span className="text-xs font-bold">
@@ -6369,6 +6412,7 @@ ${shareUrl}`)
           myComments={myComments}
           watchlistItems={watchlistItems}
           unreadWatchlistCount={unreadWatchlistCount}
+          initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
@@ -6435,7 +6479,7 @@ ${shareUrl}`)
                 ) : null}
                 {unreadWatchlistCount > 0 ? (
                   <button
-                    onClick={() => setActivityOpen(true)}
+                    onClick={openWatchlistActivity}
                     className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
                   >
                     <span>새 후기 도착</span>
@@ -6459,7 +6503,7 @@ ${shareUrl}`)
                   </button>
                 ) : (
                   <button
-                    onClick={() => setActivityOpen(true)}
+                    onClick={openWatchlistActivity}
                     className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
@@ -7397,6 +7441,7 @@ ${shareUrl}`)
           myComments={myComments}
           watchlistItems={watchlistItems}
           unreadWatchlistCount={unreadWatchlistCount}
+          initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
