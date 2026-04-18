@@ -6464,6 +6464,45 @@ ${shareUrl}`)
     showToast('댓글 복구 완료')
   }
 
+  const totalVisiblePosts = filteredPosts.length
+  const hotVisibleCount = useMemo(() => {
+    return filteredPosts.filter((post) => {
+      const meta = hotScoreMap[post.id]
+      return (
+        (meta?.vote1h ?? 0) >= 5 ||
+        (meta?.comment1h ?? 0) >= 4 ||
+        (meta?.share24h ?? 0) >= 2
+      )
+    }).length
+  }, [filteredPosts, hotScoreMap])
+
+  const outcomeVisibleCount = useMemo(() => {
+    return filteredPosts.filter((post) =>
+      Boolean(postOutcomeMap[post.id]?.length),
+    ).length
+  }, [filteredPosts, postOutcomeMap])
+
+  const visibleVoteSum = useMemo(() => {
+    return filteredPosts.slice(0, 12).reduce((acc, post) => {
+      return acc + Number(post.leftVotes ?? 0) + Number(post.rightVotes ?? 0)
+    }, 0)
+  }, [filteredPosts])
+
+  const visibleCommentSum = useMemo(() => {
+    return filteredPosts.slice(0, 12).reduce((acc, post) => {
+      return acc + Number(post.comments?.length ?? 0)
+    }, 0)
+  }, [filteredPosts])
+
+  const headerMoodLabel =
+    hotVisibleCount >= 5
+      ? '지금 불붙는 중'
+      : outcomeVisibleCount >= 3
+        ? '후기 계속 올라옴'
+        : totalVisiblePosts >= 12
+          ? '새 글 계속 도는 중'
+          : '슬슬 붙는 중'
+
   const isModalOpen =
     commentOpen ||
     writeOpen ||
@@ -6491,19 +6530,35 @@ ${shareUrl}`)
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
-                    맞냐
+            <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-white">
+                      MATNYA LIVE
+                    </div>
+                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                      {headerMoodLabel}
+                    </div>
                   </div>
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <div className="rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
+                      열린 판 {totalVisiblePosts}
+                    </div>
+                    <div className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
+                      갈리는 글 {hotVisibleCount}
+                    </div>
+                    <div className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                      후기 {outcomeVisibleCount}
+                    </div>
+                  </div>
                   {unreadWatchlistCount > 0 ? (
                     <button
                       onClick={openWatchlistActivity}
-                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700"
                     >
                       <span>새 후기 도착</span>
                       <span>{unreadWatchlistCount}개</span>
@@ -6550,6 +6605,33 @@ ${shareUrl}`)
                   >
                     <Plus className="h-5 w-5" />
                   </button>
+                </div>
+              </div>
+
+              <div className="mt-2.5 grid grid-cols-3 gap-2">
+                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                  <div className="text-[10px] font-bold text-slate-400">
+                    최근 참여
+                  </div>
+                  <div className="mt-0.5 text-[13px] font-black text-slate-900">
+                    {visibleVoteSum}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                  <div className="text-[10px] font-bold text-slate-400">
+                    댓글 흐름
+                  </div>
+                  <div className="mt-0.5 text-[13px] font-black text-slate-900">
+                    {visibleCommentSum}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                  <div className="text-[10px] font-bold text-slate-400">
+                    지금 분위기
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-black text-[#4f7cff]">
+                    {headerMoodLabel}
+                  </div>
                 </div>
               </div>
             </div>
@@ -6637,26 +6719,42 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
-                  맞냐
+          <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-white">
+                    MATNYA LIVE
+                  </div>
+                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                    {headerMoodLabel}
+                  </div>
                 </div>
                 <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                   이거 맞냐?
                 </div>
-                {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
-                  <div
-                    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
-                  >
-                    ⚡ 연속 판단 {currentVoteStreak.currentCount}회
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <div className="rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
+                    열린 판 {totalVisiblePosts}
                   </div>
-                ) : null}
+                  <div className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
+                    갈리는 글 {hotVisibleCount}
+                  </div>
+                  <div className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                    후기 {outcomeVisibleCount}
+                  </div>
+                  {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
+                    <div
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
+                    >
+                      연속 판단 {currentVoteStreak.currentCount}
+                    </div>
+                  ) : null}
+                </div>
                 {unreadWatchlistCount > 0 ? (
                   <button
                     onClick={openWatchlistActivity}
-                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700"
                   >
                     <span>새 후기 도착</span>
                     <span>{unreadWatchlistCount}개</span>
@@ -6725,7 +6823,34 @@ ${shareUrl}`)
               </div>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-2.5 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="text-[10px] font-bold text-slate-400">
+                  최근 참여
+                </div>
+                <div className="mt-0.5 text-[13px] font-black text-slate-900">
+                  {visibleVoteSum}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="text-[10px] font-bold text-slate-400">
+                  댓글 흐름
+                </div>
+                <div className="mt-0.5 text-[13px] font-black text-slate-900">
+                  {visibleCommentSum}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="text-[10px] font-bold text-slate-400">
+                  지금 분위기
+                </div>
+                <div className="mt-0.5 text-[11px] font-black text-[#4f7cff]">
+                  {headerMoodLabel}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2.5 flex gap-2">
               {(['추천', '인기', '최신'] as const).map((label) => (
                 <button
                   key={label}
