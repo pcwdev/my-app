@@ -4886,8 +4886,6 @@ ${shareUrl}`)
   ])
 
   useEffect(() => {
-    const levelInfo = getLevelInfo(stats.points)
-
     if (!currentPost) {
       setRevisitMeta(null)
       return
@@ -6466,45 +6464,6 @@ ${shareUrl}`)
     showToast('댓글 복구 완료')
   }
 
-  const totalVisiblePosts = filteredPosts.length
-  const hotVisibleCount = useMemo(() => {
-    return filteredPosts.filter((post) => {
-      const meta = hotScoreMap[post.id]
-      return (
-        (meta?.vote1h ?? 0) >= 5 ||
-        (meta?.comment1h ?? 0) >= 4 ||
-        (meta?.share24h ?? 0) >= 2
-      )
-    }).length
-  }, [filteredPosts, hotScoreMap])
-
-  const outcomeVisibleCount = useMemo(() => {
-    return filteredPosts.filter((post) =>
-      Boolean(postOutcomeMap[post.id]?.length),
-    ).length
-  }, [filteredPosts, postOutcomeMap])
-
-  const visibleVoteSum = useMemo(() => {
-    return filteredPosts.slice(0, 12).reduce((acc, post) => {
-      return acc + Number(post.leftVotes ?? 0) + Number(post.rightVotes ?? 0)
-    }, 0)
-  }, [filteredPosts])
-
-  const visibleCommentSum = useMemo(() => {
-    return filteredPosts.slice(0, 12).reduce((acc, post) => {
-      return acc + Number(post.comments?.length ?? 0)
-    }, 0)
-  }, [filteredPosts])
-
-  const headerMoodLabel =
-    hotVisibleCount >= 5
-      ? '지금 불붙는 중'
-      : outcomeVisibleCount >= 3
-        ? '후기 계속 올라옴'
-        : totalVisiblePosts >= 12
-          ? '새 글 계속 도는 중'
-          : '슬슬 붙는 중'
-
   const isModalOpen =
     commentOpen ||
     writeOpen ||
@@ -6527,39 +6486,29 @@ ${shareUrl}`)
     )
   }
 
-  const levelInfo = getLevelInfo(stats.points)
-
   if (!currentPost) {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="rounded-[26px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,249,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_16px_36px_rgba(148,163,184,0.14),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-white">
-                      익명 논쟁
-                    </div>
-                    <div className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-600">
-                      {headerMoodLabel}
-                    </div>
-                    {unreadWatchlistCount > 0 ? (
-                      <button
-                        onClick={openWatchlistActivity}
-                        className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700"
-                      >
-                        <span>새 후기</span>
-                        <span>{unreadWatchlistCount}</span>
-                      </button>
-                    ) : null}
+            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
+                    맞냐
                   </div>
-                  <div className="mt-2 text-[24px] font-extrabold tracking-tight text-slate-950">
+                  <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
-                  <div className="mt-1 text-[13px] font-medium leading-5 text-slate-500">
-                    익명으로 바로 고르고, 갈리면 더 보고 싶어지는 짧은 판단 판
-                  </div>
+                  {unreadWatchlistCount > 0 ? (
+                    <button
+                      onClick={openWatchlistActivity}
+                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                    >
+                      <span>새 후기 도착</span>
+                      <span>{unreadWatchlistCount}개</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6573,13 +6522,10 @@ ${shareUrl}`)
                   ) : (
                     <button
                       onClick={openWatchlistActivity}
-                      className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                      className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
-                      <span className="text-xs">
-                        {getLevelTheme(levelInfo.level).icon}
-                      </span>
                       <span className="text-xs font-bold">
-                        Lv.{levelInfo.level}
+                        {profile?.anonymous_name ?? '익명'}
                       </span>
                       {unreadWatchlistCount > 0 ? (
                         <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
@@ -6592,11 +6538,7 @@ ${shareUrl}`)
                   {isAdmin && (
                     <button
                       onClick={() => void handleAdminToggle()}
-                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                        adminMode
-                          ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                          : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]'
-                      }`}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <Shield className="h-5 w-5" />
                     </button>
@@ -6609,25 +6551,6 @@ ${shareUrl}`)
                     <Plus className="h-5 w-5" />
                   </button>
                 </div>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                {(['추천', '인기', '최신'] as const).map((label) => (
-                  <button
-                    key={label}
-                    onClick={() => {
-                      setTab(label)
-                      setCurrentIndex(0)
-                    }}
-                    className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
-                      tab === label
-                        ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                        : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
               </div>
             </div>
           </header>
@@ -6704,6 +6627,7 @@ ${shareUrl}`)
   }
 
   const p = percent(currentPost.leftVotes, currentPost.rightVotes)
+  const levelInfo = getLevelInfo(stats.points)
   const isOwnCurrentPost =
     !!currentActorKey &&
     !!currentPost.authorKey &&
@@ -6713,39 +6637,31 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[26px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,249,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_16px_36px_rgba(148,163,184,0.14),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-white">
-                    익명 논쟁
-                  </div>
-                  <div className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-600">
-                    {headerMoodLabel}
-                  </div>
-                  {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
-                    <div
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
-                    >
-                      연속 판단 {currentVoteStreak.currentCount}
-                    </div>
-                  ) : null}
-                  {unreadWatchlistCount > 0 ? (
-                    <button
-                      onClick={openWatchlistActivity}
-                      className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700"
-                    >
-                      <span>새 후기</span>
-                      <span>{unreadWatchlistCount}</span>
-                    </button>
-                  ) : null}
+          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
+                  맞냐
                 </div>
-                <div className="mt-2 text-[24px] font-extrabold tracking-tight text-slate-950">
+                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                   이거 맞냐?
                 </div>
-                <div className="mt-1 text-[13px] font-medium leading-5 text-slate-500">
-                  익명으로 바로 고르고, 갈리면 더 보고 싶어지는 짧은 판단 판
-                </div>
+                {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
+                  <div
+                    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
+                  >
+                    ⚡ 연속 판단 {currentVoteStreak.currentCount}회
+                  </div>
+                ) : null}
+                {unreadWatchlistCount > 0 ? (
+                  <button
+                    onClick={openWatchlistActivity}
+                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                  >
+                    <span>새 후기 도착</span>
+                    <span>{unreadWatchlistCount}개</span>
+                  </button>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -6783,7 +6699,7 @@ ${shareUrl}`)
                 {isAdmin && (
                   <button
                     onClick={() => void handleAdminToggle()}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                    className={`flex h-11 w-11 items-center justify-center rounded-full ${
                       adminMode
                         ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
                         : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
