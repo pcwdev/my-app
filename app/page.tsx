@@ -3037,6 +3037,10 @@ export default function MatnyaApp() {
   const [isVoting, setIsVoting] = useState(false)
   const voteLockRef = useRef(false)
   const discoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const metaRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const metaRefreshInFlightRef = useRef(false)
+  const metaRefreshQueuedRef = useRef(false)
+  const lastMetaRefreshAtRef = useRef(0)
 
   useEffect(() => {
     postsRef.current = posts
@@ -4234,36 +4238,81 @@ export default function MatnyaApp() {
     void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
 
-  useEffect(() => {
+  const refreshLightweightMetaNow = useCallback(async () => {
     if (!currentActorUnifiedKey) return
 
-    const watchedPostIds = Object.keys(myWatchlistMap)
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value) && value > 0)
-
-    if (watchedPostIds.length === 0) return
-
-    const channel = supabase
-      .channel(`watchlist-outcomes-${currentActorUnifiedKey}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'post_outcomes',
-        },
-        (payload) => {
-          const nextPostId = Number((payload.new as any)?.post_id)
-          if (!watchedPostIds.includes(nextPostId)) return
-          void fetchWatchlist(currentActorUnifiedKey)
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void channel.unsubscribe()
+    if (metaRefreshInFlightRef.current) {
+      metaRefreshQueuedRef.current = true
+      return
     }
-  }, [currentActorUnifiedKey, myWatchlistMap, fetchWatchlist])
+
+    metaRefreshInFlightRef.current = true
+    lastMetaRefreshAtRef.current = Date.now()
+
+    const postIds = posts.map((post) => post.id)
+    const commentIds = posts.flatMap((post) =>
+      post.comments.map((comment) => comment.id),
+    )
+
+    try {
+      await Promise.all([
+        fetchWatchlist(currentActorUnifiedKey),
+        loadReactionAndOutcomeData(postIds, commentIds),
+      ])
+    } finally {
+      metaRefreshInFlightRef.current = false
+
+      if (metaRefreshQueuedRef.current) {
+        metaRefreshQueuedRef.current = false
+
+        if (metaRefreshTimerRef.current) {
+          clearTimeout(metaRefreshTimerRef.current)
+        }
+
+        metaRefreshTimerRef.current = setTimeout(() => {
+          metaRefreshTimerRef.current = null
+          void refreshLightweightMetaNow()
+        }, 180)
+      }
+    }
+  }, [
+    currentActorUnifiedKey,
+    fetchWatchlist,
+    loadReactionAndOutcomeData,
+    posts,
+  ])
+
+  const requestLightweightMetaRefresh = useCallback(
+    (options?: { immediate?: boolean; delay?: number }) => {
+      if (!currentActorUnifiedKey) return
+
+      const immediate = options?.immediate ?? false
+      const baseDelay = options?.delay ?? 160
+
+      if (immediate) {
+        if (metaRefreshTimerRef.current) {
+          clearTimeout(metaRefreshTimerRef.current)
+          metaRefreshTimerRef.current = null
+        }
+
+        void refreshLightweightMetaNow()
+        return
+      }
+
+      const sinceLast = Date.now() - lastMetaRefreshAtRef.current
+      const delay = sinceLast < 1200 ? Math.max(baseDelay, 260) : baseDelay
+
+      if (metaRefreshTimerRef.current) {
+        clearTimeout(metaRefreshTimerRef.current)
+      }
+
+      metaRefreshTimerRef.current = setTimeout(() => {
+        metaRefreshTimerRef.current = null
+        void refreshLightweightMetaNow()
+      }, delay)
+    },
+    [currentActorUnifiedKey, refreshLightweightMetaNow],
+  )
 
   useEffect(() => {
     if (!voterKey) return
@@ -4277,6 +4326,9 @@ export default function MatnyaApp() {
       }
       if (discoveryTimerRef.current) {
         clearTimeout(discoveryTimerRef.current)
+      }
+      if (metaRefreshTimerRef.current) {
+        clearTimeout(metaRefreshTimerRef.current)
       }
     }
   }, [])
@@ -5261,6 +5313,7 @@ ${shareUrl}`)
       }
 
       scheduleDiscoveryRefresh(optimisticPosts)
+      requestLightweightMetaRefresh({ immediate: true })
 
       void updateProgress(
         {
@@ -5300,11 +5353,13 @@ ${shareUrl}`)
   const prev = () => {
     endSharedEntryMode()
     setCurrentIndex((i) => Math.max(i - 1, 0))
+    requestLightweightMetaRefresh()
   }
 
   const next = () => {
     endSharedEntryMode()
     setCurrentIndex((i) => Math.min(i + 1, filteredPosts.length - 1))
+    requestLightweightMetaRefresh()
   }
 
   const handleNextWithGuard = () => {
@@ -5369,6 +5424,7 @@ ${shareUrl}`)
   const openWatchlistActivity = () => {
     setActivityInitialTab('watchlist')
     setActivityOpen(true)
+    requestLightweightMetaRefresh()
   }
 
   const reactToComment = async (
@@ -5570,7 +5626,7 @@ ${shareUrl}`)
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
-    await fetchWatchlist(currentActorUnifiedKey)
+    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -7403,7 +7459,10 @@ ${shareUrl}`)
         <CommentModal
           post={currentPost}
           open={commentOpen}
-          onClose={() => setCommentOpen(false)}
+          onClose={() => {
+            setCommentOpen(false)
+            requestLightweightMetaRefresh()
+          }}
           onAddComment={(text, side) => void addComment(text, side)}
           onLikeComment={(commentId) => void likeComment(commentId)}
           likedComments={likedComments}
