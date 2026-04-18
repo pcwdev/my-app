@@ -5440,11 +5440,9 @@ ${shareUrl}`)
     )
   }, [currentChoicePathTop, posts])
 
-  const nextRecommendationReason = choicePathNextPost
-    ? '너처럼 고른 사람들 다음 판'
-    : queuedNextPost
-      ? getNextReasonLabel(queuedNextPost.item.reasonType)
-      : '다음 맞냐'
+  const nextRecommendationReason = queuedNextPost
+    ? getNextReasonLabel(queuedNextPost.item.reasonType)
+    : '다음 맞냐'
 
   const nextRecommendationTitle =
     choicePathNextPost?.title ||
@@ -5453,9 +5451,7 @@ ${shareUrl}`)
       ?.title ||
     '다음 글 보기'
 
-  const nextRecommendationHelper = choicePathNextPost
-    ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
-    : '지금 가장 오래 보게 만들 다음 판으로 이동'
+  const nextRecommendationHelper = '지금 가장 오래 보게 만들 다음 판으로 이동'
 
   useEffect(() => {
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
@@ -8101,28 +8097,6 @@ ${shareUrl}`)
                               </div>
                             </div>
                           ) : null}
-                          {currentChoicePathTop && choicePathNextPost ? (
-                            <button
-                              onClick={() =>
-                                moveToPostWithGuard(choicePathNextPost.id)
-                              }
-                              className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
-                            >
-                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                                SAME SIDE NEXT
-                              </div>
-                              <div className="mt-1 text-sm font-black text-slate-900">
-                                너처럼 고른 사람들 다음으로 이 글 봄
-                              </div>
-                              <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
-                                {choicePathNextPost.title}
-                              </div>
-                              <div className="mt-1 text-[12px] text-slate-500">
-                                같은 선택 흐름에서 {currentChoicePathTop.count}
-                                번 이어짐
-                              </div>
-                            </button>
-                          ) : null}
                         </div>
                       </div>
                     ) : null}
@@ -8258,30 +8232,6 @@ ${shareUrl}`)
                         {nextRecommendationHelper}
                       </div>
                     </button>
-
-                    {controversialPosts.length > 0 && (
-                      <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="mb-3 text-sm font-bold text-slate-900">
-                          지금 들어가면 바로 갈릴 논쟁 TOP3
-                        </div>
-                        <div className="space-y-2">
-                          {controversialPosts.map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => moveToPostWithGuard(item.id)}
-                              className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
-                            >
-                              <div className="text-sm font-semibold text-slate-900">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-slate-500">
-                                {item.total}명 참여 · 의견 팽팽
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
                     {!isViewingSharedPost ? (
                       <div className="grid grid-cols-2 gap-2">
