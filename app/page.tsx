@@ -6530,31 +6530,36 @@ ${shareUrl}`)
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-white">
-                      MATNYA LIVE
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-white">
+                      익명 논쟁
                     </div>
-                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                    <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
                       {headerMoodLabel}
                     </div>
                   </div>
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <div className="rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                      열린 판 {totalVisiblePosts}
+                  <div className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+                    길게 읽기 전에 바로 판단하고, 갈리면 더 재밌는 익명 판
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                      익명으로 바로 참여
                     </div>
-                    <div className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
-                      갈리는 글 {hotVisibleCount}
+                    <div className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">
+                      좌우 한 번에 판단
                     </div>
                     <div className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
-                      후기 {outcomeVisibleCount}
+                      결말 궁금한 글 저장
                     </div>
                   </div>
+
                   {unreadWatchlistCount > 0 ? (
                     <button
                       onClick={openWatchlistActivity}
@@ -6563,7 +6568,13 @@ ${shareUrl}`)
                       <span>새 후기 도착</span>
                       <span>{unreadWatchlistCount}개</span>
                     </button>
-                  ) : null}
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                        의견 갈릴수록 더 재밌음
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -6608,29 +6619,29 @@ ${shareUrl}`)
                 </div>
               </div>
 
-              <div className="mt-2.5 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
                   <div className="text-[10px] font-bold text-slate-400">
-                    최근 참여
+                    포인트
                   </div>
-                  <div className="mt-0.5 text-[13px] font-black text-slate-900">
-                    {visibleVoteSum}
+                  <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                    익명으로 바로 판단
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
                   <div className="text-[10px] font-bold text-slate-400">
-                    댓글 흐름
+                    재미
                   </div>
-                  <div className="mt-0.5 text-[13px] font-black text-slate-900">
-                    {visibleCommentSum}
+                  <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                    갈릴수록 오래 보게 됨
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
                   <div className="text-[10px] font-bold text-slate-400">
-                    지금 분위기
+                    회수
                   </div>
-                  <div className="mt-0.5 text-[11px] font-black text-[#4f7cff]">
-                    {headerMoodLabel}
+                  <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                    결말 궁금한 글 저장
                   </div>
                 </div>
               </div>
@@ -6719,29 +6730,15 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2 pt-2.5 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-white">
-                    MATNYA LIVE
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-white">
+                    익명 논쟁
                   </div>
-                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                  <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
                     {headerMoodLabel}
-                  </div>
-                </div>
-                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
-                  이거 맞냐?
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <div className="rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                    열린 판 {totalVisiblePosts}
-                  </div>
-                  <div className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
-                    갈리는 글 {hotVisibleCount}
-                  </div>
-                  <div className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
-                    후기 {outcomeVisibleCount}
                   </div>
                   {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
                     <div
@@ -6751,6 +6748,25 @@ ${shareUrl}`)
                     </div>
                   ) : null}
                 </div>
+                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
+                  이거 맞냐?
+                </div>
+                <div className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+                  익명으로 바로 고르고, 갈리면 더 보고 싶어지는 짧은 판단 판
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                    익명으로 바로 참여
+                  </div>
+                  <div className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">
+                    좌우 한 번에 판단
+                  </div>
+                  <div className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                    결말 궁금한 글 저장
+                  </div>
+                </div>
+
                 {unreadWatchlistCount > 0 ? (
                   <button
                     onClick={openWatchlistActivity}
@@ -6759,7 +6775,16 @@ ${shareUrl}`)
                     <span>새 후기 도착</span>
                     <span>{unreadWatchlistCount}개</span>
                   </button>
-                ) : null}
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                      의견 갈릴수록 더 재밌음
+                    </div>
+                    <div className="rounded-full border border-fuchsia-100 bg-fuchsia-50 px-2.5 py-1 text-[10px] font-bold text-fuchsia-700">
+                      친구 보내기보다 본판 몰입 우선
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -6823,29 +6848,25 @@ ${shareUrl}`)
               </div>
             </div>
 
-            <div className="mt-2.5 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
                 <div className="text-[10px] font-bold text-slate-400">
-                  최근 참여
+                  포인트
                 </div>
-                <div className="mt-0.5 text-[13px] font-black text-slate-900">
-                  {visibleVoteSum}
+                <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                  익명으로 바로 판단
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
-                <div className="text-[10px] font-bold text-slate-400">
-                  댓글 흐름
-                </div>
-                <div className="mt-0.5 text-[13px] font-black text-slate-900">
-                  {visibleCommentSum}
+              <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="text-[10px] font-bold text-slate-400">재미</div>
+                <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                  갈릴수록 더 오래 보게 됨
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-white/90 px-2.5 py-2 text-center shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
-                <div className="text-[10px] font-bold text-slate-400">
-                  지금 분위기
-                </div>
-                <div className="mt-0.5 text-[11px] font-black text-[#4f7cff]">
-                  {headerMoodLabel}
+              <div className="rounded-2xl border border-slate-100 bg-white/92 px-2.5 py-2 text-left shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                <div className="text-[10px] font-bold text-slate-400">회수</div>
+                <div className="mt-0.5 text-[12px] font-black text-slate-900">
+                  결말 궁금한 글 저장
                 </div>
               </div>
             </div>
