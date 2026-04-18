@@ -1139,6 +1139,63 @@ function roundPairToStep(left: number, right: number, step: number) {
   }
 }
 
+function getRevealStateLabel(leftVotes: number, rightVotes: number) {
+  const left = Math.max(0, Number(leftVotes ?? 0))
+  const right = Math.max(0, Number(rightVotes ?? 0))
+  const total = left + right
+
+  if (total <= 0) {
+    return {
+      label: '아직 판이 안 열림',
+      helper: '첫 반응이 들어오면 흐름이 시작됨',
+      toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+    }
+  }
+
+  const diffRatio = Math.abs(left - right) / Math.max(total, 1)
+
+  if (diffRatio <= 0.1) {
+    return {
+      label: '🔥 지금 완전 개싸움',
+      helper: '거의 반반이라 다음 반응이 중요함',
+      toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+    }
+  }
+
+  if (diffRatio <= 0.25) {
+    return {
+      label: '👀 생각보다 엄청 갈리는 중',
+      helper: '한두 표만 더 들어와도 분위기 바뀜',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  if (diffRatio <= 0.5) {
+    return {
+      label: '⚡ 한쪽이 확실히 앞서는 중',
+      helper: '아직 끝난 건 아니지만 흐름이 보임',
+      toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+    }
+  }
+
+  return {
+    label: '😳 거의 한쪽으로 몰리는 중',
+    helper: '지금은 한쪽 우세. 댓글에서 다시 붙을 수도 있음',
+    toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+  }
+}
+
+function getRevealHintLabel(leftVotes: number, rightVotes: number) {
+  const left = Math.max(0, Number(leftVotes ?? 0))
+  const right = Math.max(0, Number(rightVotes ?? 0))
+  const total = left + right
+
+  if (total <= 0) return '첫 반응이 아직 없음'
+  if (left === right) return '거의 반반 수준'
+  if (left > right * 2 || right > left * 2) return '대부분이 한쪽 의견'
+  return '생각보다 더 많이 갈리는 중'
+}
+
 function getResultRevealStage(
   unlockLevel: number,
   leftVotes: number,
@@ -1166,7 +1223,7 @@ function getResultRevealStage(
     return {
       level: 3,
       label: '정확한 결과 공개',
-      helper: '이제 정확한 퍼센트와 흐름을 확인할 수 있음',
+      helper: '실시간 반응이 계속 들어와 수치는 조금씩 달라질 수 있음',
       toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1176,27 +1233,27 @@ function getResultRevealStage(
   }
 
   if (unlockLevel >= 2) {
-    const approx = roundPairToStep(exact.left, exact.right, 5)
+    const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
     return {
       level: 2,
-      label: '대략 공개',
-      helper: '댓글 분위기까지 보면 생각보다 더 갈리는지 바로 느낌 옴',
-      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
-      leftValue: approx.left,
-      rightValue: approx.right,
+      label: getRevealHintLabel(leftVotes, rightVotes),
+      helper: '실시간 반응이 계속 들어와 정확한 수치는 마지막에 공개됨',
+      toneClass: stateMeta.toneClass,
+      leftValue: exact.left,
+      rightValue: exact.right,
       showExact: false,
       showOutcome: false,
     }
   }
 
-  const hidden = roundPairToStep(exact.left, exact.right, 10)
+  const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
   return {
     level: 1,
-    label: '감정만 먼저 공개',
-    helper: '지금은 분위기만 먼저 보여주고, 더 보면 결과가 조금씩 열림',
-    toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
-    leftValue: hidden.left,
-    rightValue: hidden.right,
+    label: stateMeta.label,
+    helper: stateMeta.helper,
+    toneClass: stateMeta.toneClass,
+    leftValue: exact.left,
+    rightValue: exact.right,
     showExact: false,
     showOutcome: false,
   }
@@ -7941,9 +7998,7 @@ ${shareUrl}`)
                                   RESULT FLOW
                                 </div>
                                 <div className="mt-1 text-base font-black text-slate-900">
-                                  {currentResultReveal.showExact
-                                    ? `${displayedPercent.left}% vs ${displayedPercent.right}%`
-                                    : `약 ${displayedPercent.left}% vs ${displayedPercent.right}%`}
+                                  {currentResultReveal.label}
                                 </div>
                               </div>
                               <div
@@ -7957,6 +8012,22 @@ ${shareUrl}`)
                             <div className="mt-2 text-[13px] font-semibold text-slate-600">
                               {currentResultReveal.helper}
                             </div>
+
+                            {currentResultReveal.showExact ? (
+                              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                  LIVE RESULT
+                                </div>
+                                <div className="mt-1 text-base font-black text-slate-900">
+                                  {displayedPercent.left}% vs{' '}
+                                  {displayedPercent.right}%
+                                </div>
+                                <div className="mt-1 text-[12px] text-slate-500">
+                                  실시간 반응이 계속 들어와 수치는 조금씩 달라질
+                                  수 있음
+                                </div>
+                              </div>
+                            ) : null}
 
                             {currentResultUnlockLevel < 3 ? (
                               <div className="mt-3 grid grid-cols-2 gap-2">
