@@ -121,18 +121,6 @@ type NextQueueItem = {
   score: number
 }
 
-type WatchlistItem = {
-  id: number
-  postId: number
-  title: string
-  category: string
-  ageGroup: string
-  createdAt: string | null
-  latestOutcomeType: PostOutcomeItem['outcomeType'] | null
-  latestOutcomeSummary: string | null
-  hasOutcome: boolean
-}
-
 type PostItem = {
   id: number
   category: string
@@ -1251,6 +1239,117 @@ function AuthOptionalModal({
   )
 }
 
+function OutcomeWriteModal({
+  open,
+  onClose,
+  onSubmit,
+  postTitle,
+  initialType = 'author_followup',
+}: {
+  open: boolean
+  onClose: () => void
+  onSubmit: (
+    outcomeType: PostOutcomeItem['outcomeType'],
+    summary: string,
+  ) => void | Promise<void>
+  postTitle: string
+  initialType?: PostOutcomeItem['outcomeType']
+}) {
+  const [outcomeType, setOutcomeType] =
+    useState<PostOutcomeItem['outcomeType']>(initialType)
+  const [summary, setSummary] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setOutcomeType(initialType)
+    setSummary('')
+  }, [open, initialType])
+
+  if (!open) return null
+
+  const options: Array<{
+    value: PostOutcomeItem['outcomeType']
+    label: string
+    helper: string
+  }> = [
+    {
+      value: 'author_followup',
+      label: '작성자 후기',
+      helper: '직접 남기는 추가 설명',
+    },
+    { value: 'update', label: '후기 있음', helper: '중간 진행 상황 공유' },
+    { value: 'resolved', label: '결말 나옴', helper: '결과가 확정됨' },
+    { value: 'twist', label: '반전 있음', helper: '예상과 다르게 흘러감' },
+  ]
+
+  const handleSubmit = () => {
+    const trimmed = summary.trim()
+    if (!trimmed) return
+    void onSubmit(outcomeType, trimmed)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto mt-16 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
+        <div className="mb-1 text-lg font-bold">후기 등록</div>
+        <div className="mb-4 text-sm text-slate-500">{postTitle}</div>
+
+        <div className="space-y-2">
+          {options.map((option) => {
+            const active = outcomeType === option.value
+            return (
+              <button
+                key={option.value}
+                onClick={() => setOutcomeType(option.value)}
+                className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                  active
+                    ? 'border-[#bcd0ff] bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.20)]'
+                    : 'border-slate-200/80 bg-white text-slate-900'
+                }`}
+              >
+                <div className="text-sm font-bold">{option.label}</div>
+                <div
+                  className={`mt-1 text-xs ${active ? 'text-white/85' : 'text-slate-500'}`}
+                >
+                  {option.helper}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="mt-4">
+          <textarea
+            value={summary}
+            maxLength={140}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="예: 결국 연락했고 잘 됐음 / 퇴사 안 하고 합의봄 / 내가 오해한 거였음"
+            className="min-h-[110px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          />
+          <div className="mt-2 text-right text-[11px] text-slate-400">
+            {summary.length}/140
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 font-bold shadow-[0_2px_10px_rgba(15,23,42,0.03)]"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
+          >
+            후기 등록
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const CommentCard = React.memo(function CommentCard({
   comment,
   leftLabel,
@@ -1417,7 +1516,6 @@ function MyActivityModal({
   onClose,
   myPosts,
   myComments,
-  watchlistItems,
   onOpenPost,
   onOpenComment,
   onLogout,
@@ -1429,7 +1527,6 @@ function MyActivityModal({
   onClose: () => void
   myPosts: MyPostItem[]
   myComments: MyCommentItem[]
-  watchlistItems: WatchlistItem[]
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
@@ -1437,7 +1534,7 @@ function MyActivityModal({
   stats: UserStatsRow
   badges: string[]
 }) {
-  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>('posts')
+  const [tab, setTab] = useState<'posts' | 'comments'>('posts')
 
   useEffect(() => {
     if (open) setTab('posts')
@@ -1579,16 +1676,6 @@ function MyActivityModal({
             >
               내가 남긴 댓글
             </button>
-            <button
-              onClick={() => setTab('watchlist')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
-                tab === 'watchlist'
-                  ? 'bg-[#4f7cff] text-slate-900'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              궁금한 글
-            </button>
           </div>
         </div>
 
@@ -1601,11 +1688,6 @@ function MyActivityModal({
           {tab === 'comments' && myComments.length === 0 && (
             <div className="text-sm text-slate-500">
               로그인 후 작성한 댓글이 없음
-            </div>
-          )}
-          {tab === 'watchlist' && watchlistItems.length === 0 && (
-            <div className="text-sm text-slate-500">
-              결말궁금으로 저장한 글이 없음
             </div>
           )}
 
@@ -1639,41 +1721,6 @@ function MyActivityModal({
                 </div>
                 <div className="mt-2 text-xs text-slate-400">
                   댓글 단 글로 이동
-                </div>
-              </button>
-            ))}
-
-          {tab === 'watchlist' &&
-            watchlistItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-xs text-slate-500">
-                    {item.category} · {item.ageGroup}
-                  </div>
-                  {item.latestOutcomeType ? (
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
-                    >
-                      {getOutcomeLabel(item.latestOutcomeType)}
-                    </span>
-                  ) : (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      후기 대기중
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 font-bold text-slate-900">
-                  {item.title}
-                </div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
-                </div>
-                <div className="mt-2 text-xs text-slate-400">
-                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
                 </div>
               </button>
             ))}
@@ -2888,10 +2935,6 @@ export default function MatnyaApp() {
   const [nextQueueMap, setNextQueueMap] = useState<
     Record<number, NextQueueItem[]>
   >({})
-  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
-  const [myWatchlistMap, setMyWatchlistMap] = useState<Record<number, boolean>>(
-    {},
-  )
   const sharePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastShareTotalRef = useRef<number>(0)
   const [revisitMeta, setRevisitMeta] = useState<RevisitMeta | null>(null)
@@ -2928,6 +2971,7 @@ export default function MatnyaApp() {
   const [commentOpen, setCommentOpen] = useState(false)
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [outcomeModalOpen, setOutcomeModalOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -2958,8 +3002,6 @@ export default function MatnyaApp() {
     setDeletedOpen(false)
     setMyPosts([])
     setMyComments([])
-    setWatchlistItems([])
-    setMyWatchlistMap({})
     setStats(
       normalizeStats({
         points: 0,
@@ -3248,11 +3290,10 @@ export default function MatnyaApp() {
       if (!currentActorUnifiedKey) {
         setMyCommentReactions({})
         setMyPostReactions({})
-        setMyWatchlistMap({})
         return
       }
 
-      const [commentReactionRes, postReactionRes, streakRes, watchlistRes] =
+      const [commentReactionRes, postReactionRes, streakRes] =
         await Promise.all([
           commentIds.length > 0
             ? supabase
@@ -3272,14 +3313,6 @@ export default function MatnyaApp() {
             .from('user_streaks')
             .select('streak_type, current_count, best_count, last_action_at')
             .eq('actor_key', currentActorUnifiedKey),
-          postIds.length > 0
-            ? supabase
-                .from('post_watchlist')
-                .select('post_id')
-                .eq('actor_key', currentActorUnifiedKey)
-                .eq('watch_type', 'curious')
-                .in('post_id', postIds)
-            : Promise.resolve({ data: [], error: null } as any),
         ])
 
       if (!commentReactionRes.error) {
@@ -3309,14 +3342,6 @@ export default function MatnyaApp() {
           }
         })
         setStreakMap(nextMap)
-      }
-
-      if (!watchlistRes.error) {
-        const nextMap: Record<number, boolean> = {}
-        ;(watchlistRes.data ?? []).forEach((row: any) => {
-          nextMap[Number(row.post_id)] = true
-        })
-        setMyWatchlistMap(nextMap)
       }
     },
     [currentActorUnifiedKey],
@@ -3966,101 +3991,6 @@ export default function MatnyaApp() {
     }
   }, [])
 
-  const fetchWatchlist = useCallback(async (actorKey: string | null) => {
-    if (!actorKey) {
-      setWatchlistItems([])
-      setMyWatchlistMap({})
-      return
-    }
-
-    const { data: watchRows, error: watchError } = await supabase
-      .from('post_watchlist')
-      .select('id, post_id, created_at')
-      .eq('actor_key', actorKey)
-      .eq('watch_type', 'curious')
-      .order('created_at', { ascending: false })
-
-    if (watchError) {
-      console.error('궁금한 글 불러오기 실패', watchError)
-      return
-    }
-
-    const rows = (watchRows ?? []).map((row: any) => ({
-      id: Number(row.id),
-      postId: Number(row.post_id),
-      createdAt: row.created_at ?? null,
-    }))
-
-    if (rows.length === 0) {
-      setWatchlistItems([])
-      setMyWatchlistMap({})
-      return
-    }
-
-    const postIds = [...new Set(rows.map((row) => row.postId))]
-    const [watchPostsRes, outcomesRes] = await Promise.all([
-      supabase
-        .from('posts')
-        .select('id, title, category, age_group')
-        .in('id', postIds),
-      supabase
-        .from('post_outcomes')
-        .select('id, post_id, outcome_type, summary, created_at')
-        .in('post_id', postIds)
-        .order('created_at', { ascending: false }),
-    ])
-
-    if (watchPostsRes.error) {
-      console.error('궁금한 글 게시글 불러오기 실패', watchPostsRes.error)
-      return
-    }
-
-    const postMap = new Map<number, any>()
-    ;(watchPostsRes.data ?? []).forEach((row: any) => {
-      postMap.set(Number(row.id), row)
-    })
-
-    const outcomeMap = new Map<number, any>()
-    ;(outcomesRes.data ?? []).forEach((row: any) => {
-      const postId = Number(row.post_id)
-      if (!outcomeMap.has(postId)) {
-        outcomeMap.set(postId, row)
-      }
-    })
-
-    const watchedMap: Record<number, boolean> = {}
-    const items: WatchlistItem[] = rows
-      .map((row) => {
-        const post = postMap.get(row.postId)
-        if (!post) return null
-        const latestOutcome = outcomeMap.get(row.postId) ?? null
-        watchedMap[row.postId] = true
-        return {
-          id: row.id,
-          postId: row.postId,
-          title: post.title,
-          category: post.category,
-          ageGroup: post.age_group,
-          createdAt: row.createdAt,
-          latestOutcomeType: latestOutcome?.outcome_type ?? null,
-          latestOutcomeSummary: latestOutcome?.summary ?? null,
-          hasOutcome: !!latestOutcome,
-        } satisfies WatchlistItem
-      })
-      .filter(Boolean) as WatchlistItem[]
-
-    items.sort((a, b) => {
-      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-      return (
-        new Date(b.createdAt ?? 0).getTime() -
-        new Date(a.createdAt ?? 0).getTime()
-      )
-    })
-
-    setWatchlistItems(items)
-    setMyWatchlistMap(watchedMap)
-  }, [])
-
   useEffect(() => {
     if (authUser?.id) {
       void fetchMyActivity(authUser.id)
@@ -4069,10 +3999,6 @@ export default function MatnyaApp() {
       setMyComments([])
     }
   }, [authUser?.id, fetchMyActivity])
-
-  useEffect(() => {
-    void fetchWatchlist(currentActorUnifiedKey)
-  }, [currentActorUnifiedKey, fetchWatchlist])
 
   useEffect(() => {
     if (!voterKey) return
@@ -4450,6 +4376,10 @@ ${shareUrl}`)
   const currentPost: PostItem | null =
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
+  useEffect(() => {
+    setOutcomeModalOpen(false)
+  }, [currentPost?.id])
+
   const isViewingSharedPost =
     !!shareId &&
     !!sharedPostId &&
@@ -4495,7 +4425,11 @@ ${shareUrl}`)
     ? (postOutcomeMap[currentPost.id] ?? [])
     : []
   const latestOutcome = currentOutcomeItems[0] ?? null
-  const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
+  const canWriteOutcome =
+    !!currentPost &&
+    !!currentActorKey &&
+    !!currentPost.authorKey &&
+    String(currentPost.authorKey) === String(currentActorKey)
   const currentPostReactionSummary =
     (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
     EMPTY_POST_REACTION_SUMMARY
@@ -5213,97 +5147,6 @@ ${shareUrl}`)
     showToast('반응 반영')
   }
 
-  const toggleCurrentPostWatchlist = async () => {
-    if (!currentPost || !currentActorUnifiedKey) return
-
-    const alreadyActive = !!myWatchlistMap[currentPost.id]
-
-    setMyWatchlistMap((prev) => ({
-      ...prev,
-      [currentPost.id]: !alreadyActive,
-    }))
-
-    if (alreadyActive) {
-      setWatchlistItems((prev) =>
-        prev.filter((item) => item.postId !== currentPost.id),
-      )
-      const { error } = await supabase
-        .from('post_watchlist')
-        .delete()
-        .eq('post_id', currentPost.id)
-        .eq('actor_key', currentActorUnifiedKey)
-        .eq('watch_type', 'curious')
-
-      if (error) {
-        console.error('궁금한 글 해제 실패', error)
-        showToast('결말궁금 반영 실패')
-        void fetchWatchlist(currentActorUnifiedKey)
-        return
-      }
-
-      showToast('궁금한 글 해제')
-      return
-    }
-
-    const optimisticItem: WatchlistItem = {
-      id: -currentPost.id,
-      postId: currentPost.id,
-      title: currentPost.title,
-      category: currentPost.category,
-      ageGroup: currentPost.ageGroup,
-      createdAt: new Date().toISOString(),
-      latestOutcomeType: latestOutcome?.outcomeType ?? null,
-      latestOutcomeSummary: latestOutcome?.summary ?? null,
-      hasOutcome: !!latestOutcome,
-    }
-
-    setWatchlistItems((prev) => {
-      const next = [
-        optimisticItem,
-        ...prev.filter((item) => item.postId !== currentPost.id),
-      ]
-      next.sort((a, b) => {
-        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-        return (
-          new Date(b.createdAt ?? 0).getTime() -
-          new Date(a.createdAt ?? 0).getTime()
-        )
-      })
-      return next
-    })
-
-    const { data, error } = await supabase
-      .from('post_watchlist')
-      .insert({
-        post_id: currentPost.id,
-        actor_key: currentActorUnifiedKey,
-        watch_type: 'curious',
-      })
-      .select('id, created_at')
-      .single()
-
-    if (error) {
-      console.error('궁금한 글 등록 실패', error)
-      showToast('결말궁금 반영 실패')
-      void fetchWatchlist(currentActorUnifiedKey)
-      return
-    }
-
-    setWatchlistItems((prev) =>
-      prev.map((item) =>
-        item.postId === currentPost.id
-          ? {
-              ...item,
-              id: Number(data?.id ?? item.id),
-              createdAt: data?.created_at ?? item.createdAt,
-            }
-          : item,
-      ),
-    )
-
-    showToast('결말궁금 저장')
-  }
-
   const reactToPost = async (reactionType: PostReactionType) => {
     if (!currentPost || !currentActorUnifiedKey) return
 
@@ -5362,6 +5205,69 @@ ${shareUrl}`)
     }
 
     showToast('반응 반영')
+  }
+
+  const submitOutcome = async (
+    outcomeType: PostOutcomeItem['outcomeType'],
+    summary: string,
+  ) => {
+    if (!currentPost) return
+
+    const authorKey = currentPost.authorKey ?? null
+    if (
+      !authorKey ||
+      !currentActorKey ||
+      String(authorKey) !== String(currentActorKey)
+    ) {
+      showToast('작성자만 후기 등록 가능')
+      return
+    }
+
+    const trimmed = summary.trim()
+    if (!trimmed) {
+      showToast('후기 내용을 입력해줘')
+      return
+    }
+
+    const { data: inserted, error } = await supabase
+      .from('post_outcomes')
+      .insert({
+        post_id: currentPost.id,
+        outcome_type: outcomeType,
+        summary: trimmed,
+        created_by_key: currentActorUnifiedKey ?? currentActorKey,
+      })
+      .select('id, post_id, outcome_type, summary, created_at')
+      .single()
+
+    if (error) {
+      console.error('후기 등록 실패', error)
+      showToast('후기 등록 실패')
+      return
+    }
+
+    const nextItem: PostOutcomeItem = {
+      id: Number(inserted.id),
+      postId: Number(inserted.post_id),
+      outcomeType: inserted.outcome_type as PostOutcomeItem['outcomeType'],
+      summary: inserted.summary,
+      createdAt: inserted.created_at ?? null,
+    }
+
+    setPostOutcomeMap((prev) => {
+      const prevItems = prev[currentPost.id] ?? []
+      return {
+        ...prev,
+        [currentPost.id]: [nextItem, ...prevItems].sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return bTime - aTime
+        }),
+      }
+    })
+
+    setOutcomeModalOpen(false)
+    showToast('후기 등록 완료')
   }
 
   const addComment = async (text: string, side: Side) => {
@@ -6021,7 +5927,6 @@ ${shareUrl}`)
           onClose={() => setActivityOpen(false)}
           myPosts={myPosts}
           myComments={myComments}
-          watchlistItems={watchlistItems}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
@@ -6477,32 +6382,38 @@ ${shareUrl}`)
                             )
                           })}
                         </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button
-                            onClick={() => void toggleCurrentPostWatchlist()}
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-bold transition ${
-                              currentWatchlisted
-                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-200 bg-white text-slate-600'
-                            }`}
-                          >
-                            <span>
-                              {currentWatchlisted ? '결말기다림 ✓' : '결말궁금'}
-                            </span>
-                            <span className="text-[11px] text-slate-400">
-                              {currentWatchlisted
-                                ? '내 활동에서 다시 보기'
-                                : '나중에 결과 보기'}
-                            </span>
-                          </button>
-                        </div>
                         {latestOutcome ? (
                           <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                              {getOutcomeLabel(latestOutcome.outcomeType)}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                {getOutcomeLabel(latestOutcome.outcomeType)}
+                              </div>
+                              {canWriteOutcome ? (
+                                <button
+                                  onClick={() => setOutcomeModalOpen(true)}
+                                  className="rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]"
+                                >
+                                  후기 추가
+                                </button>
+                              ) : null}
                             </div>
                             <div className="mt-1">{latestOutcome.summary}</div>
                           </div>
+                        ) : canWriteOutcome ? (
+                          <button
+                            onClick={() => setOutcomeModalOpen(true)}
+                            className="mt-3 w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
+                          >
+                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                              AUTHOR UPDATE
+                            </div>
+                            <div className="mt-1 text-sm font-bold text-slate-900">
+                              작성자 후기 남기기
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              이 글의 이후 상황이나 결말을 짧게 등록할 수 있음
+                            </div>
+                          </button>
                         ) : null}
                       </div>
 
@@ -7000,7 +6911,6 @@ ${shareUrl}`)
           onClose={() => setActivityOpen(false)}
           myPosts={myPosts}
           myComments={myComments}
-          watchlistItems={watchlistItems}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
@@ -7033,6 +6943,16 @@ ${shareUrl}`)
           open={authOpen}
           onClose={() => setAuthOpen(false)}
           onGoogleLogin={() => void handleGoogleLogin()}
+        />
+
+        <OutcomeWriteModal
+          open={outcomeModalOpen}
+          onClose={() => setOutcomeModalOpen(false)}
+          onSubmit={(outcomeType, summary) =>
+            void submitOutcome(outcomeType, summary)
+          }
+          postTitle={currentPost?.title ?? '후기 등록'}
+          initialType="author_followup"
         />
 
         <ReportModal
