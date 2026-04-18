@@ -5131,6 +5131,50 @@ ${shareUrl}`)
     [hotNowPosts, currentPost?.id],
   )
 
+  const [liveTickerIndex, setLiveTickerIndex] = useState(0)
+
+  const liveTickerItems = useMemo(() => {
+    return discoveryTopPosts.slice(0, 3).map((item, index) => {
+      const hotMeta = hotScoreMap[item.id]
+      const turningMeta = turningPointMap[item.id]
+      const totalVotes =
+        Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
+      const turningLabel = getTurningPointLabel(turningMeta?.eventLabel)
+      const hotBadgeLabel = getHotBadge(hotMeta)?.label
+
+      const shortMetric = turningLabel
+        ? '방금 흐름 바뀜'
+        : hotMeta?.vote1h && hotMeta.vote1h > 0
+          ? `${hotMeta.vote1h}명/1시간`
+          : `${totalVotes}명 참여`
+
+      return {
+        id: item.id,
+        rank: index + 1,
+        title: item.title,
+        category: item.category,
+        shortMetric,
+        statusLabel: turningLabel ?? hotBadgeLabel ?? '반응 중',
+      }
+    })
+  }, [discoveryTopPosts, hotScoreMap, turningPointMap])
+
+  useEffect(() => {
+    if (liveTickerItems.length <= 1) return
+
+    const timer = window.setInterval(() => {
+      setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
+    }, 2400)
+
+    return () => window.clearInterval(timer)
+  }, [liveTickerItems])
+
+  useEffect(() => {
+    if (liveTickerIndex >= liveTickerItems.length) {
+      setLiveTickerIndex(0)
+    }
+  }, [liveTickerIndex, liveTickerItems.length])
+
   useEffect(() => {
     if (!currentPost?.id) return
 
@@ -6652,63 +6696,66 @@ ${shareUrl}`)
         </div>
 
         <main className="px-4 pb-32 pt-2">
-          {discoveryTopPosts.length > 0 ? (
-            <div className="mb-3 rounded-[24px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] p-3.5 shadow-[0_14px_30px_rgba(148,163,184,0.12)]">
-              <div className="flex items-center gap-2 text-[11px] font-extrabold tracking-[0.18em] text-[#4f7cff]">
-                <BarChart3 className="h-4 w-4" /> LIVE BOARD
-              </div>
-              <div className="mt-2 text-sm font-black text-slate-900">
-                지금 판 커지는 글
-              </div>
-              <div className="mt-1 text-[12px] font-semibold text-slate-500">
-                방금 불붙는 글부터 먼저 보게 만드는 실시간 보드
-              </div>
-              <div className="mt-3 space-y-2">
-                {discoveryTopPosts.map((item, index) => {
-                  const hotMeta = hotScoreMap[item.id]
-                  const turningMeta = turningPointMap[item.id]
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => moveToPostWithGuard(item.id)}
-                      className="w-full rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+          {liveTickerItems.length > 0 ? (
+            <div className="mb-3 overflow-hidden rounded-[16px] border border-[#dbe7ff] bg-white shadow-[0_8px_20px_rgba(79,124,255,0.08)]">
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <div className="shrink-0 rounded-full bg-[#4f7cff] px-2.5 py-1 text-[10px] font-black tracking-[0.16em] text-white">
+                  LIVE
+                </div>
+
+                <div className="relative h-[22px] min-w-0 flex-1 overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.button
+                      key={liveTickerItems[liveTickerIndex]?.id}
+                      type="button"
+                      onClick={() =>
+                        moveToPostWithGuard(liveTickerItems[liveTickerIndex].id)
+                      }
+                      initial={{ y: 18, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -18, opacity: 0 }}
+                      transition={{ duration: 0.22 }}
+                      className="absolute inset-0 flex w-full items-center gap-2 text-left"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-bold text-[#4f7cff]">
-                            TOP {index + 1}
-                          </div>
-                          <div className="mt-1 line-clamp-1 text-sm font-bold text-slate-900">
-                            {item.title}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
-                            <span>{hotMeta?.vote1h ?? 0}명/1시간</span>
-                            <span>·</span>
-                            <span>{item.comments.length}댓글</span>
-                            <span>·</span>
-                            <span>{item.leftVotes + item.rightVotes}참여</span>
-                          </div>
-                        </div>
-                        <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-extrabold text-slate-700">
-                          {getTurningPointLabel(turningMeta?.eventLabel) ??
-                            getHotBadge(hotMeta)?.label ??
-                            '반응 중'}
-                        </div>
-                      </div>
-                      <div className="mt-2 text-[11px] font-semibold text-slate-500">
-                        {getTurningPointLabel(turningMeta?.eventLabel)
-                          ? '지금 분위기가 바뀌는 중'
-                          : getHotBadge(hotMeta)?.label === '🔥 지금 난리남'
-                            ? '들어가면 바로 반응 쏟아지는 글'
-                            : getHotBadge(hotMeta)?.label === '💬 댓글 폭발'
-                              ? '댓글창에서 싸움 붙는 중'
-                              : getHotBadge(hotMeta)?.label === '📤 퍼지는 중'
-                                ? '공유 타고 퍼지는 글'
-                                : '반응이 계속 올라오는 글'}
-                      </div>
-                    </button>
-                  )
-                })}
+                      <span className="shrink-0 text-[12px] font-black text-[#4f7cff]">
+                        {liveTickerItems[liveTickerIndex].rank}위
+                      </span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                        {liveTickerItems[liveTickerIndex].category}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-900">
+                        {liveTickerItems[liveTickerIndex].title}
+                      </span>
+                      <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+                        {liveTickerItems[liveTickerIndex].shortMetric}
+                      </span>
+                    </motion.button>
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200/70 bg-slate-50/60 px-3 py-2">
+                <div className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
+                  {liveTickerItems[liveTickerIndex]?.statusLabel} · 지금
+                  사람들이 보는 글이 자동으로 바뀜
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {liveTickerItems.map((item, index) => {
+                    const active = index === liveTickerIndex
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setLiveTickerIndex(index)}
+                        aria-label={`${item.rank}위 보기`}
+                        className={`h-1.5 rounded-full transition-all ${
+                          active ? 'w-5 bg-[#4f7cff]' : 'w-1.5 bg-slate-300'
+                        }`}
+                      />
+                    )
+                  })}
+                </div>
               </div>
             </div>
           ) : null}
