@@ -8751,6 +8751,11 @@ ${shareUrl}`)
                                 사람들이 계속 들어오고 있어서 결과는 조금씩
                                 달라질 수 있음
                               </div>
+                              <div className="mt-2 text-[11px] text-slate-500">
+                                {currentWatchlisted
+                                  ? '내 활동에서 다시 확인 가능'
+                                  : '후기 올라오면 빨간불로 알려줌'}
+                              </div>
                             </div>
 
                             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -8764,9 +8769,15 @@ ${shareUrl}`)
                                 onClick={() =>
                                   void toggleCurrentPostWatchlist()
                                 }
-                                className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
+                                className={`rounded-[18px] px-3 py-2 text-[12px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.16)] ${
+                                  currentWatchlisted
+                                    ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+                                    : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
+                                }`}
                               >
-                                결말궁금 저장
+                                {currentWatchlisted
+                                  ? '결말궁금 저장됨 ✓'
+                                  : '결말궁금 저장'}
                               </button>
                             </div>
                           </div>
@@ -8862,49 +8873,28 @@ ${shareUrl}`)
                         QUICK REACTION
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {(
-                          Object.keys(POST_REACTION_META) as PostReactionType[]
-                        ).map((reactionType) => {
-                          const meta = POST_REACTION_META[reactionType]
-                          const count = Number(
-                            currentPostReactionSummary[reactionType] ?? 0,
-                          )
-                          const active =
-                            !!myPostReactions[
-                              `${currentPost.id}:${reactionType}`
-                            ]
-                          return (
-                            <button
-                              key={reactionType}
-                              onClick={() => void reactToPost(reactionType)}
-                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${active ? meta.activeClass : meta.idleClass}`}
-                            >
-                              <span>{meta.label}</span>
-                              <span>{count}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <button
-                          onClick={() => void toggleCurrentPostWatchlist()}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-bold transition ${
-                            currentWatchlisted
-                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                              : 'border-slate-200 bg-white text-slate-600'
-                          }`}
-                        >
-                          <span>
-                            {currentWatchlisted
-                              ? '결말궁금 저장됨 ✓'
-                              : '결말궁금 저장'}
-                          </span>
-                          <span className="text-[11px] text-slate-400">
-                            {currentWatchlisted
-                              ? '내 활동에서 다시 확인 가능'
-                              : '후기 올라오면 빨간불로 알려줌'}
-                          </span>
-                        </button>
+                        {(Object.keys(POST_REACTION_META) as PostReactionType[])
+                          .filter((reactionType) => reactionType !== 'curious')
+                          .map((reactionType) => {
+                            const meta = POST_REACTION_META[reactionType]
+                            const count = Number(
+                              currentPostReactionSummary[reactionType] ?? 0,
+                            )
+                            const active =
+                              !!myPostReactions[
+                                `${currentPost.id}:${reactionType}`
+                              ]
+                            return (
+                              <button
+                                key={reactionType}
+                                onClick={() => void reactToPost(reactionType)}
+                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${active ? meta.activeClass : meta.idleClass}`}
+                              >
+                                <span>{meta.label}</span>
+                                <span>{count}</span>
+                              </button>
+                            )
+                          })}
                       </div>
                       {latestOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
