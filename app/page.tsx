@@ -3667,9 +3667,6 @@ export default function MatnyaApp() {
   const metaRefreshInFlightRef = useRef(false)
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
-  const authLoadInFlightRef = useRef(false)
-  const resultUnlockSaveInFlightRef = useRef<Record<number, boolean>>({})
-  const resultUnlockLastPayloadRef = useRef<Record<number, string>>({})
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -3754,10 +3751,6 @@ export default function MatnyaApp() {
   }, [])
 
   const loadAuthState = useCallback(async () => {
-    if (authLoadInFlightRef.current) return
-
-    authLoadInFlightRef.current = true
-
     try {
       const result = await ensureProfile()
       setAuthUser(result.user)
@@ -3776,8 +3769,6 @@ export default function MatnyaApp() {
         hint: error?.hint,
         code: error?.code,
       })
-    } finally {
-      authLoadInFlightRef.current = false
     }
   }, [])
 
@@ -5058,10 +5049,12 @@ export default function MatnyaApp() {
     )
 
     try {
-      await fetchWatchlist(currentActorUnifiedKey)
-      await loadReactionAndOutcomeData(postIds, commentIds)
-      await loadDramaEnhancementData(postIds)
-      await loadResultUnlocks(postIds)
+      await Promise.all([
+        fetchWatchlist(currentActorUnifiedKey),
+        loadReactionAndOutcomeData(postIds, commentIds),
+        loadDramaEnhancementData(postIds),
+        loadResultUnlocks(postIds),
+      ])
     } finally {
       metaRefreshInFlightRef.current = false
 
@@ -5097,16 +5090,10 @@ export default function MatnyaApp() {
       if (immediate) {
         if (metaRefreshTimerRef.current) {
           clearTimeout(metaRefreshTimerRef.current)
+          metaRefreshTimerRef.current = null
         }
 
-        const immediateDelay = metaRefreshInFlightRef.current
-          ? 260
-          : Math.max(baseDelay, 90)
-
-        metaRefreshTimerRef.current = setTimeout(() => {
-          metaRefreshTimerRef.current = null
-          void refreshLightweightMetaNow()
-        }, immediateDelay)
+        void refreshLightweightMetaNow()
         return
       }
 
@@ -5141,10 +5128,6 @@ export default function MatnyaApp() {
       let base = existing
 
       if (!base) {
-        if (resultUnlockSaveInFlightRef.current[postId]) {
-          return null
-        }
-
         const { count, error: countError } = await supabase
           .from('post_result_unlocks')
           .select('*', { count: 'exact', head: true })
@@ -5176,42 +5159,14 @@ export default function MatnyaApp() {
               0,
               base.commentReads + Number(patch.commentReadsDelta ?? 0),
             )
-      const nextIsWatchlisted =
-        typeof patch.isWatchlisted === 'boolean'
-          ? patch.isWatchlisted
-          : base.isWatchlisted
-
-      if (
-        existing &&
-        existing.unlockLevel === nextUnlockLevel &&
-        existing.commentReads === nextCommentReads &&
-        existing.isWatchlisted === nextIsWatchlisted
-      ) {
-        return existing
-      }
-
-      const payloadKey = JSON.stringify({
-        postId,
-        unlockLevel: nextUnlockLevel,
-        commentReads: nextCommentReads,
-        isWatchlisted: nextIsWatchlisted,
-      })
-
-      if (resultUnlockSaveInFlightRef.current[postId]) {
-        if (resultUnlockLastPayloadRef.current[postId] === payloadKey) {
-          return existing ?? null
-        }
-        return existing ?? null
-      }
-
-      resultUnlockSaveInFlightRef.current[postId] = true
-      resultUnlockLastPayloadRef.current[postId] = payloadKey
-
       const nextItem: ResultUnlockItem = {
         ...base,
         unlockLevel: nextUnlockLevel,
         commentReads: nextCommentReads,
-        isWatchlisted: nextIsWatchlisted,
+        isWatchlisted:
+          typeof patch.isWatchlisted === 'boolean'
+            ? patch.isWatchlisted
+            : base.isWatchlisted,
         updatedAt: new Date().toISOString(),
       }
 
@@ -5220,58 +5175,52 @@ export default function MatnyaApp() {
         [postId]: nextItem,
       }))
 
-      try {
-        const { data, error } = await supabase
-          .from('post_result_unlocks')
-          .upsert(
-            {
-              post_id: postId,
-              voter_key: currentActorUnifiedKey,
-              unlock_level: nextItem.unlockLevel,
-              comment_reads: nextItem.commentReads,
-              is_watchlisted: nextItem.isWatchlisted,
-              updated_at: nextItem.updatedAt,
-            },
-            {
-              onConflict: 'post_id,voter_key',
-            },
-          )
-          .select(
-            'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
-          )
-          .maybeSingle()
+      const { data, error } = await supabase
+        .from('post_result_unlocks')
+        .upsert(
+          {
+            post_id: postId,
+            voter_key: currentActorUnifiedKey,
+            unlock_level: nextItem.unlockLevel,
+            comment_reads: nextItem.commentReads,
+            is_watchlisted: nextItem.isWatchlisted,
+            updated_at: nextItem.updatedAt,
+          },
+          {
+            onConflict: 'post_id,voter_key',
+          },
+        )
+        .select(
+          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+        )
+        .maybeSingle()
 
-        if (error) {
-          console.error('결과 공개 단계 저장 실패', error)
-          return null
-        }
-
-        if (data) {
-          const savedItem: ResultUnlockItem = {
-            postId: Number(data.post_id),
-            voterKey: String(data.voter_key ?? currentActorUnifiedKey),
-            unlockLevel: Math.max(
-              1,
-              Number(data.unlock_level ?? nextItem.unlockLevel),
-            ),
-            commentReads: Number(data.comment_reads ?? nextItem.commentReads),
-            isWatchlisted: Boolean(
-              data.is_watchlisted ?? nextItem.isWatchlisted,
-            ),
-            createdAt: data.created_at ?? nextItem.createdAt,
-            updatedAt: data.updated_at ?? nextItem.updatedAt,
-          }
-          setResultUnlockMap((prev) => ({
-            ...prev,
-            [postId]: savedItem,
-          }))
-          return savedItem
-        }
-
-        return nextItem
-      } finally {
-        resultUnlockSaveInFlightRef.current[postId] = false
+      if (error) {
+        console.error('결과 공개 단계 저장 실패', error)
+        return null
       }
+
+      if (data) {
+        const savedItem: ResultUnlockItem = {
+          postId: Number(data.post_id),
+          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
+          unlockLevel: Math.max(
+            1,
+            Number(data.unlock_level ?? nextItem.unlockLevel),
+          ),
+          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
+          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
+          createdAt: data.created_at ?? nextItem.createdAt,
+          updatedAt: data.updated_at ?? nextItem.updatedAt,
+        }
+        setResultUnlockMap((prev) => ({
+          ...prev,
+          [postId]: savedItem,
+        }))
+        return savedItem
+      }
+
+      return nextItem
     },
     [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
@@ -5810,6 +5759,42 @@ ${shareUrl}`)
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (currentWatchlisted) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 3,
+        isWatchlisted: true,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    currentWatchlisted,
+    votes,
+    upsertResultUnlock,
+  ])
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (latestOutcome) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 4,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    latestOutcome?.id,
+    revisitMeta?.label,
+    votes,
+    upsertResultUnlock,
+  ])
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
@@ -6577,7 +6562,7 @@ ${shareUrl}`)
       }
 
       scheduleDiscoveryRefresh(syncedPosts)
-      requestLightweightMetaRefresh({ delay: 220 })
+      requestLightweightMetaRefresh({ immediate: true })
 
       void updateProgress(
         {
@@ -6631,28 +6616,8 @@ ${shareUrl}`)
   }
 
   const focusCurrentPostCard = useCallback(
-    (behavior: ScrollBehavior = 'smooth') => {
-      if (typeof window === 'undefined') return
-
-      window.requestAnimationFrame(() => {
-        const target = currentPostCardRef.current
-        if (!target) return
-
-        const rect = target.getBoundingClientRect()
-        const absoluteTop = window.scrollY + rect.top
-        const topOffset = 84
-        const nextTop = Math.max(absoluteTop - topOffset, 0)
-
-        window.scrollTo({ top: nextTop, behavior })
-
-        setPostFocusPulse(true)
-        if (postFocusPulseTimerRef.current) {
-          window.clearTimeout(postFocusPulseTimerRef.current)
-        }
-        postFocusPulseTimerRef.current = window.setTimeout(() => {
-          setPostFocusPulse(false)
-        }, 900)
-      })
+    (behavior: ScrollBehavior = 'auto') => {
+      return
     },
     [],
   )
@@ -6692,7 +6657,6 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    focusCurrentPostCard()
   }
 
   const next = () => {
@@ -6705,7 +6669,6 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    focusCurrentPostCard()
   }
 
   const handleNextWithGuard = () => {
@@ -6729,7 +6692,6 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
-      focusCurrentPostCard()
       return
     }
 
@@ -6740,7 +6702,6 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
-      focusCurrentPostCard()
     }
   }
 
@@ -6755,7 +6716,6 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
-      focusCurrentPostCard()
       setActivityOpen(false)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
@@ -7006,7 +6966,6 @@ ${shareUrl}`)
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
     })
-    requestLightweightMetaRefresh({ delay: 320 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
