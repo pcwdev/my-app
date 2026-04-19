@@ -1185,6 +1185,37 @@ function getRevealStateLabel(leftVotes: number, rightVotes: number) {
   }
 }
 
+function getPreVoteSignalTitle(
+  totalVotes: number,
+  commentsCount: number,
+  tension?: PostTensionState | null,
+) {
+  if (tension?.isFlipImminent) return '다음 한 표면 뒤집힘'
+  if (tension?.tensionType === 'brawl') return '지금 완전 갈리는 판'
+  if (tension?.tensionType === 'tight') return '생각보다 팽팽한 판'
+  if (commentsCount >= 20) return '댓글도 꽤 붙은 판'
+  if (totalVotes >= 50) return '사람들이 많이 보고 있는 판'
+  if (totalVotes >= 10) return '이미 반응이 들어온 판'
+  return '지금 반응이 쌓이는 중'
+}
+
+function getPreVoteSignalHelper(
+  totalVotes: number,
+  commentsCount: number,
+  tension?: PostTensionState | null,
+) {
+  const parts: string[] = []
+  if (totalVotes > 0) parts.push(`${totalVotes}명 참여`)
+  if (commentsCount > 0) parts.push(`댓글 ${commentsCount}개`)
+
+  const base =
+    parts.length > 0 ? parts.join(' · ') : '아직 첫 반응이 들어오는 중'
+  if (tension?.tensionType === 'brawl' || tension?.tensionType === 'tight') {
+    return `${base} · 선택하면 분위기 공개`
+  }
+  return `${base} · 선택 후 결과 흐름 보기`
+}
+
 function getRevealHintLabel(leftVotes: number, rightVotes: number) {
   const left = Math.max(0, Number(leftVotes ?? 0))
   const right = Math.max(0, Number(rightVotes ?? 0))
@@ -1423,12 +1454,18 @@ const VoteOption = React.memo(function VoteOption({
   active,
   label,
   value,
+  showValue = false,
+  previewTitle = '지금 반응이 쌓이는 중',
+  previewHelper = '선택하면 분위기 공개',
   onClick,
   disabled = false,
 }: {
   active: boolean
   label: string
   value: number
+  showValue?: boolean
+  previewTitle?: string
+  previewHelper?: string
   onClick: () => void
   disabled?: boolean
 }) {
@@ -1436,13 +1473,13 @@ const VoteOption = React.memo(function VoteOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
+      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
         active
           ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
           : 'border-slate-200/80 bg-white shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
       } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-slate-50'}`}
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <span
           className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
             active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
@@ -1450,16 +1487,28 @@ const VoteOption = React.memo(function VoteOption({
         >
           {label}
         </span>
-        <span className="text-[17px] font-extrabold text-slate-900">
-          {value}%
-        </span>
+        {showValue ? (
+          <span className="text-[17px] font-extrabold text-slate-900">
+            {value}%
+          </span>
+        ) : (
+          <span className="text-[12px] font-bold text-slate-500">
+            {previewTitle}
+          </span>
+        )}
       </div>
-      <div className="h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
-        <div
-          className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
-          style={{ width: `${value}%` }}
-        />
-      </div>
+      {showValue ? (
+        <div className="mt-2 h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
+          <div
+            className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
+            style={{ width: `${value}%` }}
+          />
+        </div>
+      ) : (
+        <div className="mt-2 text-[12px] font-semibold text-slate-500">
+          {previewHelper}
+        </div>
+      )}
     </button>
   )
 })
@@ -5379,6 +5428,20 @@ ${shareUrl}`)
     ? (postTensionMap[currentPost.id] ?? null)
     : null
   const currentTensionMeta = getTensionMeta(currentTension)
+  const currentPreVoteSignalTitle = currentPost
+    ? getPreVoteSignalTitle(
+        currentPost.leftVotes + currentPost.rightVotes,
+        currentPost.comments.length,
+        currentTension,
+      )
+    : '지금 반응이 쌓이는 중'
+  const currentPreVoteSignalHelper = currentPost
+    ? getPreVoteSignalHelper(
+        currentPost.leftVotes + currentPost.rightVotes,
+        currentPost.comments.length,
+        currentTension,
+      )
+    : '선택하면 분위기 공개'
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -6786,7 +6849,7 @@ ${shareUrl}`)
       unlockLevel: 3,
       isWatchlisted: true,
     })
-    showToast('결과까지 보기')
+    showToast('결과 보기')
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -7943,16 +8006,20 @@ ${shareUrl}`)
                 <VoteOption
                   active={votes[currentPost.id] === 'left'}
                   label={currentPost.leftLabel}
-                  value={votes[currentPost.id] ? displayedPercent.left : p.left}
+                  value={displayedPercent.left}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
                   onClick={() => void handleVote('left')}
                   disabled={isVoting}
                 />
                 <VoteOption
                   active={votes[currentPost.id] === 'right'}
                   label={currentPost.rightLabel}
-                  value={
-                    votes[currentPost.id] ? displayedPercent.right : p.right
-                  }
+                  value={displayedPercent.right}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
                   onClick={() => void handleVote('right')}
                   disabled={isVoting}
                 />
@@ -8052,7 +8119,7 @@ ${shareUrl}`)
                                   }
                                   className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
                                 >
-                                  결과까지 보기
+                                  결과 보기
                                 </button>
                               </div>
                             ) : null}
