@@ -5625,6 +5625,59 @@ export default function MatnyaApp() {
     [voterKey],
   )
 
+  const upsertLocalShareInboxItem = useCallback(
+    (input: {
+      sessionId: string
+      postId: number
+      title: string
+      ownerChoice: VoteSide | null
+      createdAt?: string | null
+      leftLabel?: string
+      rightLabel?: string
+      totalCount?: number
+      leftCount?: number
+      rightCount?: number
+      overallLeftCount?: number
+      overallRightCount?: number
+    }) => {
+      const nextItem: ShareInboxItem = {
+        sessionId: input.sessionId,
+        postId: input.postId,
+        title: input.title,
+        ownerChoice: input.ownerChoice,
+        createdAt: input.createdAt ?? new Date().toISOString(),
+        leftCount: Number(input.leftCount ?? 0),
+        rightCount: Number(input.rightCount ?? 0),
+        totalCount: Number(input.totalCount ?? 0),
+        unreadCount: 0,
+        overallLeftCount: Number(input.overallLeftCount ?? 0),
+        overallRightCount: Number(input.overallRightCount ?? 0),
+        overallTotalCount:
+          Number(input.overallLeftCount ?? 0) +
+          Number(input.overallRightCount ?? 0),
+        leftLabel: input.leftLabel,
+        rightLabel: input.rightLabel,
+      }
+
+      setShareInboxItems((prev) => {
+        const existingIndex = prev.findIndex(
+          (item) => item.sessionId === nextItem.sessionId,
+        )
+        if (existingIndex >= 0) {
+          const cloned = [...prev]
+          cloned[existingIndex] = {
+            ...cloned[existingIndex],
+            ...nextItem,
+            unreadCount: cloned[existingIndex].unreadCount,
+          }
+          return cloned
+        }
+        return [nextItem, ...prev]
+      })
+    },
+    [],
+  )
+
   const openShareInbox = useCallback(() => {
     setShareInboxOpen(true)
     void loadOwnerShareInbox()
@@ -6141,6 +6194,20 @@ ${shareUrl}`)
       setShareOwnerKey(String(data.owner_key ?? voterKey))
       setSharedPostId(Number(data.post_id ?? currentPost.id))
       syncShareUrl(currentPost.id, nextShareId)
+      upsertLocalShareInboxItem({
+        sessionId: nextShareId,
+        postId: Number(data.post_id ?? currentPost.id),
+        title: currentPost.title,
+        ownerChoice: choice,
+        createdAt: new Date().toISOString(),
+        leftLabel: currentPost.leftLabel,
+        rightLabel: currentPost.rightLabel,
+        totalCount: 0,
+        leftCount: 0,
+        rightCount: 0,
+        overallLeftCount: currentPost.leftVotes,
+        overallRightCount: currentPost.rightVotes,
+      })
       await loadShareStatsBySessionId(nextShareId)
       await logPostEvent({
         postId: currentPost.id,
@@ -6155,6 +6222,7 @@ ${shareUrl}`)
       currentPost,
       voterKey,
       syncShareUrl,
+      upsertLocalShareInboxItem,
       loadShareStatsBySessionId,
       logPostEvent,
       scheduleDiscoveryRefresh,
@@ -6223,6 +6291,7 @@ ${shareUrl}`)
 
   const shareCurrentPost = useCallback(async () => {
     if (!currentPost) return
+    if (typeof window === 'undefined') return
 
     const currentChoice = votes[currentPost.id]
     if (!currentChoice) {
@@ -6244,12 +6313,53 @@ ${shareUrl}`)
         return
       }
       setSharedEntryActive(false)
-      setShowOwnerShareResults(false)
       lastShareTotalRef.current = 0
     } else if (activeShareId) {
       await loadShareStatsBySessionId(activeShareId)
       syncShareUrl(currentPost.id, activeShareId)
+      upsertLocalShareInboxItem({
+        sessionId: activeShareId,
+        postId: currentPost.id,
+        title: currentPost.title,
+        ownerChoice: currentChoice,
+        createdAt: new Date().toISOString(),
+        leftLabel: currentPost.leftLabel,
+        rightLabel: currentPost.rightLabel,
+        totalCount: shareStats.left + shareStats.right,
+        leftCount: shareStats.left,
+        rightCount: shareStats.right,
+        overallLeftCount: currentPost.leftVotes,
+        overallRightCount: currentPost.rightVotes,
+      })
     }
+
+    if (!activeShareId) {
+      showToast('공유 링크 생성 실패')
+      return
+    }
+
+    setShareId(activeShareId)
+    setShareOwnerKey(voterKey || null)
+    setSharedPostId(currentPost.id)
+    setSharedEntryActive(false)
+    setShowOwnerShareResults(true)
+    setShareInboxOpen(true)
+    upsertLocalShareInboxItem({
+      sessionId: activeShareId,
+      postId: currentPost.id,
+      title: currentPost.title,
+      ownerChoice: currentChoice,
+      createdAt: new Date().toISOString(),
+      leftLabel: currentPost.leftLabel,
+      rightLabel: currentPost.rightLabel,
+      totalCount: shouldCreateNewShare ? 0 : shareStats.left + shareStats.right,
+      leftCount: shouldCreateNewShare ? 0 : shareStats.left,
+      rightCount: shouldCreateNewShare ? 0 : shareStats.right,
+      overallLeftCount: currentPost.leftVotes,
+      overallRightCount: currentPost.rightVotes,
+    })
+    void loadOwnerShareInbox(true)
+    showToast('보낸 공유함에 바로 저장됨')
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
     const shareText = `이거 맞냐?
@@ -6273,15 +6383,22 @@ ${shareUrl}`)
       }
     } catch (error) {
       console.error('공유 실패', error)
+    } finally {
+      void loadOwnerShareInbox(true)
     }
   }, [
     currentPost,
     shareId,
     sharedPostId,
+    shareStats.left,
+    shareStats.right,
     votes,
+    voterKey,
     createShareSession,
     loadShareStatsBySessionId,
+    loadOwnerShareInbox,
     syncShareUrl,
+    upsertLocalShareInboxItem,
     showToast,
   ])
 
