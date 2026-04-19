@@ -3596,6 +3596,7 @@ export default function MatnyaApp() {
   const postsRef = useRef<PostItem[]>([])
   const currentPostCardRef = useRef<HTMLDivElement | null>(null)
   const postFocusPulseTimerRef = useRef<number | null>(null)
+  const kakaoTransitionLockRef = useRef(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [postFocusPulse, setPostFocusPulse] = useState(false)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
@@ -3680,6 +3681,7 @@ export default function MatnyaApp() {
   const [justCreatedPostId, setJustCreatedPostId] = useState<number | null>(
     null,
   )
+  const isKakaoSafeMode = useMemo(() => isKakaoInAppBrowser(), [])
   const [hotScoreMap, setHotScoreMap] = useState<Record<number, HotMeta>>({})
   const [turningPointMap, setTurningPointMap] = useState<
     Record<number, TurningPointMeta>
@@ -5795,6 +5797,15 @@ ${shareUrl}`)
         currentTension,
       )
     : '선택하면 분위기 공개'
+  const isOwnCurrentPost =
+    !!currentActorKey &&
+    !!currentPost?.authorKey &&
+    String(currentPost.authorKey) === String(currentActorKey)
+  const shouldRenderKakaoHeavyBlocks =
+    !isKakaoSafeMode ||
+    !currentPost ||
+    isOwnCurrentPost ||
+    currentPost.comments.length <= 2
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -6331,14 +6342,14 @@ ${shareUrl}`)
   }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
 
   useEffect(() => {
-    if (liveTickerItems.length <= 1) return
+    if (isKakaoSafeMode || liveTickerItems.length <= 1) return
 
     const timer = window.setInterval(() => {
       setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
     }, 2400)
 
     return () => window.clearInterval(timer)
-  }, [liveTickerItems])
+  }, [isKakaoSafeMode, liveTickerItems])
 
   useEffect(() => {
     if (liveTickerIndex >= liveTickerItems.length) {
@@ -6771,6 +6782,36 @@ ${shareUrl}`)
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (kakaoTransitionLockRef.current) {
+        kakaoTransitionLockRef.current = false
+      }
+    }
+  }, [])
+
+  const runKakaoSafeTransition = useCallback(
+    (callback: () => void, delay = 24) => {
+      if (!isKakaoSafeMode || typeof window === 'undefined') {
+        callback()
+        return
+      }
+
+      if (kakaoTransitionLockRef.current) return
+      kakaoTransitionLockRef.current = true
+
+      window.setTimeout(() => {
+        window.requestAnimationFrame(() => {
+          callback()
+          window.setTimeout(() => {
+            kakaoTransitionLockRef.current = false
+          }, 180)
+        })
+      }, delay)
+    },
+    [isKakaoSafeMode],
+  )
+
   const recordChoicePath = useCallback(
     (fromPostId: number, toPostId: number) => {
       if (!currentActorUnifiedKey || fromPostId === toPostId) return
@@ -6796,8 +6837,10 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, targetPost.id)
     }
 
-    endSharedEntryMode()
-    setCurrentIndex(targetIndex)
+    runKakaoSafeTransition(() => {
+      endSharedEntryMode()
+      setCurrentIndex(targetIndex)
+    })
   }
 
   const next = () => {
@@ -6808,8 +6851,10 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, targetPost.id)
     }
 
-    endSharedEntryMode()
-    setCurrentIndex(targetIndex)
+    runKakaoSafeTransition(() => {
+      endSharedEntryMode()
+      setCurrentIndex(targetIndex)
+    })
   }
 
   const handleNextWithGuard = () => {
@@ -6831,18 +6876,22 @@ ${shareUrl}`)
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
       recordChoicePath(currentPost.id, postId)
-      endSharedEntryMode()
-      setCurrentIndex(nextIndexInFiltered)
+      runKakaoSafeTransition(() => {
+        endSharedEntryMode()
+        setCurrentIndex(nextIndexInFiltered)
+      })
       return
     }
 
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
       recordChoicePath(currentPost.id, postId)
-      endSharedEntryMode()
-      setTab('추천')
-      setSelectedCategory('전체')
-      setCurrentIndex(fallbackIndex)
+      runKakaoSafeTransition(() => {
+        endSharedEntryMode()
+        setTab('추천')
+        setSelectedCategory('전체')
+        setCurrentIndex(fallbackIndex)
+      })
     }
   }
 
@@ -6853,11 +6902,13 @@ ${shareUrl}`)
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
       }
-      endSharedEntryMode()
-      setTab('추천')
-      setSelectedCategory('전체')
-      setCurrentIndex(index)
-      setActivityOpen(false)
+      runKakaoSafeTransition(() => {
+        endSharedEntryMode()
+        setTab('추천')
+        setSelectedCategory('전체')
+        setCurrentIndex(index)
+        setActivityOpen(false)
+      })
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
@@ -6877,12 +6928,14 @@ ${shareUrl}`)
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
       }
-      endSharedEntryMode()
-      setTab('추천')
-      setSelectedCategory('전체')
-      setCurrentIndex(index)
-      setActivityOpen(false)
-      setCommentOpen(true)
+      runKakaoSafeTransition(() => {
+        endSharedEntryMode()
+        setTab('추천')
+        setSelectedCategory('전체')
+        setCurrentIndex(index)
+        setActivityOpen(false)
+        setCommentOpen(true)
+      })
     }
   }
 
@@ -7648,13 +7701,15 @@ ${shareUrl}`)
     }
 
     clearShareMode()
-    setTab('최신')
-    setSelectedCategory('전체')
-    setCurrentIndex(0)
-    setJustCreatedPostId(newPost.id)
-    setWriteOpen(false)
-    setCommentOpen(false)
-    setActivityOpen(false)
+    runKakaoSafeTransition(() => {
+      setTab('최신')
+      setSelectedCategory('전체')
+      setCurrentIndex(0)
+      setJustCreatedPostId(newPost.id)
+      setWriteOpen(false)
+      setCommentOpen(false)
+      setActivityOpen(false)
+    })
     markPostMeaningful(newPost)
     scheduleDiscoveryRefresh([newPost, ...posts])
     showToast('내가 쓴 글 등록 완료')
@@ -8021,10 +8076,6 @@ ${shareUrl}`)
       }
     : p
   const levelInfo = getLevelInfo(stats.points)
-  const isOwnCurrentPost =
-    !!currentActorKey &&
-    !!currentPost.authorKey &&
-    String(currentPost.authorKey) === String(currentActorKey)
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
@@ -8123,8 +8174,10 @@ ${shareUrl}`)
                 <button
                   key={label}
                   onClick={() => {
-                    setTab(label)
-                    setCurrentIndex(0)
+                    runKakaoSafeTransition(() => {
+                      setTab(label)
+                      setCurrentIndex(0)
+                    })
                   }}
                   className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
                     tab === label
@@ -8143,8 +8196,10 @@ ${shareUrl}`)
                   <button
                     key={category}
                     onClick={() => {
-                      setSelectedCategory(category)
-                      setCurrentIndex(0)
+                      runKakaoSafeTransition(() => {
+                        setSelectedCategory(category)
+                        setCurrentIndex(0)
+                      })
                     }}
                     className={`whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-semibold tracking-[-0.01em] transition ${
                       selectedCategory === category
@@ -8165,7 +8220,7 @@ ${shareUrl}`)
         </div>
 
         <main className="px-4 pb-32 pt-2">
-          {activeLiveTickerItem ? (
+          {!isKakaoSafeMode && activeLiveTickerItem ? (
             <div className="mb-3 overflow-hidden rounded-[18px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_28px_rgba(79,124,255,0.12)]">
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
@@ -8236,6 +8291,7 @@ ${shareUrl}`)
           ) : null}
 
           <div
+            key={`${currentPost?.id ?? 'empty'}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
             ref={currentPostCardRef}
             className={`rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_22px_48px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/90'}`}
           >
@@ -8703,31 +8759,32 @@ ${shareUrl}`)
                       </div>
                     </button>
 
-                    {controversialPosts.length > 0 && (
-                      <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="mb-3 text-sm font-bold text-slate-900">
-                          지금 들어가면 바로 갈릴 논쟁 TOP3
+                    {shouldRenderKakaoHeavyBlocks &&
+                      controversialPosts.length > 0 && (
+                        <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                          <div className="mb-3 text-sm font-bold text-slate-900">
+                            지금 들어가면 바로 갈릴 논쟁 TOP3
+                          </div>
+                          <div className="space-y-2">
+                            {controversialPosts.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => moveToPostWithGuard(item.id)}
+                                className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
+                              >
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.total}명 참여 · 의견 팽팽
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {controversialPosts.map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => moveToPostWithGuard(item.id)}
-                              className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
-                            >
-                              <div className="text-sm font-semibold text-slate-900">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-slate-500">
-                                {item.total}명 참여 · 의견 팽팽
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {!isViewingSharedPost ? (
+                    {shouldRenderKakaoHeavyBlocks && !isViewingSharedPost ? (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => void shareCurrentPost()}
