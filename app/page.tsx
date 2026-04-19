@@ -3712,6 +3712,8 @@ export default function MatnyaApp() {
     {},
   )
   const autoUnlockSignatureRef = useRef<Record<string, string>>({})
+  const postReactionInFlightRef = useRef<Record<string, boolean>>({})
+  const commentReactionInFlightRef = useRef<Record<string, boolean>>({})
 
   useEffect(() => {
     postsRef.current = posts
@@ -6897,7 +6899,11 @@ ${shareUrl}`)
     if (!currentActorUnifiedKey) return
 
     const mapKey = `${commentId}:${reactionType}`
+    if (commentReactionInFlightRef.current[mapKey]) return
+
     const alreadyActive = !!myCommentReactions[mapKey]
+
+    commentReactionInFlightRef.current[mapKey] = true
 
     setMyCommentReactions((prev) => ({
       ...prev,
@@ -6918,39 +6924,49 @@ ${shareUrl}`)
       }
     })
 
-    if (alreadyActive) {
-      const { error } = await supabase
-        .from('comment_reactions')
-        .delete()
-        .eq('comment_id', commentId)
-        .eq('reactor_key', currentActorUnifiedKey)
-        .eq('reaction_type', reactionType)
+    try {
+      if (alreadyActive) {
+        const { error } = await supabase
+          .from('comment_reactions')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('reactor_key', currentActorUnifiedKey)
+          .eq('reaction_type', reactionType)
 
-      if (error) {
-        console.error('댓글 반응 삭제 실패', error)
+        if (error) {
+          console.error('댓글 반응 삭제 실패', error)
+          showToast('댓글 반응 반영 실패')
+          void fetchAll(voterKey)
+          return
+        }
+
+        showToast('반응 취소')
+        return
+      }
+
+      const { error } = await supabase.from('comment_reactions').upsert(
+        {
+          comment_id: commentId,
+          reactor_key: currentActorUnifiedKey,
+          reaction_type: reactionType,
+        },
+        {
+          onConflict: 'comment_id,reactor_key,reaction_type',
+          ignoreDuplicates: true,
+        },
+      )
+
+      if (error && error.code !== '23505') {
+        console.error('댓글 반응 등록 실패', error)
         showToast('댓글 반응 반영 실패')
         void fetchAll(voterKey)
         return
       }
 
-      showToast('반응 취소')
-      return
+      showToast('반응 반영')
+    } finally {
+      commentReactionInFlightRef.current[mapKey] = false
     }
-
-    const { error } = await supabase.from('comment_reactions').insert({
-      comment_id: commentId,
-      reactor_key: currentActorUnifiedKey,
-      reaction_type: reactionType,
-    })
-
-    if (error) {
-      console.error('댓글 반응 등록 실패', error)
-      showToast('댓글 반응 반영 실패')
-      void fetchAll(voterKey)
-      return
-    }
-
-    showToast('반응 반영')
   }
 
   const markWatchlistOutcomeSeen = useCallback(
@@ -7214,7 +7230,11 @@ ${shareUrl}`)
     if (!currentPost || !currentActorUnifiedKey) return
 
     const mapKey = `${currentPost.id}:${reactionType}`
+    if (postReactionInFlightRef.current[mapKey]) return
+
     const alreadyActive = !!myPostReactions[mapKey]
+
+    postReactionInFlightRef.current[mapKey] = true
 
     setMyPostReactions((prev) => ({
       ...prev,
@@ -7235,39 +7255,49 @@ ${shareUrl}`)
       }
     })
 
-    if (alreadyActive) {
-      const { error } = await supabase
-        .from('post_reactions')
-        .delete()
-        .eq('post_id', currentPost.id)
-        .eq('reactor_key', currentActorUnifiedKey)
-        .eq('reaction_type', reactionType)
+    try {
+      if (alreadyActive) {
+        const { error } = await supabase
+          .from('post_reactions')
+          .delete()
+          .eq('post_id', currentPost.id)
+          .eq('reactor_key', currentActorUnifiedKey)
+          .eq('reaction_type', reactionType)
 
-      if (error) {
-        console.error('게시글 반응 삭제 실패', error)
+        if (error) {
+          console.error('게시글 반응 삭제 실패', error)
+          showToast('게시글 반응 반영 실패')
+          void fetchAll(voterKey)
+          return
+        }
+
+        showToast('반응 취소')
+        return
+      }
+
+      const { error } = await supabase.from('post_reactions').upsert(
+        {
+          post_id: currentPost.id,
+          reactor_key: currentActorUnifiedKey,
+          reaction_type: reactionType,
+        },
+        {
+          onConflict: 'post_id,reactor_key,reaction_type',
+          ignoreDuplicates: true,
+        },
+      )
+
+      if (error && error.code !== '23505') {
+        console.error('게시글 반응 등록 실패', error)
         showToast('게시글 반응 반영 실패')
         void fetchAll(voterKey)
         return
       }
 
-      showToast('반응 취소')
-      return
+      showToast('반응 반영')
+    } finally {
+      postReactionInFlightRef.current[mapKey] = false
     }
-
-    const { error } = await supabase.from('post_reactions').insert({
-      post_id: currentPost.id,
-      reactor_key: currentActorUnifiedKey,
-      reaction_type: reactionType,
-    })
-
-    if (error) {
-      console.error('게시글 반응 등록 실패', error)
-      showToast('게시글 반응 반영 실패')
-      void fetchAll(voterKey)
-      return
-    }
-
-    showToast('반응 반영')
   }
 
   const addComment = async (text: string, side: Side) => {
