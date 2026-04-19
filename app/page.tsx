@@ -5228,6 +5228,17 @@ export default function MatnyaApp() {
     [currentActorUnifiedKey, refreshLightweightMetaNow],
   )
 
+  const refreshWatchlistSignalsAfterAction = useCallback(
+    (delay = 120) => {
+      if (!currentActorUnifiedKey) return
+
+      window.setTimeout(() => {
+        requestLightweightMetaRefresh({ delay })
+      }, 0)
+    },
+    [currentActorUnifiedKey, requestLightweightMetaRefresh],
+  )
+
   const upsertResultUnlock = useCallback(
     async (postId: number, patch: ResultUnlockPatch) => {
       if (!currentActorUnifiedKey || !postId) return null
@@ -6898,6 +6909,7 @@ ${shareUrl}`)
       endSharedEntryMode()
       setCurrentIndex(targetIndex)
     })
+    refreshWatchlistSignalsAfterAction(120)
   }
 
   const next = () => {
@@ -6913,6 +6925,7 @@ ${shareUrl}`)
       endSharedEntryMode()
       setCurrentIndex(targetIndex)
     })
+    refreshWatchlistSignalsAfterAction(120)
   }
 
   const handleNextWithGuard = () => {
@@ -6939,6 +6952,7 @@ ${shareUrl}`)
         endSharedEntryMode()
         setCurrentIndex(nextIndexInFiltered)
       })
+      refreshWatchlistSignalsAfterAction(120)
       return
     }
 
@@ -6952,6 +6966,7 @@ ${shareUrl}`)
         setSelectedCategory('전체')
         setCurrentIndex(fallbackIndex)
       })
+      refreshWatchlistSignalsAfterAction(120)
     }
   }
 
@@ -6970,6 +6985,7 @@ ${shareUrl}`)
         setCurrentIndex(index)
         setActivityOpen(false)
       })
+      refreshWatchlistSignalsAfterAction(80)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
@@ -7237,6 +7253,7 @@ ${shareUrl}`)
       isWatchlisted: currentWatchlisted,
     })
     requestLightweightMetaRefresh({ immediate: true, delay: 0 })
+    refreshWatchlistSignalsAfterAction(0)
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -7272,6 +7289,7 @@ ${shareUrl}`)
         return
       }
 
+      refreshWatchlistSignalsAfterAction(80)
       showToast('궁금한 글 해제')
       return
     }
@@ -7338,6 +7356,7 @@ ${shareUrl}`)
       unlockLevel: 3,
       isWatchlisted: true,
     })
+    refreshWatchlistSignalsAfterAction(80)
     showToast('결과 보기')
   }
 
@@ -7486,6 +7505,7 @@ ${shareUrl}`)
       },
       '🔥 +3 포인트',
     )
+    refreshWatchlistSignalsAfterAction(120)
   }
 
   const likeComment = async (commentId: number): Promise<void> => {
@@ -8242,6 +8262,7 @@ ${shareUrl}`)
                       setTab(label)
                       setCurrentIndex(0)
                     })
+                    refreshWatchlistSignalsAfterAction(120)
                   }}
                   className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
                     tab === label
@@ -8265,6 +8286,7 @@ ${shareUrl}`)
                         setSelectedCategory(category)
                         setCurrentIndex(0)
                       })
+                      refreshWatchlistSignalsAfterAction(120)
                     }}
                     className={`whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-semibold tracking-[-0.01em] transition ${
                       selectedCategory === category
@@ -8342,7 +8364,10 @@ ${shareUrl}`)
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setLiveTickerIndex(index)}
+                        onClick={() => {
+                          setLiveTickerIndex(index)
+                          refreshWatchlistSignalsAfterAction(120)
+                        }}
                         aria-label={`${item.rank}위 보기`}
                         className={`h-1.5 rounded-full transition-all ${
                           active ? 'w-5 bg-[#4f7cff]' : 'w-1.5 bg-slate-300'
