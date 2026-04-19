@@ -6348,7 +6348,19 @@ ${shareUrl}`)
     }
   }, [liveTickerIndex, liveTickerItems.length])
 
-  const activeLiveTickerItem = null
+  type LiveTickerItem = {
+    id: number
+    rank: number
+    title: string
+    category: string
+    shortMetric: string
+    emotionLabel: string
+    liveBadgeLabel: string
+    rankToneClass: string
+  }
+
+  const activeLiveTickerItem: LiveTickerItem | null =
+    (liveTickerItems[0] as LiveTickerItem | undefined) ?? null
 
   const handleLiveTickerOpen = () => {
     if (!activeLiveTickerItem) return
