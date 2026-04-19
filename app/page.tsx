@@ -130,8 +130,11 @@ type WatchlistItem = {
   createdAt: string | null
   latestOutcomeType: PostOutcomeItem['outcomeType'] | null
   latestOutcomeSummary: string | null
+  latestOutcomeCreatedAt: string | null
   hasOutcome: boolean
   unreadOutcome: boolean
+  watchStatus: 'waiting' | 'updated' | 'archived'
+  archivedAt: string | null
 }
 
 type PostItem = {
@@ -1439,6 +1442,77 @@ function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
   }
 }
 
+function getWatchlistStatusMeta(status: WatchlistItem['watchStatus']) {
+  switch (status) {
+    case 'updated':
+      return {
+        label: '새 소식',
+        helper: '후기/결말 먼저 확인',
+        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      }
+    case 'archived':
+      return {
+        label: '보관됨',
+        helper: '이미 확인한 업데이트',
+        toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+      }
+    default:
+      return {
+        label: '대기중',
+        helper: '아직 새 후기가 없음',
+        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+      }
+  }
+}
+
+function compareWatchlistItems(a: WatchlistItem, b: WatchlistItem) {
+  const order: Record<WatchlistItem['watchStatus'], number> = {
+    updated: 0,
+    waiting: 1,
+    archived: 2,
+  }
+
+  if (order[a.watchStatus] !== order[b.watchStatus]) {
+    return order[a.watchStatus] - order[b.watchStatus]
+  }
+
+  const aSignalTime =
+    a.watchStatus === 'updated'
+      ? a.latestOutcomeCreatedAt
+      : (a.archivedAt ?? a.createdAt)
+  const bSignalTime =
+    b.watchStatus === 'updated'
+      ? b.latestOutcomeCreatedAt
+      : (b.archivedAt ?? b.createdAt)
+
+  return (
+    new Date(bSignalTime ?? 0).getTime() - new Date(aSignalTime ?? 0).getTime()
+  )
+}
+
+function normalizeWatchStatus(
+  value?: string | null,
+): WatchlistItem['watchStatus'] {
+  if (value === 'updated' || value === 'archived') return value
+  return 'waiting'
+}
+
+function resolveWatchlistStatus(input: {
+  unreadOutcome: boolean
+  latestOutcomeCreatedAt?: string | null
+  archivedAt?: string | null
+  storedStatus?: string | null
+}): WatchlistItem['watchStatus'] {
+  if (input.unreadOutcome && input.latestOutcomeCreatedAt) return 'updated'
+  if (
+    input.archivedAt ||
+    normalizeWatchStatus(input.storedStatus) === 'archived'
+  ) {
+    return 'archived'
+  }
+  return 'waiting'
+}
+
 function getStreakTone(count: number) {
   if (count >= 10) return 'border-amber-200 bg-amber-50 text-amber-700'
   if (count >= 5) return 'border-violet-200 bg-violet-50 text-violet-700'
@@ -1908,6 +1982,7 @@ function MyActivityModal({
   unreadWatchlistCount,
   initialTab = 'posts',
   onOpenPost,
+  onOpenWatchlistItem,
   onOpenComment,
   onLogout,
   profile,
@@ -1922,6 +1997,7 @@ function MyActivityModal({
   unreadWatchlistCount: number
   initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number) => void
+  onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
   profile: ProfileRow | null
@@ -1929,12 +2005,44 @@ function MyActivityModal({
   badges: string[]
 }) {
   const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
+  const [profileExpanded, setProfileExpanded] = useState(false)
+  const [watchlistFilter, setWatchlistFilter] =
+    useState<WatchlistItem['watchStatus']>('updated')
 
   useEffect(() => {
-    if (open) setTab(initialTab)
+    if (open) {
+      setTab(initialTab)
+      setProfileExpanded(false)
+      setWatchlistFilter('updated')
+    }
   }, [open, initialTab])
 
   if (!open) return null
+
+  const levelInfo = getLevelInfo(stats.points)
+  const levelTheme = getLevelTheme(levelInfo.level)
+  const topBadges = badges.slice(0, 3)
+  const extraBadgeCount = Math.max(0, badges.length - topBadges.length)
+  const summaryStats = [
+    { label: '글', value: stats.posts_count },
+    { label: '댓글', value: stats.comments_count },
+    { label: '궁금', value: watchlistItems.length },
+  ]
+  const updatedWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'updated',
+  )
+  const waitingWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'waiting',
+  )
+  const archivedWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'archived',
+  )
+  const filteredWatchlistItems =
+    watchlistFilter === 'updated'
+      ? updatedWatchlistItems
+      : watchlistFilter === 'waiting'
+        ? waitingWatchlistItems
+        : archivedWatchlistItems
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -1943,7 +2051,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              로그인 계정으로 남긴 글과 댓글
+              내가 올린 글, 댓글, 저장한 글 모아보기
             </div>
           </div>
           <button
@@ -1954,107 +2062,149 @@ function MyActivityModal({
           </button>
         </div>
 
-        <div className="shrink-0 px-5 pt-4">
-          {(() => {
-            const levelInfo = getLevelInfo(stats.points)
-            const levelTheme = getLevelTheme(levelInfo.level)
-
-            return (
-              <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      {profile?.anonymous_name ?? '익명 유저'}
-                    </div>
-                    <div className="mt-2">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${levelTheme.chipClass}`}
-                      >
-                        <span>{levelTheme.icon}</span>
-                        <span>Lv.{levelInfo.level}</span>
-                        <span>{levelInfo.label}</span>
-                      </span>
-                    </div>
+        <div className="shrink-0 px-4 pt-3">
+          <div className="rounded-[28px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="truncate text-[15px] font-bold text-slate-900">
+                    {profile?.anonymous_name ?? '익명 유저'}
                   </div>
-                  <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#4f7cff]">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${levelTheme.chipClass}`}
+                  >
+                    <span>{levelTheme.icon}</span>
+                    <span>Lv.{levelInfo.level}</span>
+                    <span>{levelInfo.label}</span>
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                  <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 font-black text-[#4f7cff]">
                     {stats.points}P
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>다음 레벨 진행도</span>
-                    <span>{levelInfo.progress}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div
-                      className="h-2 rounded-full bg-[#4f7cff] transition-all"
-                      style={{ width: `${levelInfo.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">판단</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.votes_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">댓글</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.comments_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">글</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.posts_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">받은 공감</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.likes_received}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-2 text-xs font-semibold text-slate-500">
-                    획득 뱃지
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {badges.length === 0 ? (
-                      <div className="text-xs text-slate-400">
-                        아직 획득한 뱃지가 없음
-                      </div>
-                    ) : (
-                      badges.map((badge) => {
-                        const badgeTheme = getBadgeTheme(badge)
-                        return (
-                          <span
-                            key={badge}
-                            className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
-                          >
-                            {badgeTheme.icon} {badge}
-                          </span>
-                        )
-                      })
-                    )}
-                  </div>
+                  </span>
+                  <span>판단 {stats.votes_count}</span>
+                  <span>·</span>
+                  <span>받은 공감 {stats.likes_received}</span>
                 </div>
               </div>
-            )
-          })()}
 
-          <div className="flex gap-2">
+              <button
+                onClick={() => setProfileExpanded((prev) => !prev)}
+                className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600"
+              >
+                {profileExpanded ? '접기' : '더보기'}
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {summaryStats.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl bg-slate-50 px-2 py-2.5"
+                >
+                  <div className="text-[10px] font-semibold text-slate-400">
+                    {item.label}
+                  </div>
+                  <div className="mt-1 text-sm font-extrabold text-slate-900">
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topBadges.length === 0 ? (
+                <div className="text-[11px] text-slate-400">
+                  아직 획득한 뱃지 없음
+                </div>
+              ) : (
+                topBadges.map((badge) => {
+                  const badgeTheme = getBadgeTheme(badge)
+                  return (
+                    <span
+                      key={badge}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                    >
+                      {badgeTheme.icon} {badge}
+                    </span>
+                  )
+                })
+              )}
+              {extraBadgeCount > 0 ? (
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                  +{extraBadgeCount}
+                </span>
+              ) : null}
+            </div>
+
+            <AnimatePresence initial={false}>
+              {profileExpanded ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>다음 레벨 진행도</span>
+                      <span>{levelInfo.progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className="h-2 rounded-full bg-[#4f7cff] transition-all"
+                        style={{ width: `${levelInfo.progress}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">판단</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.votes_count}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">받은 공감</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.likes_received}
+                        </div>
+                      </div>
+                    </div>
+
+                    {badges.length > 0 ? (
+                      <div className="mt-3">
+                        <div className="mb-2 text-[11px] font-semibold text-slate-500">
+                          전체 뱃지
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {badges.map((badge) => {
+                            const badgeTheme = getBadgeTheme(badge)
+                            return (
+                              <span
+                                key={`expanded-${badge}`}
+                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                              >
+                                {badgeTheme.icon} {badge}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setTab('posts')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'posts'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2062,9 +2212,9 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'comments'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2072,9 +2222,9 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('watchlist')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'watchlist'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2088,21 +2238,87 @@ function MyActivityModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
-            <div className="text-sm text-slate-500">
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               로그인 후 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
-            <div className="text-sm text-slate-500">
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               로그인 후 작성한 댓글이 없음
             </div>
           )}
-          {tab === 'watchlist' && watchlistItems.length === 0 && (
-            <div className="text-sm text-slate-500">
-              결말궁금으로 저장한 글이 없음
-            </div>
+          {tab === 'watchlist' && (
+            <>
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    {
+                      key: 'updated',
+                      label: '새 소식',
+                      count: updatedWatchlistItems.length,
+                    },
+                    {
+                      key: 'waiting',
+                      label: '대기중',
+                      count: waitingWatchlistItems.length,
+                    },
+                    {
+                      key: 'archived',
+                      label: '보관됨',
+                      count: archivedWatchlistItems.length,
+                    },
+                  ].map((item) => {
+                    const active = watchlistFilter === item.key
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() =>
+                          setWatchlistFilter(
+                            item.key as WatchlistItem['watchStatus'],
+                          )
+                        }
+                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                          active
+                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {item.label}
+                        <span
+                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            active
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white text-slate-500'
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-500">
+                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
+                  이동
+                </div>
+              </div>
+
+              {watchlistItems.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  결말궁금으로 저장한 글이 없음
+                </div>
+              ) : filteredWatchlistItems.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  {watchlistFilter === 'updated'
+                    ? '아직 새로 도착한 후기가 없음'
+                    : watchlistFilter === 'waiting'
+                      ? '후기 대기중인 글이 없음'
+                      : '보관된 업데이트가 없음'}
+                </div>
+              ) : null}
+            </>
           )}
 
           {tab === 'posts' &&
@@ -2110,7 +2326,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">
                   {item.category} · {item.ageGroup}
@@ -2127,7 +2343,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenComment(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">{item.postTitle}</div>
                 <div className="mt-1 text-sm text-slate-900/85">
@@ -2140,46 +2356,55 @@ function MyActivityModal({
             ))}
 
           {tab === 'watchlist' &&
-            watchlistItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-xs text-slate-500">
-                    {item.category} · {item.ageGroup}
-                  </div>
-                  {item.latestOutcomeType ? (
-                    <>
+            filteredWatchlistItems.map((item) => {
+              const statusMeta = getWatchlistStatusMeta(item.watchStatus)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onOpenWatchlistItem(item)}
+                  className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-xs text-slate-500">
+                      {item.category} · {item.ageGroup}
+                    </div>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusMeta.toneClass}`}
+                    >
+                      {statusMeta.label}
+                    </span>
+                    {item.latestOutcomeType ? (
                       <span
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
                       >
                         {getOutcomeLabel(item.latestOutcomeType)}
                       </span>
-                      {item.unreadOutcome ? (
-                        <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                          새 후기
-                        </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      후기 대기중
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 font-bold text-slate-900">
-                  {item.title}
-                </div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
-                </div>
-                <div className="mt-2 text-xs text-slate-400">
-                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
-                </div>
-              </button>
-            ))}
+                    ) : null}
+                    {item.unreadOutcome ? (
+                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                        읽기 전
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 font-bold text-slate-900">
+                    {item.title}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    {item.latestOutcomeSummary ??
+                      (item.watchStatus === 'archived'
+                        ? '이미 확인한 업데이트 글'
+                        : '나중에 결과 보려고 저장한 글')}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400">
+                    {item.watchStatus === 'updated'
+                      ? '눌러서 확인하면 보관됨으로 이동'
+                      : item.watchStatus === 'archived'
+                        ? '다시 본 업데이트 글'
+                        : '결말 기다리는 글'}
+                  </div>
+                </button>
+              )
+            })}
         </div>
 
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
@@ -3451,6 +3676,9 @@ export default function MatnyaApp() {
   const metaRefreshInFlightRef = useRef(false)
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
+  const authLoadInFlightRef = useRef(false)
+  const resultUnlockSaveInFlightRef = useRef<Record<number, boolean>>({})
+  const resultUnlockLastPayloadRef = useRef<Record<number, string>>({})
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -3535,6 +3763,10 @@ export default function MatnyaApp() {
   }, [])
 
   const loadAuthState = useCallback(async () => {
+    if (authLoadInFlightRef.current) return
+
+    authLoadInFlightRef.current = true
+
     try {
       const result = await ensureProfile()
       setAuthUser(result.user)
@@ -3553,6 +3785,8 @@ export default function MatnyaApp() {
         hint: error?.hint,
         code: error?.code,
       })
+    } finally {
+      authLoadInFlightRef.current = false
     }
   }, [])
 
@@ -4641,7 +4875,7 @@ export default function MatnyaApp() {
 
     const { data: watchRows, error: watchError } = await supabase
       .from('post_watchlist')
-      .select('id, post_id, created_at')
+      .select('id, post_id, created_at, watch_status, archived_at')
       .eq('actor_key', actorKey)
       .eq('watch_type', 'curious')
       .order('created_at', { ascending: false })
@@ -4655,6 +4889,8 @@ export default function MatnyaApp() {
       id: Number(row.id),
       postId: Number(row.post_id),
       createdAt: row.created_at ?? null,
+      watchStatus: normalizeWatchStatus(row.watch_status),
+      archivedAt: row.archived_at ?? null,
     }))
 
     if (rows.length === 0) {
@@ -4721,6 +4957,14 @@ export default function MatnyaApp() {
 
         watchedMap[row.postId] = true
         nextSeenState[row.postId] = lastSeenAt
+        const latestOutcomeCreatedAt = latestOutcome?.created_at ?? null
+        const watchStatus = resolveWatchlistStatus({
+          unreadOutcome,
+          latestOutcomeCreatedAt,
+          archivedAt: row.archivedAt,
+          storedStatus: row.watchStatus,
+        })
+
         return {
           id: row.id,
           postId: row.postId,
@@ -4730,20 +4974,16 @@ export default function MatnyaApp() {
           createdAt: row.createdAt,
           latestOutcomeType: latestOutcome?.outcome_type ?? null,
           latestOutcomeSummary: latestOutcome?.summary ?? null,
+          latestOutcomeCreatedAt,
           hasOutcome: !!latestOutcome,
           unreadOutcome,
+          watchStatus,
+          archivedAt: row.archivedAt,
         } satisfies WatchlistItem
       })
       .filter(Boolean) as WatchlistItem[]
 
-    items.sort((a, b) => {
-      if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
-      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-      return (
-        new Date(b.createdAt ?? 0).getTime() -
-        new Date(a.createdAt ?? 0).getTime()
-      )
-    })
+    items.sort(compareWatchlistItems)
 
     setWatchlistItems(items)
     setMyWatchlistMap(watchedMap)
@@ -4827,12 +5067,10 @@ export default function MatnyaApp() {
     )
 
     try {
-      await Promise.all([
-        fetchWatchlist(currentActorUnifiedKey),
-        loadReactionAndOutcomeData(postIds, commentIds),
-        loadDramaEnhancementData(postIds),
-        loadResultUnlocks(postIds),
-      ])
+      await fetchWatchlist(currentActorUnifiedKey)
+      await loadReactionAndOutcomeData(postIds, commentIds)
+      await loadDramaEnhancementData(postIds)
+      await loadResultUnlocks(postIds)
     } finally {
       metaRefreshInFlightRef.current = false
 
@@ -4868,10 +5106,16 @@ export default function MatnyaApp() {
       if (immediate) {
         if (metaRefreshTimerRef.current) {
           clearTimeout(metaRefreshTimerRef.current)
-          metaRefreshTimerRef.current = null
         }
 
-        void refreshLightweightMetaNow()
+        const immediateDelay = metaRefreshInFlightRef.current
+          ? 260
+          : Math.max(baseDelay, 90)
+
+        metaRefreshTimerRef.current = setTimeout(() => {
+          metaRefreshTimerRef.current = null
+          void refreshLightweightMetaNow()
+        }, immediateDelay)
         return
       }
 
@@ -4906,6 +5150,10 @@ export default function MatnyaApp() {
       let base = existing
 
       if (!base) {
+        if (resultUnlockSaveInFlightRef.current[postId]) {
+          return null
+        }
+
         const { count, error: countError } = await supabase
           .from('post_result_unlocks')
           .select('*', { count: 'exact', head: true })
@@ -4937,14 +5185,42 @@ export default function MatnyaApp() {
               0,
               base.commentReads + Number(patch.commentReadsDelta ?? 0),
             )
+      const nextIsWatchlisted =
+        typeof patch.isWatchlisted === 'boolean'
+          ? patch.isWatchlisted
+          : base.isWatchlisted
+
+      if (
+        existing &&
+        existing.unlockLevel === nextUnlockLevel &&
+        existing.commentReads === nextCommentReads &&
+        existing.isWatchlisted === nextIsWatchlisted
+      ) {
+        return existing
+      }
+
+      const payloadKey = JSON.stringify({
+        postId,
+        unlockLevel: nextUnlockLevel,
+        commentReads: nextCommentReads,
+        isWatchlisted: nextIsWatchlisted,
+      })
+
+      if (resultUnlockSaveInFlightRef.current[postId]) {
+        if (resultUnlockLastPayloadRef.current[postId] === payloadKey) {
+          return existing ?? null
+        }
+        return existing ?? null
+      }
+
+      resultUnlockSaveInFlightRef.current[postId] = true
+      resultUnlockLastPayloadRef.current[postId] = payloadKey
+
       const nextItem: ResultUnlockItem = {
         ...base,
         unlockLevel: nextUnlockLevel,
         commentReads: nextCommentReads,
-        isWatchlisted:
-          typeof patch.isWatchlisted === 'boolean'
-            ? patch.isWatchlisted
-            : base.isWatchlisted,
+        isWatchlisted: nextIsWatchlisted,
         updatedAt: new Date().toISOString(),
       }
 
@@ -4953,52 +5229,58 @@ export default function MatnyaApp() {
         [postId]: nextItem,
       }))
 
-      const { data, error } = await supabase
-        .from('post_result_unlocks')
-        .upsert(
-          {
-            post_id: postId,
-            voter_key: currentActorUnifiedKey,
-            unlock_level: nextItem.unlockLevel,
-            comment_reads: nextItem.commentReads,
-            is_watchlisted: nextItem.isWatchlisted,
-            updated_at: nextItem.updatedAt,
-          },
-          {
-            onConflict: 'post_id,voter_key',
-          },
-        )
-        .select(
-          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
-        )
-        .maybeSingle()
+      try {
+        const { data, error } = await supabase
+          .from('post_result_unlocks')
+          .upsert(
+            {
+              post_id: postId,
+              voter_key: currentActorUnifiedKey,
+              unlock_level: nextItem.unlockLevel,
+              comment_reads: nextItem.commentReads,
+              is_watchlisted: nextItem.isWatchlisted,
+              updated_at: nextItem.updatedAt,
+            },
+            {
+              onConflict: 'post_id,voter_key',
+            },
+          )
+          .select(
+            'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+          )
+          .maybeSingle()
 
-      if (error) {
-        console.error('결과 공개 단계 저장 실패', error)
-        return null
-      }
-
-      if (data) {
-        const savedItem: ResultUnlockItem = {
-          postId: Number(data.post_id),
-          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
-          unlockLevel: Math.max(
-            1,
-            Number(data.unlock_level ?? nextItem.unlockLevel),
-          ),
-          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
-          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
-          createdAt: data.created_at ?? nextItem.createdAt,
-          updatedAt: data.updated_at ?? nextItem.updatedAt,
+        if (error) {
+          console.error('결과 공개 단계 저장 실패', error)
+          return null
         }
-        setResultUnlockMap((prev) => ({
-          ...prev,
-          [postId]: savedItem,
-        }))
-        return savedItem
-      }
 
-      return nextItem
+        if (data) {
+          const savedItem: ResultUnlockItem = {
+            postId: Number(data.post_id),
+            voterKey: String(data.voter_key ?? currentActorUnifiedKey),
+            unlockLevel: Math.max(
+              1,
+              Number(data.unlock_level ?? nextItem.unlockLevel),
+            ),
+            commentReads: Number(data.comment_reads ?? nextItem.commentReads),
+            isWatchlisted: Boolean(
+              data.is_watchlisted ?? nextItem.isWatchlisted,
+            ),
+            createdAt: data.created_at ?? nextItem.createdAt,
+            updatedAt: data.updated_at ?? nextItem.updatedAt,
+          }
+          setResultUnlockMap((prev) => ({
+            ...prev,
+            [postId]: savedItem,
+          }))
+          return savedItem
+        }
+
+        return nextItem
+      } finally {
+        resultUnlockSaveInFlightRef.current[postId] = false
+      }
     },
     [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
@@ -5537,42 +5819,6 @@ ${shareUrl}`)
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
-
-  useEffect(() => {
-    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
-      return
-
-    if (currentWatchlisted) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 3,
-        isWatchlisted: true,
-      })
-    }
-  }, [
-    currentActorUnifiedKey,
-    currentPost?.id,
-    currentWatchlisted,
-    votes,
-    upsertResultUnlock,
-  ])
-
-  useEffect(() => {
-    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
-      return
-
-    if (latestOutcome) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 4,
-      })
-    }
-  }, [
-    currentActorUnifiedKey,
-    currentPost?.id,
-    latestOutcome?.id,
-    revisitMeta?.label,
-    votes,
-    upsertResultUnlock,
-  ])
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
@@ -6340,7 +6586,7 @@ ${shareUrl}`)
       }
 
       scheduleDiscoveryRefresh(syncedPosts)
-      requestLightweightMetaRefresh({ immediate: true })
+      requestLightweightMetaRefresh({ delay: 220 })
 
       void updateProgress(
         {
@@ -6455,7 +6701,6 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    requestLightweightMetaRefresh()
     focusCurrentPostCard()
   }
 
@@ -6469,7 +6714,6 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    requestLightweightMetaRefresh()
     focusCurrentPostCard()
   }
 
@@ -6525,6 +6769,13 @@ ${shareUrl}`)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
+    }
+  }
+
+  const openWatchlistItemDirect = (item: WatchlistItem) => {
+    openPostDirect(item.postId)
+    if (item.latestOutcomeCreatedAt) {
+      void markWatchlistOutcomeSeen(item.postId, item.latestOutcomeCreatedAt)
     }
   }
 
@@ -6628,35 +6879,52 @@ ${shareUrl}`)
       setWatchlistItems((prev) =>
         prev
           .map((item) =>
-            item.postId === postId ? { ...item, unreadOutcome: false } : item,
+            item.postId === postId
+              ? ({
+                  ...item,
+                  unreadOutcome: false,
+                  watchStatus: normalizeWatchStatus(
+                    item.latestOutcomeType ? 'archived' : item.watchStatus,
+                  ),
+                  archivedAt:
+                    item.latestOutcomeType && !item.archivedAt
+                      ? new Date().toISOString()
+                      : item.archivedAt,
+                } as WatchlistItem)
+              : item,
           )
-          .sort((a, b) => {
-            if (a.unreadOutcome !== b.unreadOutcome)
-              return a.unreadOutcome ? -1 : 1
-            if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-            return (
-              new Date(b.createdAt ?? 0).getTime() -
-              new Date(a.createdAt ?? 0).getTime()
-            )
-          }),
+          .sort(compareWatchlistItems),
       )
 
-      const { error } = await supabase
-        .from('post_watchlist_outcome_reads')
-        .upsert(
+      const seenAt = new Date().toISOString()
+      const [{ error }, { error: watchUpdateError }] = await Promise.all([
+        supabase.from('post_watchlist_outcome_reads').upsert(
           {
             actor_key: currentActorUnifiedKey,
             post_id: postId,
             last_seen_outcome_created_at: latestSeenAt,
-            updated_at: new Date().toISOString(),
+            updated_at: seenAt,
           },
           {
             onConflict: 'actor_key,post_id',
           },
-        )
+        ),
+        supabase
+          .from('post_watchlist')
+          .update({
+            watch_status: 'archived',
+            archived_at: seenAt,
+          })
+          .eq('actor_key', currentActorUnifiedKey)
+          .eq('post_id', postId)
+          .eq('watch_type', 'curious'),
+      ])
 
       if (error) {
         console.error('궁금한 글 읽음 처리 실패', error)
+      }
+      if (watchUpdateError) {
+        console.error('궁금한 글 상태 업데이트 실패', watchUpdateError)
       }
     },
     [currentActorUnifiedKey, postOutcomeMap],
@@ -6727,24 +6995,19 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? {
+            ? ({
                 ...item,
                 latestOutcomeType: nextItem.outcomeType,
                 latestOutcomeSummary: nextItem.summary,
+                latestOutcomeCreatedAt: nextItem.createdAt,
                 hasOutcome: true,
                 unreadOutcome: false,
-              }
+                watchStatus: 'archived',
+                archivedAt: new Date().toISOString(),
+              } as WatchlistItem)
             : item,
         )
-        .sort((a, b) => {
-          if (a.unreadOutcome !== b.unreadOutcome)
-            return a.unreadOutcome ? -1 : 1
-          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-          return (
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime()
-          )
-        }),
+        .sort(compareWatchlistItems),
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
@@ -6752,7 +7015,7 @@ ${shareUrl}`)
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
     })
-    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
+    requestLightweightMetaRefresh({ delay: 320 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -6801,8 +7064,11 @@ ${shareUrl}`)
       createdAt: new Date().toISOString(),
       latestOutcomeType: latestOutcome?.outcomeType ?? null,
       latestOutcomeSummary: latestOutcome?.summary ?? null,
+      latestOutcomeCreatedAt: latestOutcome?.createdAt ?? null,
       hasOutcome: !!latestOutcome,
       unreadOutcome: false,
+      watchStatus: normalizeWatchStatus(latestOutcome ? 'archived' : 'waiting'),
+      archivedAt: latestOutcome ? new Date().toISOString() : null,
     }
 
     setWatchlistItems((prev) => {
@@ -6810,14 +7076,7 @@ ${shareUrl}`)
         optimisticItem,
         ...prev.filter((item) => item.postId !== currentPost.id),
       ]
-      next.sort((a, b) => {
-        if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
-        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-        return (
-          new Date(b.createdAt ?? 0).getTime() -
-          new Date(a.createdAt ?? 0).getTime()
-        )
-      })
+      next.sort(compareWatchlistItems)
       return next
     })
 
@@ -6827,6 +7086,8 @@ ${shareUrl}`)
         post_id: currentPost.id,
         actor_key: currentActorUnifiedKey,
         watch_type: 'curious',
+        watch_status: latestOutcome ? 'archived' : 'waiting',
+        archived_at: latestOutcome ? new Date().toISOString() : null,
       })
       .select('id, created_at')
       .single()
@@ -6842,22 +7103,14 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? {
+            ? ({
                 ...item,
                 id: Number(data?.id ?? item.id),
                 createdAt: data?.created_at ?? item.createdAt,
-              }
+              } as WatchlistItem)
             : item,
         )
-        .sort((a, b) => {
-          if (a.unreadOutcome !== b.unreadOutcome)
-            return a.unreadOutcome ? -1 : 1
-          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-          return (
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime()
-          )
-        }),
+        .sort(compareWatchlistItems),
     )
 
     void upsertResultUnlock(currentPost.id, {
@@ -7603,6 +7856,7 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
+          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
@@ -8810,6 +9064,7 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
+          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
