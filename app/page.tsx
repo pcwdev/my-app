@@ -14,7 +14,6 @@ import {
   User,
   X,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 
 const LIMITS = {
@@ -2179,66 +2178,58 @@ function MyActivityModal({
               ) : null}
             </div>
 
-            <AnimatePresence initial={false}>
-              {profileExpanded ? (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-3 border-t border-slate-100 pt-3">
-                    <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
-                      <span>다음 레벨 진행도</span>
-                      <span>{levelInfo.progress}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-[#4f7cff] transition-all"
-                        style={{ width: `${levelInfo.progress}%` }}
-                      />
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                        <div className="text-slate-400">판단</div>
-                        <div className="mt-1 font-bold text-slate-900">
-                          {stats.votes_count}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                        <div className="text-slate-400">받은 공감</div>
-                        <div className="mt-1 font-bold text-slate-900">
-                          {stats.likes_received}
-                        </div>
-                      </div>
-                    </div>
-
-                    {badges.length > 0 ? (
-                      <div className="mt-3">
-                        <div className="mb-2 text-[11px] font-semibold text-slate-500">
-                          전체 뱃지
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {badges.map((badge) => {
-                            const badgeTheme = getBadgeTheme(badge)
-                            return (
-                              <span
-                                key={`expanded-${badge}`}
-                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
-                              >
-                                {badgeTheme.icon} {badge}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
+            {profileExpanded ? (
+              <div className="overflow-hidden">
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>다음 레벨 진행도</span>
+                    <span>{levelInfo.progress}%</span>
                   </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-[#4f7cff] transition-all"
+                      style={{ width: `${levelInfo.progress}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                      <div className="text-slate-400">판단</div>
+                      <div className="mt-1 font-bold text-slate-900">
+                        {stats.votes_count}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                      <div className="text-slate-400">받은 공감</div>
+                      <div className="mt-1 font-bold text-slate-900">
+                        {stats.likes_received}
+                      </div>
+                    </div>
+                  </div>
+
+                  {badges.length > 0 ? (
+                    <div className="mt-3">
+                      <div className="mb-2 text-[11px] font-semibold text-slate-500">
+                        전체 뱃지
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {badges.map((badge) => {
+                          const badgeTheme = getBadgeTheme(badge)
+                          return (
+                            <span
+                              key={`expanded-${badge}`}
+                              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                            >
+                              {badgeTheme.icon} {badge}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -8163,30 +8154,24 @@ ${shareUrl}`)
                 </div>
 
                 <div className="relative h-[24px] min-w-0 flex-1 overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.button
-                      key={activeLiveTickerItem.id}
-                      type="button"
-                      onClick={handleLiveTickerOpen}
-                      initial={{ y: 18, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -18, opacity: 0 }}
-                      transition={{ duration: 0.22 }}
-                      className="absolute inset-0 flex w-full items-center gap-2 text-left"
+                  <button
+                    key={activeLiveTickerItem.id}
+                    type="button"
+                    onClick={handleLiveTickerOpen}
+                    className="absolute inset-0 flex w-full items-center gap-2 text-left"
+                  >
+                    <span
+                      className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
                     >
-                      <span
-                        className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
-                      >
-                        {activeLiveTickerItem.rank}위
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
-                        {activeLiveTickerItem.title}
-                      </span>
-                      <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
-                        {activeLiveTickerItem.emotionLabel}
-                      </span>
-                    </motion.button>
-                  </AnimatePresence>
+                      {activeLiveTickerItem.rank}위
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
+                      {activeLiveTickerItem.title}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
+                      {activeLiveTickerItem.emotionLabel}
+                    </span>
+                  </button>
                 </div>
               </div>
 
