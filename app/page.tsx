@@ -5897,6 +5897,7 @@ ${shareUrl}`)
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
   useEffect(() => {
+    if (STABLE_PC_MODE) return
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
@@ -5915,6 +5916,7 @@ ${shareUrl}`)
   ])
 
   useEffect(() => {
+    if (STABLE_PC_MODE) return
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
@@ -6370,6 +6372,7 @@ ${shareUrl}`)
   }
 
   useEffect(() => {
+    if (STABLE_PC_MODE) return
     if (!currentPost?.id) return
 
     const viewedKey = `viewed_post_${currentPost.id}`
@@ -6400,12 +6403,7 @@ ${shareUrl}`)
     }
 
     void increaseView()
-    void logPostEvent({
-      postId: currentPost.id,
-      eventType: 'view',
-    })
-    scheduleDiscoveryRefresh(postsRef.current)
-  }, [currentPost?.id, logPostEvent, scheduleDiscoveryRefresh])
+  }, [currentPost?.id])
 
   useEffect(() => {
     if (STABLE_PC_MODE) return
@@ -6699,7 +6697,7 @@ ${shareUrl}`)
       }
 
       scheduleDiscoveryRefresh(syncedPosts)
-      requestLightweightMetaRefresh({ immediate: true })
+      // 안정화: next/comment/vote 중 메타 새로고침 중지
 
       void updateProgress(
         {
@@ -7130,7 +7128,7 @@ ${shareUrl}`)
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
     })
-    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
+    // 안정화: 후기 등록 후 메타 새로고침 중지
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -7349,13 +7347,7 @@ ${shareUrl}`)
       ...prev,
     ])
 
-    await logPostEvent({
-      postId: currentPost.id,
-      eventType: 'comment',
-      side,
-      refId: newComment.id,
-    })
-    scheduleDiscoveryRefresh()
+    // 안정화: 댓글 등록 후 무거운 로그/발견성 갱신 중지
 
     await updateProgress(
       {
