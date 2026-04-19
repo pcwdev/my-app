@@ -2454,6 +2454,7 @@ function MyActivityModal({
   onOpenWatchlistItem,
   onOpenComment,
   onLogout,
+  onRequireLogin,
   profile,
   stats,
   badges,
@@ -2469,6 +2470,7 @@ function MyActivityModal({
   onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
+  onRequireLogin: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
   badges: string[]
@@ -2704,12 +2706,12 @@ function MyActivityModal({
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 글이 없음
+              아직 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 댓글이 없음
+              아직 작성한 댓글이 없음
             </div>
           )}
           {tab === 'watchlist' && (
@@ -2871,12 +2873,21 @@ function MyActivityModal({
         </div>
 
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
-          <button
-            onClick={onLogout}
-            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
-          >
-            로그아웃
-          </button>
+          {profile ? (
+            <button
+              onClick={onLogout}
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+            >
+              로그아웃
+            </button>
+          ) : (
+            <button
+              onClick={onRequireLogin}
+              className="w-full rounded-2xl bg-[#4f7cff] px-4 py-3 text-sm font-bold text-white"
+            >
+              로그인하고 이어보기
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -5418,7 +5429,7 @@ export default function MatnyaApp() {
       .order('created_at', { ascending: false })
 
     if (watchError) {
-      console.error('궁금한 글 불러오기 실패.', watchError)
+      console.error('궁금한 글 불러오기 실패', watchError)
       return
     }
 
@@ -8759,6 +8770,7 @@ ${shareUrl}`)
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
+          onRequireLogin={() => setAuthOpen(true)}
           profile={profile}
           stats={stats}
           badges={badges}
@@ -10028,6 +10040,7 @@ ${shareUrl}`)
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
+          onRequireLogin={() => setAuthOpen(true)}
           profile={profile}
           stats={stats}
           badges={badges}
