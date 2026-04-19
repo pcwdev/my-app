@@ -3667,7 +3667,6 @@ export default function MatnyaApp() {
   const metaRefreshInFlightRef = useRef(false)
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
-  const authLoadInFlightRef = useRef(false)
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -3752,9 +3751,6 @@ export default function MatnyaApp() {
   }, [])
 
   const loadAuthState = useCallback(async () => {
-    if (authLoadInFlightRef.current) return
-    authLoadInFlightRef.current = true
-
     try {
       const result = await ensureProfile()
       setAuthUser(result.user)
@@ -3773,8 +3769,6 @@ export default function MatnyaApp() {
         hint: error?.hint,
         code: error?.code,
       })
-    } finally {
-      authLoadInFlightRef.current = false
     }
   }, [])
 
@@ -4818,18 +4812,11 @@ export default function MatnyaApp() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         clearAuthLocalState()
       }
-
-      if (
-        event === 'SIGNED_IN' ||
-        event === 'SIGNED_OUT' ||
-        event === 'TOKEN_REFRESHED'
-      ) {
-        void loadAuthState()
-      }
+      void loadAuthState()
     })
 
     return () => {
@@ -4998,9 +4985,43 @@ export default function MatnyaApp() {
     void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
 
-  const loadResultUnlocks = useCallback(async (_postIds: number[]) => {
-    setResultUnlockMap({})
-  }, [])
+  const loadResultUnlocks = useCallback(
+    async (postIds: number[]) => {
+      if (!currentActorUnifiedKey || postIds.length === 0) {
+        setResultUnlockMap({})
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('post_result_unlocks')
+        .select(
+          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+        )
+        .eq('voter_key', currentActorUnifiedKey)
+        .in('post_id', postIds)
+
+      if (error) {
+        console.error('결과 공개 단계 불러오기 실패', error)
+        return
+      }
+
+      const nextMap: Record<number, ResultUnlockItem> = {}
+      ;(data ?? []).forEach((row: any) => {
+        const postId = Number(row.post_id)
+        nextMap[postId] = {
+          postId,
+          voterKey: String(row.voter_key ?? currentActorUnifiedKey),
+          unlockLevel: Math.max(1, Number(row.unlock_level ?? 1)),
+          commentReads: Number(row.comment_reads ?? 0),
+          isWatchlisted: Boolean(row.is_watchlisted ?? false),
+          createdAt: row.created_at ?? null,
+          updatedAt: row.updated_at ?? null,
+        }
+      })
+      setResultUnlockMap(nextMap)
+    },
+    [currentActorUnifiedKey],
+  )
 
   useEffect(() => {
     const postIds = posts.map((post) => post.id)
@@ -5032,6 +5053,7 @@ export default function MatnyaApp() {
         fetchWatchlist(currentActorUnifiedKey),
         loadReactionAndOutcomeData(postIds, commentIds),
         loadDramaEnhancementData(postIds),
+        loadResultUnlocks(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -5054,6 +5076,7 @@ export default function MatnyaApp() {
     fetchWatchlist,
     loadDramaEnhancementData,
     loadReactionAndOutcomeData,
+    loadResultUnlocks,
     posts,
   ])
 
@@ -5613,6 +5636,42 @@ ${shareUrl}`)
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (currentWatchlisted) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 3,
+        isWatchlisted: true,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    currentWatchlisted,
+    votes,
+    upsertResultUnlock,
+  ])
+
+  useEffect(() => {
+    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
+      return
+
+    if (latestOutcome) {
+      void upsertResultUnlock(currentPost.id, {
+        unlockLevel: 4,
+      })
+    }
+  }, [
+    currentActorUnifiedKey,
+    currentPost?.id,
+    latestOutcome?.id,
+    revisitMeta?.label,
+    votes,
+    upsertResultUnlock,
+  ])
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
@@ -6434,7 +6493,7 @@ ${shareUrl}`)
   }
 
   const focusCurrentPostCard = useCallback(
-    (behavior: ScrollBehavior = 'auto') => {
+    (_behavior: ScrollBehavior = 'smooth') => {
       return
     },
     [],
@@ -6510,6 +6569,7 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
+
       return
     }
 
@@ -6534,6 +6594,7 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
+
       setActivityOpen(false)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
@@ -6784,6 +6845,7 @@ ${shareUrl}`)
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
     })
+    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
