@@ -8160,7 +8160,7 @@ ${shareUrl}`)
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
@@ -8309,7 +8309,7 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
@@ -8318,22 +8318,6 @@ ${shareUrl}`)
                 <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                   이거 맞냐?
                 </div>
-                {currentVoteStreak && currentVoteStreak.currentCount > 0 ? (
-                  <div
-                    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getStreakTone(currentVoteStreak.currentCount)}`}
-                  >
-                    ⚡ 연속 판단 {currentVoteStreak.currentCount}회
-                  </div>
-                ) : null}
-                {unreadWatchlistCount > 0 ? (
-                  <button
-                    onClick={openWatchlistActivity}
-                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
-                  >
-                    <span>새 후기 도착</span>
-                    <span>{unreadWatchlistCount}개</span>
-                  </button>
-                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -8753,12 +8737,32 @@ ${shareUrl}`)
                               </div>
                             </div>
 
-                            <div className="mt-3">
+                            <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                                    WATCHLIST
+                                  </div>
+                                  <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
+                                    👀 이 글 결말이 궁금함?
+                                  </div>
+                                  <div className="mt-1 text-[12px] leading-5 text-slate-600">
+                                    {currentWatchlisted
+                                      ? '내 활동 > 결말궁금 에서 다시 확인 가능'
+                                      : '후기 올라오면 빨간불로 바로 알려줌'}
+                                  </div>
+                                </div>
+                                {currentWatchUnread ? (
+                                  <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                                    새 후기
+                                  </span>
+                                ) : null}
+                              </div>
                               <button
                                 onClick={() =>
                                   void toggleCurrentPostWatchlist()
                                 }
-                                className={`rounded-[18px] px-3 py-2 text-[12px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.16)] transition ${
+                                className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
                                   currentWatchlisted
                                     ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
                                     : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
@@ -8768,11 +8772,6 @@ ${shareUrl}`)
                                   ? '결말궁금 저장됨 ✓'
                                   : '결말궁금 저장'}
                               </button>
-                              <div className="mt-2 text-[11px] font-medium text-slate-400">
-                                {currentWatchlisted
-                                  ? '내 활동 > 결말궁금 에서 확인 가능'
-                                  : '후기 올라오면 빨간불로 알려줌'}
-                              </div>
                             </div>
                           </div>
                         ) : null}
@@ -8890,6 +8889,7 @@ ${shareUrl}`)
                             )
                           })}
                       </div>
+
                       {latestOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center justify-between gap-2">
