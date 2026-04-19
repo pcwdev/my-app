@@ -3667,6 +3667,7 @@ export default function MatnyaApp() {
   const metaRefreshInFlightRef = useRef(false)
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
+  const authLoadInFlightRef = useRef(false)
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -3751,6 +3752,9 @@ export default function MatnyaApp() {
   }, [])
 
   const loadAuthState = useCallback(async () => {
+    if (authLoadInFlightRef.current) return
+    authLoadInFlightRef.current = true
+
     try {
       const result = await ensureProfile()
       setAuthUser(result.user)
@@ -3769,6 +3773,8 @@ export default function MatnyaApp() {
         hint: error?.hint,
         code: error?.code,
       })
+    } finally {
+      authLoadInFlightRef.current = false
     }
   }, [])
 
@@ -4812,11 +4818,18 @@ export default function MatnyaApp() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session?.user) {
         clearAuthLocalState()
       }
-      void loadAuthState()
+
+      if (
+        event === 'SIGNED_IN' ||
+        event === 'SIGNED_OUT' ||
+        event === 'TOKEN_REFRESHED'
+      ) {
+        void loadAuthState()
+      }
     })
 
     return () => {
@@ -4985,43 +4998,9 @@ export default function MatnyaApp() {
     void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
 
-  const loadResultUnlocks = useCallback(
-    async (postIds: number[]) => {
-      if (!currentActorUnifiedKey || postIds.length === 0) {
-        setResultUnlockMap({})
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('post_result_unlocks')
-        .select(
-          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
-        )
-        .eq('voter_key', currentActorUnifiedKey)
-        .in('post_id', postIds)
-
-      if (error) {
-        console.error('결과 공개 단계 불러오기 실패', error)
-        return
-      }
-
-      const nextMap: Record<number, ResultUnlockItem> = {}
-      ;(data ?? []).forEach((row: any) => {
-        const postId = Number(row.post_id)
-        nextMap[postId] = {
-          postId,
-          voterKey: String(row.voter_key ?? currentActorUnifiedKey),
-          unlockLevel: Math.max(1, Number(row.unlock_level ?? 1)),
-          commentReads: Number(row.comment_reads ?? 0),
-          isWatchlisted: Boolean(row.is_watchlisted ?? false),
-          createdAt: row.created_at ?? null,
-          updatedAt: row.updated_at ?? null,
-        }
-      })
-      setResultUnlockMap(nextMap)
-    },
-    [currentActorUnifiedKey],
-  )
+  const loadResultUnlocks = useCallback(async (_postIds: number[]) => {
+    setResultUnlockMap({})
+  }, [])
 
   useEffect(() => {
     const postIds = posts.map((post) => post.id)
@@ -5053,7 +5032,6 @@ export default function MatnyaApp() {
         fetchWatchlist(currentActorUnifiedKey),
         loadReactionAndOutcomeData(postIds, commentIds),
         loadDramaEnhancementData(postIds),
-        loadResultUnlocks(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -5076,7 +5054,6 @@ export default function MatnyaApp() {
     fetchWatchlist,
     loadDramaEnhancementData,
     loadReactionAndOutcomeData,
-    loadResultUnlocks,
     posts,
   ])
 
@@ -5124,49 +5101,33 @@ export default function MatnyaApp() {
     ) => {
       if (!currentActorUnifiedKey || !postId) return null
 
-      const existing = resultUnlockMap[postId] ?? null
-      let base = existing
-
-      if (!base) {
-        const { count, error: countError } = await supabase
-          .from('post_result_unlocks')
-          .select('*', { count: 'exact', head: true })
-          .eq('voter_key', currentActorUnifiedKey)
-
-        if (countError) {
-          console.error('결과 공개 단계 개수 조회 실패', countError)
-        }
-
-        base = {
-          postId,
-          voterKey: currentActorUnifiedKey,
-          unlockLevel: Number(count ?? 0) < 3 ? 3 : 1,
-          commentReads: 0,
-          isWatchlisted: !!myWatchlistMap[postId],
-          createdAt: null,
-          updatedAt: null,
-        }
+      const existing = resultUnlockMap[postId] ?? {
+        postId,
+        voterKey: currentActorUnifiedKey,
+        unlockLevel: 1,
+        commentReads: 0,
+        isWatchlisted: !!myWatchlistMap[postId],
+        createdAt: null,
+        updatedAt: null,
       }
 
-      const nextUnlockLevel = Math.max(
-        base.unlockLevel,
-        Number(patch.unlockLevel ?? base.unlockLevel),
-      )
-      const nextCommentReads =
-        typeof patch.forceCommentReads === 'number'
-          ? Math.max(0, patch.forceCommentReads)
-          : Math.max(
-              0,
-              base.commentReads + Number(patch.commentReadsDelta ?? 0),
-            )
       const nextItem: ResultUnlockItem = {
-        ...base,
-        unlockLevel: nextUnlockLevel,
-        commentReads: nextCommentReads,
+        ...existing,
+        unlockLevel: Math.max(
+          existing.unlockLevel,
+          Number(patch.unlockLevel ?? existing.unlockLevel),
+        ),
+        commentReads:
+          typeof patch.forceCommentReads === 'number'
+            ? Math.max(0, patch.forceCommentReads)
+            : Math.max(
+                0,
+                existing.commentReads + Number(patch.commentReadsDelta ?? 0),
+              ),
         isWatchlisted:
           typeof patch.isWatchlisted === 'boolean'
             ? patch.isWatchlisted
-            : base.isWatchlisted,
+            : existing.isWatchlisted,
         updatedAt: new Date().toISOString(),
       }
 
@@ -5174,51 +5135,6 @@ export default function MatnyaApp() {
         ...prev,
         [postId]: nextItem,
       }))
-
-      const { data, error } = await supabase
-        .from('post_result_unlocks')
-        .upsert(
-          {
-            post_id: postId,
-            voter_key: currentActorUnifiedKey,
-            unlock_level: nextItem.unlockLevel,
-            comment_reads: nextItem.commentReads,
-            is_watchlisted: nextItem.isWatchlisted,
-            updated_at: nextItem.updatedAt,
-          },
-          {
-            onConflict: 'post_id,voter_key',
-          },
-        )
-        .select(
-          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
-        )
-        .maybeSingle()
-
-      if (error) {
-        console.error('결과 공개 단계 저장 실패', error)
-        return null
-      }
-
-      if (data) {
-        const savedItem: ResultUnlockItem = {
-          postId: Number(data.post_id),
-          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
-          unlockLevel: Math.max(
-            1,
-            Number(data.unlock_level ?? nextItem.unlockLevel),
-          ),
-          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
-          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
-          createdAt: data.created_at ?? nextItem.createdAt,
-          updatedAt: data.updated_at ?? nextItem.updatedAt,
-        }
-        setResultUnlockMap((prev) => ({
-          ...prev,
-          [postId]: savedItem,
-        }))
-        return savedItem
-      }
 
       return nextItem
     },
@@ -5759,42 +5675,6 @@ ${shareUrl}`)
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
-
-  useEffect(() => {
-    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
-      return
-
-    if (currentWatchlisted) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 3,
-        isWatchlisted: true,
-      })
-    }
-  }, [
-    currentActorUnifiedKey,
-    currentPost?.id,
-    currentWatchlisted,
-    votes,
-    upsertResultUnlock,
-  ])
-
-  useEffect(() => {
-    if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
-      return
-
-    if (latestOutcome) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 4,
-      })
-    }
-  }, [
-    currentActorUnifiedKey,
-    currentPost?.id,
-    latestOutcome?.id,
-    revisitMeta?.label,
-    votes,
-    upsertResultUnlock,
-  ])
 
   const nextHookPost = useMemo(() => {
     if (!currentPost) return null
