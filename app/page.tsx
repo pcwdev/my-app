@@ -6339,14 +6339,8 @@ ${shareUrl}`)
   }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
 
   useEffect(() => {
-    if (liveTickerItems.length <= 1) return
-
-    const timer = window.setInterval(() => {
-      setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
-    }, 2400)
-
-    return () => window.clearInterval(timer)
-  }, [liveTickerItems])
+    setLiveTickerIndex(0)
+  }, [liveTickerItems.length])
 
   useEffect(() => {
     if (liveTickerIndex >= liveTickerItems.length) {
@@ -6354,8 +6348,7 @@ ${shareUrl}`)
     }
   }, [liveTickerIndex, liveTickerItems.length])
 
-  const activeLiveTickerItem =
-    liveTickerItems[liveTickerIndex] ?? liveTickerItems[0] ?? null
+  const activeLiveTickerItem = null
 
   const handleLiveTickerOpen = () => {
     if (!activeLiveTickerItem) return
@@ -8138,7 +8131,6 @@ ${shareUrl}`)
 
                 <div className="relative h-[24px] min-w-0 flex-1 overflow-hidden">
                   <button
-                    key={activeLiveTickerItem.id}
                     type="button"
                     onClick={handleLiveTickerOpen}
                     className="absolute inset-0 flex w-full items-center gap-2 text-left"
