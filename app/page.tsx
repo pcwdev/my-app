@@ -5801,11 +5801,7 @@ ${shareUrl}`)
     !!currentActorKey &&
     !!currentPost?.authorKey &&
     String(currentPost.authorKey) === String(currentActorKey)
-  const shouldRenderKakaoHeavyBlocks =
-    !isKakaoSafeMode ||
-    !currentPost ||
-    isOwnCurrentPost ||
-    currentPost.comments.length <= 2
+  const shouldRenderKakaoHeavyBlocks = true
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -6342,14 +6338,14 @@ ${shareUrl}`)
   }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
 
   useEffect(() => {
-    if (isKakaoSafeMode || liveTickerItems.length <= 1) return
+    if (liveTickerItems.length <= 1) return
 
     const timer = window.setInterval(() => {
       setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
     }, 2400)
 
     return () => window.clearInterval(timer)
-  }, [isKakaoSafeMode, liveTickerItems])
+  }, [liveTickerItems])
 
   useEffect(() => {
     if (liveTickerIndex >= liveTickerItems.length) {
@@ -8220,7 +8216,7 @@ ${shareUrl}`)
         </div>
 
         <main className="px-4 pb-32 pt-2">
-          {!isKakaoSafeMode && activeLiveTickerItem ? (
+          {activeLiveTickerItem ? (
             <div className="mb-3 overflow-hidden rounded-[18px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_28px_rgba(79,124,255,0.12)]">
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
