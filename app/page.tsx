@@ -14,6 +14,7 @@ import {
   User,
   X,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 
 const LIMITS = {
@@ -36,7 +37,6 @@ const reportReasons = [
 
 const INITIAL_COMMENT_BATCH = 20
 const REPORT_HIDE_THRESHOLD = 3
-const STABLE_PC_MODE = true
 
 const STORAGE_KEYS = {
   voterKey: 'matnya_voter_key',
@@ -130,11 +130,8 @@ type WatchlistItem = {
   createdAt: string | null
   latestOutcomeType: PostOutcomeItem['outcomeType'] | null
   latestOutcomeSummary: string | null
-  latestOutcomeCreatedAt: string | null
   hasOutcome: boolean
   unreadOutcome: boolean
-  watchStatus: 'waiting' | 'updated' | 'archived'
-  archivedAt: string | null
 }
 
 type PostItem = {
@@ -1442,94 +1439,6 @@ function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
   }
 }
 
-function getWatchlistStatusMeta(status: WatchlistItem['watchStatus']) {
-  switch (status) {
-    case 'updated':
-      return {
-        label: '새 소식',
-        helper: '후기/결말 먼저 확인',
-        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-      }
-    case 'archived':
-      return {
-        label: '보관됨',
-        helper: '이미 확인한 업데이트',
-        toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
-      }
-    default:
-      return {
-        label: '대기중',
-        helper: '아직 새 후기가 없음',
-        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
-      }
-  }
-}
-
-function getWatchlistRealtimeLabel(value?: string | null) {
-  if (!value) return '방금 확인 가능'
-
-  const diffMs = Date.now() - new Date(value).getTime()
-  if (!Number.isFinite(diffMs) || diffMs < 0) return '방금 도착'
-
-  const minutes = Math.floor(diffMs / 60000)
-  if (minutes < 1) return '방금 도착'
-  if (minutes < 60) return `${minutes}분 전`
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}시간 전`
-
-  const days = Math.floor(hours / 24)
-  return `${days}일 전`
-}
-
-function compareWatchlistItems(a: WatchlistItem, b: WatchlistItem) {
-  const order: Record<WatchlistItem['watchStatus'], number> = {
-    updated: 0,
-    waiting: 1,
-    archived: 2,
-  }
-
-  if (order[a.watchStatus] !== order[b.watchStatus]) {
-    return order[a.watchStatus] - order[b.watchStatus]
-  }
-
-  const aSignalTime =
-    a.watchStatus === 'updated'
-      ? a.latestOutcomeCreatedAt
-      : (a.archivedAt ?? a.createdAt)
-  const bSignalTime =
-    b.watchStatus === 'updated'
-      ? b.latestOutcomeCreatedAt
-      : (b.archivedAt ?? b.createdAt)
-
-  return (
-    new Date(bSignalTime ?? 0).getTime() - new Date(aSignalTime ?? 0).getTime()
-  )
-}
-
-function normalizeWatchStatus(
-  value?: string | null,
-): WatchlistItem['watchStatus'] {
-  if (value === 'updated' || value === 'archived') return value
-  return 'waiting'
-}
-
-function resolveWatchlistStatus(input: {
-  unreadOutcome: boolean
-  latestOutcomeCreatedAt?: string | null
-  archivedAt?: string | null
-  storedStatus?: string | null
-}): WatchlistItem['watchStatus'] {
-  if (input.unreadOutcome && input.latestOutcomeCreatedAt) return 'updated'
-  if (
-    input.archivedAt ||
-    normalizeWatchStatus(input.storedStatus) === 'archived'
-  ) {
-    return 'archived'
-  }
-  return 'waiting'
-}
-
 function getStreakTone(count: number) {
   if (count >= 10) return 'border-amber-200 bg-amber-50 text-amber-700'
   if (count >= 5) return 'border-violet-200 bg-violet-50 text-violet-700'
@@ -1999,16 +1908,9 @@ function MyActivityModal({
   unreadWatchlistCount,
   initialTab = 'posts',
   onOpenPost,
-  onOpenWatchlistItem,
   onOpenComment,
-  onRefreshWatchlist,
-  watchlistRefreshing,
-  watchlistLastSyncedAt,
   onLogout,
-  onRequestLogin,
   profile,
-  guestName,
-  isLoggedIn,
   stats,
   badges,
 }: {
@@ -2020,71 +1922,19 @@ function MyActivityModal({
   unreadWatchlistCount: number
   initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number) => void
-  onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number) => void
-  onRefreshWatchlist: () => void | Promise<void>
-  watchlistRefreshing: boolean
-  watchlistLastSyncedAt: string | null
   onLogout: () => void
-  onRequestLogin: () => void
   profile: ProfileRow | null
-  guestName: string
-  isLoggedIn: boolean
   stats: UserStatsRow
   badges: string[]
 }) {
   const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
-  const [profileExpanded, setProfileExpanded] = useState(false)
-  const [watchlistFilter, setWatchlistFilter] =
-    useState<WatchlistItem['watchStatus']>('updated')
 
   useEffect(() => {
-    if (open) {
-      setTab(initialTab)
-      setProfileExpanded(false)
-      setWatchlistFilter('updated')
-    }
+    if (open) setTab(initialTab)
   }, [open, initialTab])
 
-  useEffect(() => {
-    if (!open || tab !== 'watchlist') return
-    void onRefreshWatchlist()
-  }, [open, tab, onRefreshWatchlist])
-
   if (!open) return null
-
-  const levelInfo = getLevelInfo(stats.points)
-  const levelTheme = getLevelTheme(levelInfo.level)
-  const topBadges = badges.slice(0, 3)
-  const extraBadgeCount = Math.max(0, badges.length - topBadges.length)
-  const summaryStats = [
-    { label: '글', value: stats.posts_count },
-    { label: '댓글', value: stats.comments_count },
-    { label: '궁금', value: watchlistItems.length },
-  ]
-  const updatedWatchlistItems = watchlistItems.filter(
-    (item) => item.watchStatus === 'updated',
-  )
-  const waitingWatchlistItems = watchlistItems.filter(
-    (item) => item.watchStatus === 'waiting',
-  )
-  const archivedWatchlistItems = watchlistItems.filter(
-    (item) => item.watchStatus === 'archived',
-  )
-  const filteredWatchlistItems =
-    watchlistFilter === 'updated'
-      ? updatedWatchlistItems
-      : watchlistFilter === 'waiting'
-        ? waitingWatchlistItems
-        : archivedWatchlistItems
-  const latestUpdatedItem =
-    [...updatedWatchlistItems].sort(compareWatchlistItems)[0] ?? null
-  const latestUpdatedLabel = getWatchlistRealtimeLabel(
-    latestUpdatedItem?.latestOutcomeCreatedAt ?? null,
-  )
-  const lastSyncedLabel = watchlistLastSyncedAt
-    ? getWatchlistRealtimeLabel(watchlistLastSyncedAt)
-    : '방금 동기화'
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2093,7 +1943,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              내가 올린 글, 댓글, 저장한 글 모아보기
+              로그인 계정으로 남긴 글과 댓글
             </div>
           </div>
           <button
@@ -2104,84 +1954,34 @@ function MyActivityModal({
           </button>
         </div>
 
-        <div className="shrink-0 px-4 pt-3">
-          <div className="rounded-[28px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="truncate text-[15px] font-bold text-slate-900">
-                    {profile?.anonymous_name ?? guestName ?? '익명 유저'}
+        <div className="shrink-0 px-5 pt-4">
+          {(() => {
+            const levelInfo = getLevelInfo(stats.points)
+            const levelTheme = getLevelTheme(levelInfo.level)
+
+            return (
+              <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {profile?.anonymous_name ?? '익명 유저'}
+                    </div>
+                    <div className="mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${levelTheme.chipClass}`}
+                      >
+                        <span>{levelTheme.icon}</span>
+                        <span>Lv.{levelInfo.level}</span>
+                        <span>{levelInfo.label}</span>
+                      </span>
+                    </div>
                   </div>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${levelTheme.chipClass}`}
-                  >
-                    <span>{levelTheme.icon}</span>
-                    <span>Lv.{levelInfo.level}</span>
-                    <span>{levelInfo.label}</span>
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                  <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 font-black text-[#4f7cff]">
+                  <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#4f7cff]">
                     {stats.points}P
-                  </span>
-                  <span>판단 {stats.votes_count}</span>
-                  <span>·</span>
-                  <span>받은 공감 {stats.likes_received}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setProfileExpanded((prev) => !prev)}
-                className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600"
-              >
-                {profileExpanded ? '접기' : '더보기'}
-              </button>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              {summaryStats.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl bg-slate-50 px-2 py-2.5"
-                >
-                  <div className="text-[10px] font-semibold text-slate-400">
-                    {item.label}
-                  </div>
-                  <div className="mt-1 text-sm font-extrabold text-slate-900">
-                    {item.value}
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {topBadges.length === 0 ? (
-                <div className="text-[11px] text-slate-400">
-                  아직 획득한 뱃지 없음
-                </div>
-              ) : (
-                topBadges.map((badge) => {
-                  const badgeTheme = getBadgeTheme(badge)
-                  return (
-                    <span
-                      key={badge}
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
-                    >
-                      {badgeTheme.icon} {badge}
-                    </span>
-                  )
-                })
-              )}
-              {extraBadgeCount > 0 ? (
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                  +{extraBadgeCount}
-                </span>
-              ) : null}
-            </div>
-
-            {profileExpanded ? (
-              <div className="overflow-hidden">
-                <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mt-3">
                   <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
                     <span>다음 레벨 진행도</span>
                     <span>{levelInfo.progress}%</span>
@@ -2192,53 +1992,69 @@ function MyActivityModal({
                       style={{ width: `${levelInfo.progress}%` }}
                     />
                   </div>
+                </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <div className="text-slate-400">판단</div>
-                      <div className="mt-1 font-bold text-slate-900">
-                        {stats.votes_count}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <div className="text-slate-400">받은 공감</div>
-                      <div className="mt-1 font-bold text-slate-900">
-                        {stats.likes_received}
-                      </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">판단</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.votes_count}
                     </div>
                   </div>
-
-                  {badges.length > 0 ? (
-                    <div className="mt-3">
-                      <div className="mb-2 text-[11px] font-semibold text-slate-500">
-                        전체 뱃지
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {badges.map((badge) => {
-                          const badgeTheme = getBadgeTheme(badge)
-                          return (
-                            <span
-                              key={`expanded-${badge}`}
-                              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
-                            >
-                              {badgeTheme.icon} {badge}
-                            </span>
-                          )
-                        })}
-                      </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">댓글</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.comments_count}
                     </div>
-                  ) : null}
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">글</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.posts_count}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-400">받은 공감</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {stats.likes_received}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-2 text-xs font-semibold text-slate-500">
+                    획득 뱃지
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {badges.length === 0 ? (
+                      <div className="text-xs text-slate-400">
+                        아직 획득한 뱃지가 없음
+                      </div>
+                    ) : (
+                      badges.map((badge) => {
+                        const badgeTheme = getBadgeTheme(badge)
+                        return (
+                          <span
+                            key={badge}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
+                          >
+                            {badgeTheme.icon} {badge}
+                          </span>
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
-            ) : null}
-          </div>
+            )
+          })()}
 
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-2">
             <button
               onClick={() => setTab('posts')}
-              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'posts'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
+                  ? 'bg-[#4f7cff] text-slate-900'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2246,9 +2062,9 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'comments'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
+                  ? 'bg-[#4f7cff] text-slate-900'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2256,140 +2072,37 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('watchlist')}
-              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'watchlist'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
+                  ? 'bg-[#4f7cff] text-slate-900'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
               궁금한 글
               {unreadWatchlistCount > 0 ? (
-                <span className="ml-2 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {unreadWatchlistCount}
+                </span>
               ) : null}
             </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              아직 내가 올린 글이 없음
+            <div className="text-sm text-slate-500">
+              로그인 후 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              아직 내가 남긴 댓글이 없음
+            <div className="text-sm text-slate-500">
+              로그인 후 작성한 댓글이 없음
             </div>
           )}
-          {tab === 'watchlist' && (
-            <>
-              <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div
-                  className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 ${updatedWatchlistItems.length > 0 ? 'border-rose-100 bg-[linear-gradient(180deg,#fff8fb_0%,#fff1f5_100%)]' : 'border-slate-200 bg-slate-50'}`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-[12px] font-black text-slate-800">
-                      {updatedWatchlistItems.length > 0 ? (
-                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
-                      ) : (
-                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-slate-300" />
-                      )}
-                      <span>
-                        {updatedWatchlistItems.length > 0
-                          ? '확인할 새 소식 있음'
-                          : '지금은 새 소식 없음'}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[11px] text-slate-500">
-                      {updatedWatchlistItems.length > 0
-                        ? `가장 최근 업데이트 ${latestUpdatedLabel}`
-                        : '다음글 보거나 내 활동 다시 열 때 새로 확인됨'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => void onRefreshWatchlist()}
-                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700"
-                  >
-                    {watchlistRefreshing ? '확인중…' : '지금 확인'}
-                  </button>
-                </div>
-
-                <div className="mt-2 px-1 text-[11px] text-slate-500">
-                  빨간 점이 보이면 새 후기/결말이 온 상태
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    {
-                      key: 'updated',
-                      label: '새 소식',
-                      count: updatedWatchlistItems.length,
-                    },
-                    {
-                      key: 'waiting',
-                      label: '대기중',
-                      count: waitingWatchlistItems.length,
-                    },
-                    {
-                      key: 'archived',
-                      label: '보관됨',
-                      count: archivedWatchlistItems.length,
-                    },
-                  ].map((item) => {
-                    const active = watchlistFilter === item.key
-                    const isUpdated = item.key === 'updated'
-                    return (
-                      <button
-                        key={item.key}
-                        onClick={() =>
-                          setWatchlistFilter(
-                            item.key as WatchlistItem['watchStatus'],
-                          )
-                        }
-                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
-                          active
-                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
-                            : isUpdated && item.count > 0
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {item.label}
-                        <span
-                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                            active
-                              ? 'bg-white/20 text-white'
-                              : isUpdated && item.count > 0
-                                ? 'bg-white text-rose-600'
-                                : 'bg-white text-slate-500'
-                          }`}
-                        >
-                          {item.count}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-2 text-[11px] text-slate-500">
-                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
-                  이동
-                </div>
-              </div>
-
-              {watchlistItems.length === 0 ? (
-                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                  결말궁금으로 저장한 글이 없음
-                </div>
-              ) : filteredWatchlistItems.length === 0 ? (
-                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                  {watchlistFilter === 'updated'
-                    ? '아직 새로 도착한 후기가 없음'
-                    : watchlistFilter === 'waiting'
-                      ? '후기 대기중인 글이 없음'
-                      : '보관된 업데이트가 없음'}
-                </div>
-              ) : null}
-            </>
+          {tab === 'watchlist' && watchlistItems.length === 0 && (
+            <div className="text-sm text-slate-500">
+              결말궁금으로 저장한 글이 없음
+            </div>
           )}
 
           {tab === 'posts' &&
@@ -2397,7 +2110,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
               >
                 <div className="text-xs text-slate-500">
                   {item.category} · {item.ageGroup}
@@ -2414,7 +2127,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenComment(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
               >
                 <div className="text-xs text-slate-500">{item.postTitle}</div>
                 <div className="mt-1 text-sm text-slate-900/85">
@@ -2427,109 +2140,55 @@ function MyActivityModal({
             ))}
 
           {tab === 'watchlist' &&
-            filteredWatchlistItems.map((item) => {
-              const statusMeta = getWatchlistStatusMeta(item.watchStatus)
-              const realtimeLabel = getWatchlistRealtimeLabel(
-                item.latestOutcomeCreatedAt ??
-                  item.archivedAt ??
-                  item.createdAt,
-              )
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onOpenWatchlistItem(item)}
-                  className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] ${
-                    item.watchStatus === 'updated'
-                      ? 'border-rose-200 bg-[linear-gradient(180deg,#fff8fb_0%,#fff2f6_100%)]'
-                      : 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-xs text-slate-500">
-                      {item.category} · {item.ageGroup}
-                    </div>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusMeta.toneClass}`}
-                    >
-                      {statusMeta.label}
-                    </span>
-                    {item.latestOutcomeType ? (
+            watchlistItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onOpenPost(item.postId)}
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-xs text-slate-500">
+                    {item.category} · {item.ageGroup}
+                  </div>
+                  {item.latestOutcomeType ? (
+                    <>
                       <span
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
                       >
                         {getOutcomeLabel(item.latestOutcomeType)}
                       </span>
-                    ) : null}
-                    {item.unreadOutcome ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                        읽기 전
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 font-bold text-slate-900">
-                    {item.title}
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold">
-                    {item.watchStatus === 'updated' ? (
-                      <>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-rose-700">
-                          <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                          새 후기 도착
+                      {item.unreadOutcome ? (
+                        <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                          새 후기
                         </span>
-                        <span className="text-rose-600">{realtimeLabel}</span>
-                      </>
-                    ) : item.watchStatus === 'archived' ? (
-                      <>
-                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                          확인 완료
-                        </span>
-                        <span className="text-slate-500">{realtimeLabel}</span>
-                      </>
-                    ) : (
-                      <span className="text-sky-600">결말 기다리는 중</span>
-                    )}
-                  </div>
-                  <div className="mt-2 text-xs text-slate-600">
-                    {item.latestOutcomeSummary ??
-                      (item.watchStatus === 'archived'
-                        ? '이미 확인한 업데이트 글'
-                        : '나중에 결과 보려고 저장한 글')}
-                  </div>
-                  <div className="mt-2 text-xs text-slate-400">
-                    {item.watchStatus === 'updated'
-                      ? '눌러서 확인하면 보관됨으로 이동'
-                      : item.watchStatus === 'archived'
-                        ? '다시 본 업데이트 글'
-                        : '새 소식이 생기면 맨 위로 올라옴'}
-                  </div>
-                </button>
-              )
-            })}
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                      후기 대기중
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 font-bold text-slate-900">
+                  {item.title}
+                </div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
+                </div>
+                <div className="mt-2 text-xs text-slate-400">
+                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
+                </div>
+              </button>
+            ))}
         </div>
 
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
-          {isLoggedIn ? (
-            <button
-              onClick={onLogout}
-              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
-            >
-              로그아웃
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] leading-5 text-slate-600">
-                비로그인이어도 내가 쓴 글/댓글은 이 기기에서 기억됨. 로그인하면
-                계정으로 그대로 이어서 관리하기 쉬움.
-              </div>
-              <button
-                onClick={onRequestLogin}
-                className="w-full rounded-2xl border border-[#cfe0ff] bg-[#eef3ff] px-4 py-3 text-sm font-bold text-[#315fdc]"
-              >
-                로그인해서 계정으로 이어쓰기
-              </button>
-            </div>
-          )}
+          <button
+            onClick={onLogout}
+            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+          >
+            로그아웃
+          </button>
         </div>
       </div>
     </div>
@@ -3753,10 +3412,6 @@ export default function MatnyaApp() {
     Record<number, NextQueueItem[]>
   >({})
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
-  const [watchlistRefreshing, setWatchlistRefreshing] = useState(false)
-  const [watchlistLastSyncedAt, setWatchlistLastSyncedAt] = useState<
-    string | null
-  >(null)
   const [myWatchlistMap, setMyWatchlistMap] = useState<Record<number, boolean>>(
     {},
   )
@@ -3815,10 +3470,6 @@ export default function MatnyaApp() {
   const currentActorUnifiedKey = getActorUnifiedKey(
     authUser?.id ?? null,
     voterKey,
-  )
-  const allPostIdsKey = useMemo(
-    () => posts.map((post) => post.id).join(','),
-    [posts],
   )
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
@@ -4003,8 +3654,6 @@ export default function MatnyaApp() {
 
   const scheduleDiscoveryRefresh = useCallback(
     (sourcePosts?: PostItem[]) => {
-      if (STABLE_PC_MODE) return
-
       if (discoveryTimerRef.current) {
         clearTimeout(discoveryTimerRef.current)
       }
@@ -4437,13 +4086,13 @@ export default function MatnyaApp() {
     void loadActorReactionSelections(postIds, commentIds)
   }, [posts, loadActorReactionSelections])
 
-  const fetchMyActivity = useCallback(async (authorKey: string) => {
-    if (!authorKey) return
+  const fetchMyActivity = useCallback(async (userId: string) => {
+    if (!userId) return
 
     const { data: myPostsData, error: myPostsError } = await supabase
       .from('posts')
       .select('id, title, category, age_group')
-      .eq('author_key', authorKey)
+      .eq('author_key', userId)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -4464,7 +4113,7 @@ export default function MatnyaApp() {
     const { data: myCommentsData, error: myCommentsError } = await supabase
       .from('comments')
       .select('id, post_id, text')
-      .eq('author_key', authorKey)
+      .eq('author_key', userId)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -4987,22 +4636,18 @@ export default function MatnyaApp() {
       setWatchlistItems([])
       setMyWatchlistMap({})
       setWatchOutcomeSeenMap({})
-      setWatchlistLastSyncedAt(null)
       return
     }
 
-    setWatchlistRefreshing(true)
-
     const { data: watchRows, error: watchError } = await supabase
       .from('post_watchlist')
-      .select('id, post_id, created_at, watch_status, archived_at')
+      .select('id, post_id, created_at')
       .eq('actor_key', actorKey)
       .eq('watch_type', 'curious')
       .order('created_at', { ascending: false })
 
     if (watchError) {
       console.error('궁금한 글 불러오기 실패', watchError)
-      setWatchlistRefreshing(false)
       return
     }
 
@@ -5010,15 +4655,11 @@ export default function MatnyaApp() {
       id: Number(row.id),
       postId: Number(row.post_id),
       createdAt: row.created_at ?? null,
-      watchStatus: normalizeWatchStatus(row.watch_status),
-      archivedAt: row.archived_at ?? null,
     }))
 
     if (rows.length === 0) {
       setWatchlistItems([])
       setMyWatchlistMap({})
-      setWatchlistLastSyncedAt(new Date().toISOString())
-      setWatchlistRefreshing(false)
       return
     }
 
@@ -5042,7 +4683,6 @@ export default function MatnyaApp() {
 
     if (watchPostsRes.error) {
       console.error('궁금한 글 게시글 불러오기 실패', watchPostsRes.error)
-      setWatchlistRefreshing(false)
       return
     }
 
@@ -5081,14 +4721,6 @@ export default function MatnyaApp() {
 
         watchedMap[row.postId] = true
         nextSeenState[row.postId] = lastSeenAt
-        const latestOutcomeCreatedAt = latestOutcome?.created_at ?? null
-        const watchStatus = resolveWatchlistStatus({
-          unreadOutcome,
-          latestOutcomeCreatedAt,
-          archivedAt: row.archivedAt,
-          storedStatus: row.watchStatus,
-        })
-
         return {
           id: row.id,
           postId: row.postId,
@@ -5098,32 +4730,34 @@ export default function MatnyaApp() {
           createdAt: row.createdAt,
           latestOutcomeType: latestOutcome?.outcome_type ?? null,
           latestOutcomeSummary: latestOutcome?.summary ?? null,
-          latestOutcomeCreatedAt,
           hasOutcome: !!latestOutcome,
           unreadOutcome,
-          watchStatus,
-          archivedAt: row.archivedAt,
         } satisfies WatchlistItem
       })
       .filter(Boolean) as WatchlistItem[]
 
-    items.sort(compareWatchlistItems)
+    items.sort((a, b) => {
+      if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
+      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+      return (
+        new Date(b.createdAt ?? 0).getTime() -
+        new Date(a.createdAt ?? 0).getTime()
+      )
+    })
 
     setWatchlistItems(items)
     setMyWatchlistMap(watchedMap)
     setWatchOutcomeSeenMap(nextSeenState)
-    setWatchlistLastSyncedAt(new Date().toISOString())
-    setWatchlistRefreshing(false)
   }, [])
 
   useEffect(() => {
-    if (currentActorKey) {
-      void fetchMyActivity(currentActorKey)
+    if (authUser?.id) {
+      void fetchMyActivity(authUser.id)
     } else {
       setMyPosts([])
       setMyComments([])
     }
-  }, [currentActorKey, fetchMyActivity])
+  }, [authUser?.id, fetchMyActivity])
 
   useEffect(() => {
     void fetchWatchlist(currentActorUnifiedKey)
@@ -5168,21 +4802,15 @@ export default function MatnyaApp() {
   )
 
   useEffect(() => {
-    const postIds = allPostIdsKey
-      ? allPostIdsKey
-          .split(',')
-          .map((value) => Number(value))
-          .filter(Boolean)
-      : []
+    const postIds = posts.map((post) => post.id)
     if (!currentActorUnifiedKey || postIds.length === 0) {
       setResultUnlockMap({})
       return
     }
     void loadResultUnlocks(postIds)
-  }, [allPostIdsKey, currentActorUnifiedKey, loadResultUnlocks])
+  }, [currentActorUnifiedKey, posts, loadResultUnlocks])
 
   const refreshLightweightMetaNow = useCallback(async () => {
-    if (STABLE_PC_MODE) return
     if (!currentActorUnifiedKey) return
 
     if (metaRefreshInFlightRef.current) {
@@ -5231,10 +4859,33 @@ export default function MatnyaApp() {
   ])
 
   const requestLightweightMetaRefresh = useCallback(
-    (_options?: { immediate?: boolean; delay?: number }) => {
-      if (STABLE_PC_MODE) return
+    (options?: { immediate?: boolean; delay?: number }) => {
       if (!currentActorUnifiedKey) return
-      void refreshLightweightMetaNow()
+
+      const immediate = options?.immediate ?? false
+      const baseDelay = options?.delay ?? 160
+
+      if (immediate) {
+        if (metaRefreshTimerRef.current) {
+          clearTimeout(metaRefreshTimerRef.current)
+          metaRefreshTimerRef.current = null
+        }
+
+        void refreshLightweightMetaNow()
+        return
+      }
+
+      const sinceLast = Date.now() - lastMetaRefreshAtRef.current
+      const delay = sinceLast < 1200 ? Math.max(baseDelay, 260) : baseDelay
+
+      if (metaRefreshTimerRef.current) {
+        clearTimeout(metaRefreshTimerRef.current)
+      }
+
+      metaRefreshTimerRef.current = setTimeout(() => {
+        metaRefreshTimerRef.current = null
+        void refreshLightweightMetaNow()
+      }, delay)
     },
     [currentActorUnifiedKey, refreshLightweightMetaNow],
   )
@@ -5888,7 +5539,6 @@ ${shareUrl}`)
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
   useEffect(() => {
-    if (STABLE_PC_MODE) return
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
@@ -5907,7 +5557,6 @@ ${shareUrl}`)
   ])
 
   useEffect(() => {
-    if (STABLE_PC_MODE) return
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
@@ -6339,8 +5988,14 @@ ${shareUrl}`)
   }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
 
   useEffect(() => {
-    setLiveTickerIndex(0)
-  }, [liveTickerItems.length])
+    if (liveTickerItems.length <= 1) return
+
+    const timer = window.setInterval(() => {
+      setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
+    }, 2400)
+
+    return () => window.clearInterval(timer)
+  }, [liveTickerItems])
 
   useEffect(() => {
     if (liveTickerIndex >= liveTickerItems.length) {
@@ -6348,19 +6003,8 @@ ${shareUrl}`)
     }
   }, [liveTickerIndex, liveTickerItems.length])
 
-  type LiveTickerItem = {
-    id: number
-    rank: number
-    title: string
-    category: string
-    shortMetric: string
-    emotionLabel: string
-    liveBadgeLabel: string
-    rankToneClass: string
-  }
-
-  const activeLiveTickerItem: LiveTickerItem | null =
-    (liveTickerItems[0] as LiveTickerItem | undefined) ?? null
+  const activeLiveTickerItem =
+    liveTickerItems[liveTickerIndex] ?? liveTickerItems[0] ?? null
 
   const handleLiveTickerOpen = () => {
     if (!activeLiveTickerItem) return
@@ -6368,7 +6012,6 @@ ${shareUrl}`)
   }
 
   useEffect(() => {
-    if (STABLE_PC_MODE) return
     if (!currentPost?.id) return
 
     const viewedKey = `viewed_post_${currentPost.id}`
@@ -6399,10 +6042,14 @@ ${shareUrl}`)
     }
 
     void increaseView()
-  }, [currentPost?.id])
+    void logPostEvent({
+      postId: currentPost.id,
+      eventType: 'view',
+    })
+    scheduleDiscoveryRefresh(postsRef.current)
+  }, [currentPost?.id, logPostEvent, scheduleDiscoveryRefresh])
 
   useEffect(() => {
-    if (STABLE_PC_MODE) return
     if (!currentPost?.id || !currentActorUnifiedKey) return
 
     if (shadowViewTimerRef.current) {
@@ -6693,7 +6340,7 @@ ${shareUrl}`)
       }
 
       scheduleDiscoveryRefresh(syncedPosts)
-      // 안정화: next/comment/vote 중 메타 새로고침 중지
+      requestLightweightMetaRefresh({ immediate: true })
 
       void updateProgress(
         {
@@ -6808,7 +6455,8 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    focusCurrentPostCard('auto')
+    requestLightweightMetaRefresh()
+    focusCurrentPostCard()
   }
 
   const next = () => {
@@ -6821,7 +6469,8 @@ ${shareUrl}`)
 
     endSharedEntryMode()
     setCurrentIndex(targetIndex)
-    focusCurrentPostCard('auto')
+    requestLightweightMetaRefresh()
+    focusCurrentPostCard()
   }
 
   const handleNextWithGuard = () => {
@@ -6845,7 +6494,7 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
-      focusCurrentPostCard('auto')
+      focusCurrentPostCard()
       return
     }
 
@@ -6856,7 +6505,7 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(fallbackIndex)
-      focusCurrentPostCard('auto')
+      focusCurrentPostCard()
     }
   }
 
@@ -6871,18 +6520,11 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
-      focusCurrentPostCard('auto')
+      focusCurrentPostCard()
       setActivityOpen(false)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
-    }
-  }
-
-  const openWatchlistItemDirect = (item: WatchlistItem) => {
-    openPostDirect(item.postId)
-    if (item.latestOutcomeCreatedAt) {
-      void markWatchlistOutcomeSeen(item.postId, item.latestOutcomeCreatedAt)
     }
   }
 
@@ -6904,9 +6546,7 @@ ${shareUrl}`)
   const openWatchlistActivity = () => {
     setActivityInitialTab('watchlist')
     setActivityOpen(true)
-    if (currentActorUnifiedKey) {
-      void fetchWatchlist(currentActorUnifiedKey)
-    }
+    requestLightweightMetaRefresh()
   }
 
   const reactToComment = async (
@@ -6988,52 +6628,35 @@ ${shareUrl}`)
       setWatchlistItems((prev) =>
         prev
           .map((item) =>
-            item.postId === postId
-              ? ({
-                  ...item,
-                  unreadOutcome: false,
-                  watchStatus: normalizeWatchStatus(
-                    item.latestOutcomeType ? 'archived' : item.watchStatus,
-                  ),
-                  archivedAt:
-                    item.latestOutcomeType && !item.archivedAt
-                      ? new Date().toISOString()
-                      : item.archivedAt,
-                } as WatchlistItem)
-              : item,
+            item.postId === postId ? { ...item, unreadOutcome: false } : item,
           )
-          .sort(compareWatchlistItems),
+          .sort((a, b) => {
+            if (a.unreadOutcome !== b.unreadOutcome)
+              return a.unreadOutcome ? -1 : 1
+            if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+            return (
+              new Date(b.createdAt ?? 0).getTime() -
+              new Date(a.createdAt ?? 0).getTime()
+            )
+          }),
       )
 
-      const seenAt = new Date().toISOString()
-      const [{ error }, { error: watchUpdateError }] = await Promise.all([
-        supabase.from('post_watchlist_outcome_reads').upsert(
+      const { error } = await supabase
+        .from('post_watchlist_outcome_reads')
+        .upsert(
           {
             actor_key: currentActorUnifiedKey,
             post_id: postId,
             last_seen_outcome_created_at: latestSeenAt,
-            updated_at: seenAt,
+            updated_at: new Date().toISOString(),
           },
           {
             onConflict: 'actor_key,post_id',
           },
-        ),
-        supabase
-          .from('post_watchlist')
-          .update({
-            watch_status: 'archived',
-            archived_at: seenAt,
-          })
-          .eq('actor_key', currentActorUnifiedKey)
-          .eq('post_id', postId)
-          .eq('watch_type', 'curious'),
-      ])
+        )
 
       if (error) {
         console.error('궁금한 글 읽음 처리 실패', error)
-      }
-      if (watchUpdateError) {
-        console.error('궁금한 글 상태 업데이트 실패', watchUpdateError)
       }
     },
     [currentActorUnifiedKey, postOutcomeMap],
@@ -7104,19 +6727,24 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? ({
+            ? {
                 ...item,
                 latestOutcomeType: nextItem.outcomeType,
                 latestOutcomeSummary: nextItem.summary,
-                latestOutcomeCreatedAt: nextItem.createdAt,
                 hasOutcome: true,
                 unreadOutcome: false,
-                watchStatus: 'archived',
-                archivedAt: new Date().toISOString(),
-              } as WatchlistItem)
+              }
             : item,
         )
-        .sort(compareWatchlistItems),
+        .sort((a, b) => {
+          if (a.unreadOutcome !== b.unreadOutcome)
+            return a.unreadOutcome ? -1 : 1
+          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+          return (
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime()
+          )
+        }),
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
@@ -7124,7 +6752,7 @@ ${shareUrl}`)
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
     })
-    // 안정화: 후기 등록 후 메타 새로고침 중지
+    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
     setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
@@ -7173,11 +6801,8 @@ ${shareUrl}`)
       createdAt: new Date().toISOString(),
       latestOutcomeType: latestOutcome?.outcomeType ?? null,
       latestOutcomeSummary: latestOutcome?.summary ?? null,
-      latestOutcomeCreatedAt: latestOutcome?.createdAt ?? null,
       hasOutcome: !!latestOutcome,
       unreadOutcome: false,
-      watchStatus: normalizeWatchStatus(latestOutcome ? 'archived' : 'waiting'),
-      archivedAt: latestOutcome ? new Date().toISOString() : null,
     }
 
     setWatchlistItems((prev) => {
@@ -7185,7 +6810,14 @@ ${shareUrl}`)
         optimisticItem,
         ...prev.filter((item) => item.postId !== currentPost.id),
       ]
-      next.sort(compareWatchlistItems)
+      next.sort((a, b) => {
+        if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
+        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+        return (
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime()
+        )
+      })
       return next
     })
 
@@ -7195,8 +6827,6 @@ ${shareUrl}`)
         post_id: currentPost.id,
         actor_key: currentActorUnifiedKey,
         watch_type: 'curious',
-        watch_status: latestOutcome ? 'archived' : 'waiting',
-        archived_at: latestOutcome ? new Date().toISOString() : null,
       })
       .select('id, created_at')
       .single()
@@ -7212,14 +6842,22 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? ({
+            ? {
                 ...item,
                 id: Number(data?.id ?? item.id),
                 createdAt: data?.created_at ?? item.createdAt,
-              } as WatchlistItem)
+              }
             : item,
         )
-        .sort(compareWatchlistItems),
+        .sort((a, b) => {
+          if (a.unreadOutcome !== b.unreadOutcome)
+            return a.unreadOutcome ? -1 : 1
+          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
+          return (
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime()
+          )
+        }),
     )
 
     void upsertResultUnlock(currentPost.id, {
@@ -7332,18 +6970,26 @@ ${shareUrl}`)
       ),
     )
 
-    setMyComments((prev) => [
-      {
-        id: newComment.id,
-        commentId: newComment.id,
-        postId: currentPost.id,
-        postTitle: currentPost.title,
-        text: newComment.text,
-      },
-      ...prev,
-    ])
+    if (authUser) {
+      setMyComments((prev) => [
+        {
+          id: newComment.id,
+          commentId: newComment.id,
+          postId: currentPost.id,
+          postTitle: currentPost.title,
+          text: newComment.text,
+        },
+        ...prev,
+      ])
+    }
 
-    // 안정화: 댓글 등록 후 무거운 로그/발견성 갱신 중지
+    await logPostEvent({
+      postId: currentPost.id,
+      eventType: 'comment',
+      side,
+      refId: newComment.id,
+    })
+    scheduleDiscoveryRefresh()
 
     await updateProgress(
       {
@@ -7615,16 +7261,18 @@ ${shareUrl}`)
 
     setPosts((prev) => [newPost, ...prev])
 
-    setMyPosts((prev) => [
-      {
-        id: newPost.id,
-        postId: newPost.id,
-        title: newPost.title,
-        category: newPost.category,
-        ageGroup: newPost.ageGroup,
-      },
-      ...prev.filter((item) => item.postId !== newPost.id),
-    ])
+    if (authUser) {
+      setMyPosts((prev) => [
+        {
+          id: newPost.id,
+          postId: newPost.id,
+          title: newPost.title,
+          category: newPost.category,
+          ageGroup: newPost.ageGroup,
+        },
+        ...prev.filter((item) => item.postId !== newPost.id),
+      ])
+    }
 
     clearShareMode()
     setTab('최신')
@@ -7838,29 +7486,6 @@ ${shareUrl}`)
     authOpen ||
     shareInboxOpen
 
-  const refreshCurrentActorWatchlist = useCallback(() => {
-    return fetchWatchlist(currentActorUnifiedKey)
-  }, [fetchWatchlist, currentActorUnifiedKey])
-
-  useEffect(() => {
-    if (!currentActorUnifiedKey || !currentPost?.id) return
-    void refreshCurrentActorWatchlist()
-  }, [currentActorUnifiedKey, currentPost?.id, refreshCurrentActorWatchlist])
-
-  useEffect(() => {
-    if (typeof document === 'undefined' || !currentActorUnifiedKey) return
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void refreshCurrentActorWatchlist()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () =>
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [currentActorUnifiedKey, refreshCurrentActorWatchlist])
-
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
@@ -7888,20 +7513,40 @@ ${shareUrl}`)
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
+                  {unreadWatchlistCount > 0 ? (
+                    <button
+                      onClick={openWatchlistActivity}
+                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                    >
+                      <span>새 후기 도착</span>
+                      <span>{unreadWatchlistCount}개</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={openWatchlistActivity}
-                    className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
-                  >
-                    <span className="text-xs font-bold">
-                      {profile?.anonymous_name ?? guestName ?? '익명'}
-                    </span>
-                    {unreadWatchlistCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
-                    ) : null}
-                  </button>
+                  {!authUser ? (
+                    <button
+                      onClick={() => setAuthOpen(true)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                    >
+                      <User className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={openWatchlistActivity}
+                      className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                    >
+                      <span className="text-xs font-bold">
+                        {profile?.anonymous_name ?? '익명'}
+                      </span>
+                      {unreadWatchlistCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                          {unreadWatchlistCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  )}
 
                   {isAdmin && (
                     <button
@@ -7958,16 +7603,9 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
-          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
-          onRefreshWatchlist={refreshCurrentActorWatchlist}
-          watchlistRefreshing={watchlistRefreshing}
-          watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
-          onRequestLogin={() => setAuthOpen(true)}
           profile={profile}
-          guestName={guestName}
-          isLoggedIn={!!authUser}
           stats={stats}
           badges={badges}
         />
@@ -8034,23 +7672,48 @@ ${shareUrl}`)
                     ⚡ 연속 판단 {currentVoteStreak.currentCount}회
                   </div>
                 ) : null}
+                {unreadWatchlistCount > 0 ? (
+                  <button
+                    onClick={openWatchlistActivity}
+                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
+                  >
+                    <span>새 후기 도착</span>
+                    <span>{unreadWatchlistCount}개</span>
+                  </button>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={openWatchlistActivity}
-                  className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
-                >
-                  <span className="text-xs">
-                    {getLevelTheme(levelInfo.level).icon}
-                  </span>
-                  <span className="text-xs font-bold">
-                    Lv.{levelInfo.level}
-                  </span>
-                  {unreadWatchlistCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
-                  ) : null}
-                </button>
+                {!authUser ? (
+                  <button
+                    onClick={() => setAuthOpen(true)}
+                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                  >
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
+                    <span className="text-xs font-bold">
+                      Lv.{levelInfo.level}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={openWatchlistActivity}
+                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                  >
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
+                    <span className="text-xs font-bold">
+                      Lv.{levelInfo.level}
+                    </span>
+                    {unreadWatchlistCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                        {unreadWatchlistCount}
+                      </span>
+                    ) : null}
+                  </button>
+                )}
 
                 {isAdmin && (
                   <button
@@ -8142,23 +7805,30 @@ ${shareUrl}`)
                 </div>
 
                 <div className="relative h-[24px] min-w-0 flex-1 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={handleLiveTickerOpen}
-                    className="absolute inset-0 flex w-full items-center gap-2 text-left"
-                  >
-                    <span
-                      className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
+                  <AnimatePresence mode="wait">
+                    <motion.button
+                      key={activeLiveTickerItem.id}
+                      type="button"
+                      onClick={handleLiveTickerOpen}
+                      initial={{ y: 18, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -18, opacity: 0 }}
+                      transition={{ duration: 0.22 }}
+                      className="absolute inset-0 flex w-full items-center gap-2 text-left"
                     >
-                      {activeLiveTickerItem.rank}위
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
-                      {activeLiveTickerItem.title}
-                    </span>
-                    <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
-                      {activeLiveTickerItem.emotionLabel}
-                    </span>
-                  </button>
+                      <span
+                        className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
+                      >
+                        {activeLiveTickerItem.rank}위
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
+                        {activeLiveTickerItem.title}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
+                        {activeLiveTickerItem.emotionLabel}
+                      </span>
+                    </motion.button>
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -9096,6 +8766,7 @@ ${shareUrl}`)
           open={commentOpen}
           onClose={() => {
             setCommentOpen(false)
+            requestLightweightMetaRefresh()
           }}
           onAddComment={(text, side) => void addComment(text, side)}
           onLikeComment={(commentId) => void likeComment(commentId)}
@@ -9139,16 +8810,9 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
-          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
-          onRefreshWatchlist={refreshCurrentActorWatchlist}
-          watchlistRefreshing={watchlistRefreshing}
-          watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
-          onRequestLogin={() => setAuthOpen(true)}
           profile={profile}
-          guestName={guestName}
-          isLoggedIn={!!authUser}
           stats={stats}
           badges={badges}
         />
