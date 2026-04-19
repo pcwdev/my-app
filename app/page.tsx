@@ -130,8 +130,11 @@ type WatchlistItem = {
   createdAt: string | null
   latestOutcomeType: PostOutcomeItem['outcomeType'] | null
   latestOutcomeSummary: string | null
+  latestOutcomeCreatedAt: string | null
   hasOutcome: boolean
   unreadOutcome: boolean
+  watchStatus: 'waiting' | 'updated' | 'archived'
+  archivedAt: string | null
 }
 
 type PostItem = {
@@ -1439,6 +1442,77 @@ function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
   }
 }
 
+function getWatchlistStatusMeta(status: WatchlistItem['watchStatus']) {
+  switch (status) {
+    case 'updated':
+      return {
+        label: '새 소식',
+        helper: '후기/결말 먼저 확인',
+        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      }
+    case 'archived':
+      return {
+        label: '보관됨',
+        helper: '이미 확인한 업데이트',
+        toneClass: 'border-slate-200 bg-slate-50 text-slate-600',
+      }
+    default:
+      return {
+        label: '대기중',
+        helper: '아직 새 후기가 없음',
+        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+      }
+  }
+}
+
+function compareWatchlistItems(a: WatchlistItem, b: WatchlistItem) {
+  const order: Record<WatchlistItem['watchStatus'], number> = {
+    updated: 0,
+    waiting: 1,
+    archived: 2,
+  }
+
+  if (order[a.watchStatus] !== order[b.watchStatus]) {
+    return order[a.watchStatus] - order[b.watchStatus]
+  }
+
+  const aSignalTime =
+    a.watchStatus === 'updated'
+      ? a.latestOutcomeCreatedAt
+      : (a.archivedAt ?? a.createdAt)
+  const bSignalTime =
+    b.watchStatus === 'updated'
+      ? b.latestOutcomeCreatedAt
+      : (b.archivedAt ?? b.createdAt)
+
+  return (
+    new Date(bSignalTime ?? 0).getTime() - new Date(aSignalTime ?? 0).getTime()
+  )
+}
+
+function normalizeWatchStatus(
+  value?: string | null,
+): WatchlistItem['watchStatus'] {
+  if (value === 'updated' || value === 'archived') return value
+  return 'waiting'
+}
+
+function resolveWatchlistStatus(input: {
+  unreadOutcome: boolean
+  latestOutcomeCreatedAt?: string | null
+  archivedAt?: string | null
+  storedStatus?: string | null
+}): WatchlistItem['watchStatus'] {
+  if (input.unreadOutcome && input.latestOutcomeCreatedAt) return 'updated'
+  if (
+    input.archivedAt ||
+    normalizeWatchStatus(input.storedStatus) === 'archived'
+  ) {
+    return 'archived'
+  }
+  return 'waiting'
+}
+
 function getStreakTone(count: number) {
   if (count >= 10) return 'border-amber-200 bg-amber-50 text-amber-700'
   if (count >= 5) return 'border-violet-200 bg-violet-50 text-violet-700'
@@ -1908,6 +1982,7 @@ function MyActivityModal({
   unreadWatchlistCount,
   initialTab = 'posts',
   onOpenPost,
+  onOpenWatchlistItem,
   onOpenComment,
   onLogout,
   profile,
@@ -1922,6 +1997,7 @@ function MyActivityModal({
   unreadWatchlistCount: number
   initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number) => void
+  onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number) => void
   onLogout: () => void
   profile: ProfileRow | null
@@ -1930,11 +2006,14 @@ function MyActivityModal({
 }) {
   const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
   const [profileExpanded, setProfileExpanded] = useState(false)
+  const [watchlistFilter, setWatchlistFilter] =
+    useState<WatchlistItem['watchStatus']>('updated')
 
   useEffect(() => {
     if (open) {
       setTab(initialTab)
       setProfileExpanded(false)
+      setWatchlistFilter('updated')
     }
   }, [open, initialTab])
 
@@ -1949,6 +2028,21 @@ function MyActivityModal({
     { label: '댓글', value: stats.comments_count },
     { label: '궁금', value: watchlistItems.length },
   ]
+  const updatedWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'updated',
+  )
+  const waitingWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'waiting',
+  )
+  const archivedWatchlistItems = watchlistItems.filter(
+    (item) => item.watchStatus === 'archived',
+  )
+  const filteredWatchlistItems =
+    watchlistFilter === 'updated'
+      ? updatedWatchlistItems
+      : watchlistFilter === 'waiting'
+        ? waitingWatchlistItems
+        : archivedWatchlistItems
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2155,10 +2249,76 @@ function MyActivityModal({
               로그인 후 작성한 댓글이 없음
             </div>
           )}
-          {tab === 'watchlist' && watchlistItems.length === 0 && (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              결말궁금으로 저장한 글이 없음
-            </div>
+          {tab === 'watchlist' && (
+            <>
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    {
+                      key: 'updated',
+                      label: '새 소식',
+                      count: updatedWatchlistItems.length,
+                    },
+                    {
+                      key: 'waiting',
+                      label: '대기중',
+                      count: waitingWatchlistItems.length,
+                    },
+                    {
+                      key: 'archived',
+                      label: '보관됨',
+                      count: archivedWatchlistItems.length,
+                    },
+                  ].map((item) => {
+                    const active = watchlistFilter === item.key
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() =>
+                          setWatchlistFilter(
+                            item.key as WatchlistItem['watchStatus'],
+                          )
+                        }
+                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                          active
+                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {item.label}
+                        <span
+                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            active
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white text-slate-500'
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-500">
+                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
+                  이동
+                </div>
+              </div>
+
+              {watchlistItems.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  결말궁금으로 저장한 글이 없음
+                </div>
+              ) : filteredWatchlistItems.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                  {watchlistFilter === 'updated'
+                    ? '아직 새로 도착한 후기가 없음'
+                    : watchlistFilter === 'waiting'
+                      ? '후기 대기중인 글이 없음'
+                      : '보관된 업데이트가 없음'}
+                </div>
+              ) : null}
+            </>
           )}
 
           {tab === 'posts' &&
@@ -2196,46 +2356,55 @@ function MyActivityModal({
             ))}
 
           {tab === 'watchlist' &&
-            watchlistItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-xs text-slate-500">
-                    {item.category} · {item.ageGroup}
-                  </div>
-                  {item.latestOutcomeType ? (
-                    <>
+            filteredWatchlistItems.map((item) => {
+              const statusMeta = getWatchlistStatusMeta(item.watchStatus)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onOpenWatchlistItem(item)}
+                  className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-xs text-slate-500">
+                      {item.category} · {item.ageGroup}
+                    </div>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusMeta.toneClass}`}
+                    >
+                      {statusMeta.label}
+                    </span>
+                    {item.latestOutcomeType ? (
                       <span
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
                       >
                         {getOutcomeLabel(item.latestOutcomeType)}
                       </span>
-                      {item.unreadOutcome ? (
-                        <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                          새 후기
-                        </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      후기 대기중
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 font-bold text-slate-900">
-                  {item.title}
-                </div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
-                </div>
-                <div className="mt-2 text-xs text-slate-400">
-                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
-                </div>
-              </button>
-            ))}
+                    ) : null}
+                    {item.unreadOutcome ? (
+                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                        읽기 전
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 font-bold text-slate-900">
+                    {item.title}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    {item.latestOutcomeSummary ??
+                      (item.watchStatus === 'archived'
+                        ? '이미 확인한 업데이트 글'
+                        : '나중에 결과 보려고 저장한 글')}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400">
+                    {item.watchStatus === 'updated'
+                      ? '눌러서 확인하면 보관됨으로 이동'
+                      : item.watchStatus === 'archived'
+                        ? '다시 본 업데이트 글'
+                        : '결말 기다리는 글'}
+                  </div>
+                </button>
+              )
+            })}
         </div>
 
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
@@ -4697,7 +4866,7 @@ export default function MatnyaApp() {
 
     const { data: watchRows, error: watchError } = await supabase
       .from('post_watchlist')
-      .select('id, post_id, created_at')
+      .select('id, post_id, created_at, watch_status, archived_at')
       .eq('actor_key', actorKey)
       .eq('watch_type', 'curious')
       .order('created_at', { ascending: false })
@@ -4711,6 +4880,8 @@ export default function MatnyaApp() {
       id: Number(row.id),
       postId: Number(row.post_id),
       createdAt: row.created_at ?? null,
+      watchStatus: normalizeWatchStatus(row.watch_status),
+      archivedAt: row.archived_at ?? null,
     }))
 
     if (rows.length === 0) {
@@ -4777,6 +4948,14 @@ export default function MatnyaApp() {
 
         watchedMap[row.postId] = true
         nextSeenState[row.postId] = lastSeenAt
+        const latestOutcomeCreatedAt = latestOutcome?.created_at ?? null
+        const watchStatus = resolveWatchlistStatus({
+          unreadOutcome,
+          latestOutcomeCreatedAt,
+          archivedAt: row.archivedAt,
+          storedStatus: row.watchStatus,
+        })
+
         return {
           id: row.id,
           postId: row.postId,
@@ -4786,20 +4965,16 @@ export default function MatnyaApp() {
           createdAt: row.createdAt,
           latestOutcomeType: latestOutcome?.outcome_type ?? null,
           latestOutcomeSummary: latestOutcome?.summary ?? null,
+          latestOutcomeCreatedAt,
           hasOutcome: !!latestOutcome,
           unreadOutcome,
+          watchStatus,
+          archivedAt: row.archivedAt,
         } satisfies WatchlistItem
       })
       .filter(Boolean) as WatchlistItem[]
 
-    items.sort((a, b) => {
-      if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
-      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-      return (
-        new Date(b.createdAt ?? 0).getTime() -
-        new Date(a.createdAt ?? 0).getTime()
-      )
-    })
+    items.sort(compareWatchlistItems)
 
     setWatchlistItems(items)
     setMyWatchlistMap(watchedMap)
@@ -6584,6 +6759,13 @@ ${shareUrl}`)
     }
   }
 
+  const openWatchlistItemDirect = (item: WatchlistItem) => {
+    openPostDirect(item.postId)
+    if (item.latestOutcomeCreatedAt) {
+      void markWatchlistOutcomeSeen(item.postId, item.latestOutcomeCreatedAt)
+    }
+  }
+
   const openCommentDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
@@ -6684,35 +6866,52 @@ ${shareUrl}`)
       setWatchlistItems((prev) =>
         prev
           .map((item) =>
-            item.postId === postId ? { ...item, unreadOutcome: false } : item,
+            item.postId === postId
+              ? {
+                  ...item,
+                  unreadOutcome: false,
+                  watchStatus: normalizeWatchStatus(
+                    item.latestOutcomeType ? 'archived' : item.watchStatus,
+                  ),
+                  archivedAt:
+                    item.latestOutcomeType && !item.archivedAt
+                      ? new Date().toISOString()
+                      : item.archivedAt,
+                }
+              : item,
           )
-          .sort((a, b) => {
-            if (a.unreadOutcome !== b.unreadOutcome)
-              return a.unreadOutcome ? -1 : 1
-            if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-            return (
-              new Date(b.createdAt ?? 0).getTime() -
-              new Date(a.createdAt ?? 0).getTime()
-            )
-          }),
+          .sort(compareWatchlistItems),
       )
 
-      const { error } = await supabase
-        .from('post_watchlist_outcome_reads')
-        .upsert(
+      const seenAt = new Date().toISOString()
+      const [{ error }, { error: watchUpdateError }] = await Promise.all([
+        supabase.from('post_watchlist_outcome_reads').upsert(
           {
             actor_key: currentActorUnifiedKey,
             post_id: postId,
             last_seen_outcome_created_at: latestSeenAt,
-            updated_at: new Date().toISOString(),
+            updated_at: seenAt,
           },
           {
             onConflict: 'actor_key,post_id',
           },
-        )
+        ),
+        supabase
+          .from('post_watchlist')
+          .update({
+            watch_status: 'archived',
+            archived_at: seenAt,
+          })
+          .eq('actor_key', currentActorUnifiedKey)
+          .eq('post_id', postId)
+          .eq('watch_type', 'curious'),
+      ])
 
       if (error) {
         console.error('궁금한 글 읽음 처리 실패', error)
+      }
+      if (watchUpdateError) {
+        console.error('궁금한 글 상태 업데이트 실패', watchUpdateError)
       }
     },
     [currentActorUnifiedKey, postOutcomeMap],
@@ -6787,20 +6986,15 @@ ${shareUrl}`)
                 ...item,
                 latestOutcomeType: nextItem.outcomeType,
                 latestOutcomeSummary: nextItem.summary,
+                latestOutcomeCreatedAt: nextItem.createdAt,
                 hasOutcome: true,
                 unreadOutcome: false,
+                watchStatus: 'archived',
+                archivedAt: new Date().toISOString(),
               }
             : item,
         )
-        .sort((a, b) => {
-          if (a.unreadOutcome !== b.unreadOutcome)
-            return a.unreadOutcome ? -1 : 1
-          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-          return (
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime()
-          )
-        }),
+        .sort(compareWatchlistItems),
     )
 
     await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
@@ -6857,8 +7051,11 @@ ${shareUrl}`)
       createdAt: new Date().toISOString(),
       latestOutcomeType: latestOutcome?.outcomeType ?? null,
       latestOutcomeSummary: latestOutcome?.summary ?? null,
+      latestOutcomeCreatedAt: latestOutcome?.createdAt ?? null,
       hasOutcome: !!latestOutcome,
       unreadOutcome: false,
+      watchStatus: normalizeWatchStatus(latestOutcome ? 'archived' : 'waiting'),
+      archivedAt: latestOutcome ? new Date().toISOString() : null,
     }
 
     setWatchlistItems((prev) => {
@@ -6866,14 +7063,7 @@ ${shareUrl}`)
         optimisticItem,
         ...prev.filter((item) => item.postId !== currentPost.id),
       ]
-      next.sort((a, b) => {
-        if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
-        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-        return (
-          new Date(b.createdAt ?? 0).getTime() -
-          new Date(a.createdAt ?? 0).getTime()
-        )
-      })
+      next.sort(compareWatchlistItems)
       return next
     })
 
@@ -6883,6 +7073,8 @@ ${shareUrl}`)
         post_id: currentPost.id,
         actor_key: currentActorUnifiedKey,
         watch_type: 'curious',
+        watch_status: latestOutcome ? 'archived' : 'waiting',
+        archived_at: latestOutcome ? new Date().toISOString() : null,
       })
       .select('id, created_at')
       .single()
@@ -6905,15 +7097,7 @@ ${shareUrl}`)
               }
             : item,
         )
-        .sort((a, b) => {
-          if (a.unreadOutcome !== b.unreadOutcome)
-            return a.unreadOutcome ? -1 : 1
-          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-          return (
-            new Date(b.createdAt ?? 0).getTime() -
-            new Date(a.createdAt ?? 0).getTime()
-          )
-        }),
+        .sort(compareWatchlistItems),
     )
 
     void upsertResultUnlock(currentPost.id, {
@@ -7659,6 +7843,7 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
+          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
@@ -8866,6 +9051,7 @@ ${shareUrl}`)
           unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
+          onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           profile={profile}
