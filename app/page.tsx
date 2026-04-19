@@ -1190,10 +1190,14 @@ function getRevealHintLabel(leftVotes: number, rightVotes: number) {
   const right = Math.max(0, Number(rightVotes ?? 0))
   const total = left + right
 
-  if (total <= 0) return '첫 반응이 아직 없음'
-  if (left === right) return '거의 반반 수준'
-  if (left > right * 2 || right > left * 2) return '대부분이 한쪽 의견'
-  return '생각보다 더 많이 갈리는 중'
+  if (total <= 0) return '댓글 반응이 아직 없음'
+
+  const diffRatio = Math.abs(left - right) / Math.max(total, 1)
+
+  if (left === right || diffRatio <= 0.1) return '댓글 분위기: 거의 반반'
+  if (left > right * 2 || right > left * 2)
+    return '댓글 분위기: 한쪽 의견이 훨씬 많음'
+  return '댓글 분위기: 생각보다 꽤 갈림'
 }
 
 function getResultRevealStage(
@@ -1203,8 +1207,9 @@ function getResultRevealStage(
   hasOutcome: boolean,
 ): ResultRevealStage {
   const exact = percent(leftVotes, rightVotes)
+  const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
 
-  if (unlockLevel >= 4) {
+  if (unlockLevel >= 4 && hasOutcome) {
     return {
       level: 4,
       label: '후기 있음',
@@ -1231,11 +1236,10 @@ function getResultRevealStage(
   }
 
   if (unlockLevel >= 2) {
-    const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
     return {
       level: 2,
       label: getRevealHintLabel(leftVotes, rightVotes),
-      helper: '실시간 반응이 계속 들어와 정확한 수치는 마지막에 공개됨',
+      helper: '사람들이 왜 그렇게 보는지 댓글에서 바로 확인할 수 있음',
       toneClass: stateMeta.toneClass,
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1244,7 +1248,6 @@ function getResultRevealStage(
     }
   }
 
-  const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
   return {
     level: 1,
     label: stateMeta.label,
@@ -3383,15 +3386,6 @@ export default function MatnyaApp() {
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const deferredBootstrapTimerRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null)
-  const deferredProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
-  const deferredActivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
 
   useEffect(() => {
     postsRef.current = posts
@@ -4691,52 +4685,16 @@ export default function MatnyaApp() {
   }, [])
 
   useEffect(() => {
-    if (deferredActivityTimerRef.current) {
-      clearTimeout(deferredActivityTimerRef.current)
-      deferredActivityTimerRef.current = null
-    }
-
     if (authUser?.id) {
-      deferredActivityTimerRef.current = setTimeout(() => {
-        deferredActivityTimerRef.current = null
-        void fetchMyActivity(authUser.id)
-      }, 900)
+      void fetchMyActivity(authUser.id)
     } else {
       setMyPosts([])
       setMyComments([])
     }
-
-    return () => {
-      if (deferredActivityTimerRef.current) {
-        clearTimeout(deferredActivityTimerRef.current)
-        deferredActivityTimerRef.current = null
-      }
-    }
   }, [authUser?.id, fetchMyActivity])
 
   useEffect(() => {
-    if (!currentActorUnifiedKey) {
-      setWatchlistItems([])
-      setMyWatchlistMap({})
-      setWatchOutcomeSeenMap({})
-      return
-    }
-
-    if (deferredBootstrapTimerRef.current) {
-      clearTimeout(deferredBootstrapTimerRef.current)
-    }
-
-    deferredBootstrapTimerRef.current = setTimeout(() => {
-      deferredBootstrapTimerRef.current = null
-      void fetchWatchlist(currentActorUnifiedKey)
-    }, 320)
-
-    return () => {
-      if (deferredBootstrapTimerRef.current) {
-        clearTimeout(deferredBootstrapTimerRef.current)
-        deferredBootstrapTimerRef.current = null
-      }
-    }
+    void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
 
   const loadResultUnlocks = useCallback(
@@ -4783,12 +4741,7 @@ export default function MatnyaApp() {
       setResultUnlockMap({})
       return
     }
-
-    const timer = setTimeout(() => {
-      void loadResultUnlocks(postIds)
-    }, 520)
-
-    return () => clearTimeout(timer)
+    void loadResultUnlocks(postIds)
   }, [currentActorUnifiedKey, posts, loadResultUnlocks])
 
   const refreshLightweightMetaNow = useCallback(async () => {
@@ -4809,8 +4762,10 @@ export default function MatnyaApp() {
 
     try {
       await Promise.all([
+        fetchWatchlist(currentActorUnifiedKey),
         loadReactionAndOutcomeData(postIds, commentIds),
         loadDramaEnhancementData(postIds),
+        loadResultUnlocks(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -4983,24 +4938,8 @@ export default function MatnyaApp() {
   )
 
   useEffect(() => {
-    if (deferredProgressTimerRef.current) {
-      clearTimeout(deferredProgressTimerRef.current)
-      deferredProgressTimerRef.current = null
-    }
-
     if (!voterKey) return
-
-    deferredProgressTimerRef.current = setTimeout(() => {
-      deferredProgressTimerRef.current = null
-      void loadProgress()
-    }, 1100)
-
-    return () => {
-      if (deferredProgressTimerRef.current) {
-        clearTimeout(deferredProgressTimerRef.current)
-        deferredProgressTimerRef.current = null
-      }
-    }
+    void loadProgress()
   }, [voterKey, authUser?.id, loadProgress])
 
   useEffect(() => {
@@ -5013,15 +4952,6 @@ export default function MatnyaApp() {
       }
       if (metaRefreshTimerRef.current) {
         clearTimeout(metaRefreshTimerRef.current)
-      }
-      if (deferredBootstrapTimerRef.current) {
-        clearTimeout(deferredBootstrapTimerRef.current)
-      }
-      if (deferredProgressTimerRef.current) {
-        clearTimeout(deferredProgressTimerRef.current)
-      }
-      if (deferredActivityTimerRef.current) {
-        clearTimeout(deferredActivityTimerRef.current)
       }
     }
   }, [])
@@ -5363,19 +5293,16 @@ ${shareUrl}`)
   }, [shareId, loadShareStats])
 
   useEffect(() => {
-    if (!voterKey) {
-      setShareInboxItems([])
-      setShareInboxUnreadCount(0)
-      return
-    }
-  }, [voterKey])
+    if (!voterKey) return
+    void loadOwnerShareInbox(true)
+  }, [voterKey, loadOwnerShareInbox])
 
   useEffect(() => {
     if (!shareInboxOpen || !voterKey) return
 
     const interval = window.setInterval(() => {
       void loadOwnerShareInbox(true)
-    }, 7000)
+    }, 5000)
 
     return () => window.clearInterval(interval)
   }, [shareInboxOpen, voterKey, loadOwnerShareInbox])
@@ -5553,7 +5480,7 @@ ${shareUrl}`)
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
-    if (latestOutcome || revisitMeta) {
+    if (latestOutcome) {
       void upsertResultUnlock(currentPost.id, {
         unlockLevel: 4,
       })
@@ -6071,7 +5998,7 @@ ${shareUrl}`)
         p_actor_key: currentActorUnifiedKey,
         p_post_id: postId,
       })
-    }, 2600)
+    }, 1600)
 
     return () => {
       if (shadowViewTimerRef.current) {
@@ -6857,7 +6784,7 @@ ${shareUrl}`)
       unlockLevel: 3,
       isWatchlisted: true,
     })
-    showToast('결말궁금 저장')
+    showToast('결과까지 보기')
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -8080,11 +8007,13 @@ ${shareUrl}`)
                               >
                                 {currentResultUnlockLevel >= 4
                                   ? '후기 4/4'
-                                  : currentResultUnlockLevel >= 3
+                                  : currentResultUnlockLevel === 3
                                     ? '결과 3/4'
-                                    : currentResultUnlockLevel > 0
-                                      ? `공개 ${currentResultUnlockLevel}/4`
-                                      : '공개 0/4'}
+                                    : currentResultUnlockLevel === 2
+                                      ? '반응 2/4'
+                                      : currentResultUnlockLevel === 1
+                                        ? '분위기 1/4'
+                                        : '분위기 0/4'}
                               </div>
                             </div>
                             <div className="mt-2 text-[13px] font-semibold text-slate-600">
@@ -8101,8 +8030,8 @@ ${shareUrl}`)
                                   {displayedPercent.right}%
                                 </div>
                                 <div className="mt-1 text-[12px] text-slate-500">
-                                  실시간 반응이 계속 들어와 수치는 조금씩 달라질
-                                  수 있음
+                                  사람들이 계속 들어오고 있어서 결과는 조금씩
+                                  달라질 수 있음
                                 </div>
                               </div>
                             ) : null}
@@ -8113,7 +8042,7 @@ ${shareUrl}`)
                                   onClick={() => setCommentOpen(true)}
                                   className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
                                 >
-                                  댓글 보면 더 공개
+                                  댓글 분위기 보기
                                 </button>
                                 <button
                                   onClick={() =>
@@ -8121,7 +8050,7 @@ ${shareUrl}`)
                                   }
                                   className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
                                 >
-                                  결말궁금 저장
+                                  결과까지 보기
                                 </button>
                               </div>
                             ) : null}
@@ -8794,10 +8723,10 @@ ${shareUrl}`)
             if (!currentPost?.id || !votes[currentPost.id]) return
             const currentReads =
               resultUnlockMap[currentPost.id]?.commentReads ?? 0
-            const nextReads = currentReads + count
+            if (currentReads > 0) return
             void upsertResultUnlock(currentPost.id, {
-              commentReadsDelta: count,
-              unlockLevel: nextReads >= 3 ? 2 : undefined,
+              forceCommentReads: Math.max(1, count),
+              unlockLevel: 2,
               isWatchlisted: currentWatchlisted,
             })
           }}
