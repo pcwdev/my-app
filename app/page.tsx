@@ -1414,27 +1414,27 @@ const POST_REACTION_META: Record<
   { label: string; activeClass: string; idleClass: string }
 > = {
   controversial: {
-    label: '개갈림',
+    label: '지금 난리남 🔥',
     activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   curious: {
-    label: '결말궁금',
+    label: '결말 궁금함 👀',
     activeClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   suspicious: {
-    label: '주작같음',
+    label: '이거 수상함 👀',
     activeClass: 'border-amber-200 bg-amber-50 text-amber-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   minority: {
-    label: '내가 소수네',
+    label: '나만 이상함? 😳',
     activeClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   shareworthy: {
-    label: '친구보내기',
+    label: '이건 끝 봐야 함',
     activeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
