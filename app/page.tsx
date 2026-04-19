@@ -1207,10 +1207,8 @@ function getResultRevealStage(
   if (unlockLevel >= 4) {
     return {
       level: 4,
-      label: hasOutcome ? '결말까지 공개됨' : '최종 결과 공개',
-      helper: hasOutcome
-        ? '이제 결과뿐 아니라 후기와 결말까지 같이 보면 됨'
-        : '정확한 결과가 전부 공개된 상태',
+      label: '후기 있음',
+      helper: '결국 어떻게 됐는지까지 볼 수 있음',
       toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1222,8 +1220,8 @@ function getResultRevealStage(
   if (unlockLevel >= 3) {
     return {
       level: 3,
-      label: '정확한 결과 공개',
-      helper: '실시간 반응이 계속 들어와 수치는 조금씩 달라질 수 있음',
+      label: '지금 결과 보기',
+      helper: '사람들이 계속 들어오고 있어서 결과는 조금씩 달라질 수 있음',
       toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -8080,9 +8078,13 @@ ${shareUrl}`)
                               <div
                                 className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${currentResultReveal.toneClass}`}
                               >
-                                {currentResultUnlockLevel > 0
-                                  ? `공개 ${currentResultUnlockLevel}/4`
-                                  : '공개 0/4'}
+                                {currentResultUnlockLevel >= 4
+                                  ? '후기 4/4'
+                                  : currentResultUnlockLevel >= 3
+                                    ? '결과 3/4'
+                                    : currentResultUnlockLevel > 0
+                                      ? `공개 ${currentResultUnlockLevel}/4`
+                                      : '공개 0/4'}
                               </div>
                             </div>
                             <div className="mt-2 text-[13px] font-semibold text-slate-600">
