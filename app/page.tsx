@@ -7502,7 +7502,7 @@ ${shareUrl}`)
       isWatchlisted: true,
     })
     refreshWatchlistSignalsAfterAction(80)
-    showToast('결과 보기')
+    showToast('결말궁금 저장됨')
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -8737,6 +8737,22 @@ ${shareUrl}`)
                               </div>
                             </div>
 
+                            <div className="mt-3 text-[13px] font-semibold text-slate-600">
+                              {currentTension?.isFlipImminent
+                                ? currentTensionMeta.helper
+                                : currentMinorityLabel
+                                  ? currentMinorityLabel.helper
+                                  : currentResultEmotion === '🔥 개싸움'
+                                    ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
+                                    : currentResultEmotion === '👀 팽팽'
+                                      ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
+                                      : currentResultEmotion === '⚡ 기우는 중'
+                                        ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
+                                        : currentTensionMeta
+                                          ? currentTensionMeta.helper
+                                          : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                            </div>
+
                             <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -8775,22 +8791,6 @@ ${shareUrl}`)
                             </div>
                           </div>
                         ) : null}
-
-                        <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                          {currentTension?.isFlipImminent
-                            ? currentTensionMeta.helper
-                            : currentMinorityLabel
-                              ? currentMinorityLabel.helper
-                              : currentResultEmotion === '🔥 개싸움'
-                                ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
-                                : currentResultEmotion === '👀 팽팽'
-                                  ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
-                                  : currentResultEmotion === '⚡ 기우는 중'
-                                    ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
-                                    : currentTensionMeta
-                                      ? currentTensionMeta.helper
-                                      : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
-                        </div>
                       </div>
                     )}
 
