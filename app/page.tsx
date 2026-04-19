@@ -8926,9 +8926,7 @@ ${shareUrl}`)
                             ) : null}
                           </div>
                           <div className="mt-1">
-                            {currentWatchlisted
-                              ? latestOutcome.summary
-                              : '후기가 올라온 글임 · 결말궁금에 저장해두고 나중에 다시 볼 수 있음'}
+                            {latestOutcome.summary || '작성자 후기가 등록됨'}
                           </div>
                         </div>
                       ) : latestOutcome ? (
