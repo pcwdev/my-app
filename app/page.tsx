@@ -8753,42 +8753,44 @@ ${shareUrl}`)
                                           : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
                             </div>
 
-                            <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                                    WATCHLIST
+                            {!latestOutcome ? (
+                              <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                                      WATCHLIST
+                                    </div>
+                                    <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
+                                      👀 이 글 결말이 궁금함?
+                                    </div>
+                                    <div className="mt-1 text-[12px] leading-5 text-slate-600">
+                                      {currentWatchlisted
+                                        ? '내 활동 > 결말궁금 에서 다시 확인 가능'
+                                        : '후기 올라오면 빨간불로 바로 알려줌'}
+                                    </div>
                                   </div>
-                                  <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
-                                    👀 이 글 결말이 궁금함?
-                                  </div>
-                                  <div className="mt-1 text-[12px] leading-5 text-slate-600">
-                                    {currentWatchlisted
-                                      ? '내 활동 > 결말궁금 에서 다시 확인 가능'
-                                      : '후기 올라오면 빨간불로 바로 알려줌'}
-                                  </div>
+                                  {currentWatchUnread ? (
+                                    <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                                      새 후기
+                                    </span>
+                                  ) : null}
                                 </div>
-                                {currentWatchUnread ? (
-                                  <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                                    새 후기
-                                  </span>
-                                ) : null}
+                                <button
+                                  onClick={() =>
+                                    void toggleCurrentPostWatchlist()
+                                  }
+                                  className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
+                                    currentWatchlisted
+                                      ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+                                      : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
+                                  }`}
+                                >
+                                  {currentWatchlisted
+                                    ? '결말궁금 저장됨 ✓'
+                                    : '결말궁금 저장'}
+                                </button>
                               </div>
-                              <button
-                                onClick={() =>
-                                  void toggleCurrentPostWatchlist()
-                                }
-                                className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
-                                  currentWatchlisted
-                                    ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
-                                    : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
-                                }`}
-                              >
-                                {currentWatchlisted
-                                  ? '결말궁금 저장됨 ✓'
-                                  : '결말궁금 저장'}
-                              </button>
-                            </div>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
