@@ -8668,28 +8668,80 @@ ${shareUrl}`)
                   </div>
                 ) : null}
               </div>
-              {currentHotMeta ? (
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
-                  <div className="rounded-2xl border border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <div className="text-rose-400">최근 참여자</div>
-                    <div className="mt-1 text-sm font-black text-slate-900">
-                      {currentHotMeta.vote1h}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-violet-100 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <div className="text-violet-400">붙는 댓글</div>
-                    <div className="mt-1 text-sm font-black text-slate-900">
-                      {currentHotMeta.comment1h}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)] px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <div className="text-amber-500">퍼진 공유</div>
-                    <div className="mt-1 text-sm font-black text-slate-900">
-                      {currentHotMeta.share24h}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+              {currentHotMeta
+                ? (() => {
+                    const signalCards = [
+                      currentHotMeta.vote1h >= 3
+                        ? {
+                            key: 'vote1h',
+                            label: '최근 참여',
+                            value: `${currentHotMeta.vote1h}명`,
+                            toneClass:
+                              'border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] text-rose-500',
+                          }
+                        : null,
+                      currentHotMeta.comment1h >= 2
+                        ? {
+                            key: 'comment1h',
+                            label: '붙는 댓글',
+                            value: `${currentHotMeta.comment1h}개`,
+                            toneClass:
+                              'border-violet-100 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] text-violet-500',
+                          }
+                        : null,
+                      currentHotMeta.share24h >= 1
+                        ? {
+                            key: 'share24h',
+                            label: '퍼지는 중',
+                            value: `${currentHotMeta.share24h}건`,
+                            toneClass:
+                              'border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)] text-amber-500',
+                          }
+                        : null,
+                    ].filter(Boolean) as Array<{
+                      key: string
+                      label: string
+                      value: string
+                      toneClass: string
+                    }>
+
+                    const quietSignal =
+                      currentHotMeta.vote1h <= 2 &&
+                      currentHotMeta.comment1h <= 1 &&
+                      currentHotMeta.share24h === 0
+
+                    if (quietSignal) {
+                      return (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3 py-2.5 text-[11px] shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                          <div className="font-bold text-slate-600">
+                            반응 올라오는 중
+                          </div>
+                          <div className="mt-1 text-slate-400">
+                            댓글이나 공유가 붙기 시작하면 여기서 바로 보여줌
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div
+                        className={`mt-3 grid gap-2 text-center text-[11px] ${signalCards.length === 1 ? 'grid-cols-1' : signalCards.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                      >
+                        {signalCards.map((item) => (
+                          <div
+                            key={item.key}
+                            className={`rounded-2xl border px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)] ${item.toneClass}`}
+                          >
+                            <div>{item.label}</div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              {item.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()
+                : null}
             </div>
 
             {(!currentPost.hidden || adminMode) && (
