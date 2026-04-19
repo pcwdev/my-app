@@ -8324,6 +8324,18 @@ ${shareUrl}`)
         right: currentResultReveal.rightValue,
       }
     : p
+  const liveResultLeft = Math.max(
+    0,
+    Math.min(100, Number(displayedPercent?.left ?? 0)),
+  )
+  const liveResultRight = Math.max(
+    0,
+    Math.min(
+      100,
+      Number(displayedPercent?.right ?? Math.max(0, 100 - liveResultLeft)),
+    ),
+  )
+  const liveResultPercentText = `${liveResultLeft}% vs ${liveResultRight}%`
   const levelInfo = getLevelInfo(stats.points)
 
   return (
@@ -8749,8 +8761,7 @@ ${shareUrl}`)
                             </div>
                             <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                               <div className="text-base font-black text-slate-900">
-                                {displayedPercent.left}% vs{' '}
-                                {displayedPercent.right}%
+                                {liveResultPercentText}
                               </div>
                               <div className="mt-1 text-[12px] text-slate-500">
                                 사람들이 계속 들어오고 있어서 결과는 조금씩
