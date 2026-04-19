@@ -1464,13 +1464,13 @@ function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
 function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
-      return '결말 나옴'
+      return '결국 이렇게 됨 👀'
     case 'update':
-      return '후기 있음'
+      return '후기 떴다 🔥'
     case 'author_followup':
-      return '작성자 후기'
+      return '작성자 등판 👀'
     case 'twist':
-      return '반전 있음'
+      return '판 뒤집힘 ⚡'
     default:
       return '업데이트'
   }
@@ -1931,12 +1931,24 @@ function OutcomeWriteModal({
   }> = [
     {
       value: 'author_followup',
-      label: '작성자 후기',
-      helper: '직접 남기는 추가 설명',
+      label: '작성자 등판 👀',
+      helper: '작성자가 직접 남기는 추가 설명',
     },
-    { value: 'update', label: '후기 있음', helper: '중간 진행 상황 공유' },
-    { value: 'resolved', label: '결말 나옴', helper: '결과가 확정됨' },
-    { value: 'twist', label: '반전 있음', helper: '예상과 다르게 흘러감' },
+    {
+      value: 'update',
+      label: '후기 추가 🔥',
+      helper: '중간 진행 상황을 바로 공유',
+    },
+    {
+      value: 'resolved',
+      label: '결말 공개 👀',
+      helper: '결과가 확실하게 정리됨',
+    },
+    {
+      value: 'twist',
+      label: '판 뒤집힘 ⚡',
+      helper: '예상과 다르게 흐름이 바뀜',
+    },
   ]
 
   const handleSubmit = () => {
