@@ -2136,58 +2136,60 @@ function MyActivityModal({
               ) : null}
             </div>
 
-            {profileExpanded ? (
-              <div className="overflow-hidden">
-                <div className="mt-3 border-t border-slate-100 pt-3">
-                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>다음 레벨 진행도</span>
-                    <span>{levelInfo.progress}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div
-                      className="h-2 rounded-full bg-[#4f7cff] transition-all"
-                      style={{ width: `${levelInfo.progress}%` }}
-                    />
-                  </div>
+            <div className="overflow-hidden">
+              {profileExpanded ? (
+                <div className="overflow-hidden">
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>다음 레벨 진행도</span>
+                      <span>{levelInfo.progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className="h-2 rounded-full bg-[#4f7cff] transition-all"
+                        style={{ width: `${levelInfo.progress}%` }}
+                      />
+                    </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <div className="text-slate-400">판단</div>
-                      <div className="mt-1 font-bold text-slate-900">
-                        {stats.votes_count}
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">판단</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.votes_count}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">받은 공감</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.likes_received}
+                        </div>
                       </div>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <div className="text-slate-400">받은 공감</div>
-                      <div className="mt-1 font-bold text-slate-900">
-                        {stats.likes_received}
-                      </div>
-                    </div>
-                  </div>
 
-                  {badges.length > 0 ? (
-                    <div className="mt-3">
-                      <div className="mb-2 text-[11px] font-semibold text-slate-500">
-                        전체 뱃지
+                    {badges.length > 0 ? (
+                      <div className="mt-3">
+                        <div className="mb-2 text-[11px] font-semibold text-slate-500">
+                          전체 뱃지
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {badges.map((badge) => {
+                            const badgeTheme = getBadgeTheme(badge)
+                            return (
+                              <span
+                                key={`expanded-${badge}`}
+                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                              >
+                                {badgeTheme.icon} {badge}
+                              </span>
+                            )
+                          })}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {badges.map((badge) => {
-                          const badgeTheme = getBadgeTheme(badge)
-                          return (
-                            <span
-                              key={`expanded-${badge}`}
-                              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
-                            >
-                              {badgeTheme.icon} {badge}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -5049,12 +5051,10 @@ export default function MatnyaApp() {
     )
 
     try {
-      await Promise.all([
-        fetchWatchlist(currentActorUnifiedKey),
-        loadReactionAndOutcomeData(postIds, commentIds),
-        loadDramaEnhancementData(postIds),
-        loadResultUnlocks(postIds),
-      ])
+      await fetchWatchlist(currentActorUnifiedKey)
+      await loadReactionAndOutcomeData(postIds, commentIds)
+      await loadDramaEnhancementData(postIds)
+      await loadResultUnlocks(postIds)
     } finally {
       metaRefreshInFlightRef.current = false
 
@@ -5081,25 +5081,148 @@ export default function MatnyaApp() {
   ])
 
   const requestLightweightMetaRefresh = useCallback(
-    (_options?: { immediate?: boolean; delay?: number }) => {
-      return
+    (options?: { immediate?: boolean; delay?: number }) => {
+      if (!currentActorUnifiedKey) return
+
+      const immediate = options?.immediate ?? false
+      const baseDelay = options?.delay ?? 160
+
+      if (immediate) {
+        if (metaRefreshTimerRef.current) {
+          clearTimeout(metaRefreshTimerRef.current)
+          metaRefreshTimerRef.current = null
+        }
+
+        void refreshLightweightMetaNow()
+        return
+      }
+
+      const sinceLast = Date.now() - lastMetaRefreshAtRef.current
+      const delay = sinceLast < 1200 ? Math.max(baseDelay, 260) : baseDelay
+
+      if (metaRefreshTimerRef.current) {
+        clearTimeout(metaRefreshTimerRef.current)
+      }
+
+      metaRefreshTimerRef.current = setTimeout(() => {
+        metaRefreshTimerRef.current = null
+        void refreshLightweightMetaNow()
+      }, delay)
     },
-    [],
+    [currentActorUnifiedKey, refreshLightweightMetaNow],
   )
 
   const upsertResultUnlock = useCallback(
     async (
-      _postId: number,
-      _patch: {
+      postId: number,
+      patch: {
         unlockLevel?: number
         commentReadsDelta?: number
         forceCommentReads?: number
         isWatchlisted?: boolean
       },
     ) => {
-      return null
+      if (!currentActorUnifiedKey || !postId) return null
+
+      const existing = resultUnlockMap[postId] ?? null
+      let base = existing
+
+      if (!base) {
+        const { count, error: countError } = await supabase
+          .from('post_result_unlocks')
+          .select('*', { count: 'exact', head: true })
+          .eq('voter_key', currentActorUnifiedKey)
+
+        if (countError) {
+          console.error('결과 공개 단계 개수 조회 실패', countError)
+        }
+
+        base = {
+          postId,
+          voterKey: currentActorUnifiedKey,
+          unlockLevel: Number(count ?? 0) < 3 ? 3 : 1,
+          commentReads: 0,
+          isWatchlisted: !!myWatchlistMap[postId],
+          createdAt: null,
+          updatedAt: null,
+        }
+      }
+
+      const nextUnlockLevel = Math.max(
+        base.unlockLevel,
+        Number(patch.unlockLevel ?? base.unlockLevel),
+      )
+      const nextCommentReads =
+        typeof patch.forceCommentReads === 'number'
+          ? Math.max(0, patch.forceCommentReads)
+          : Math.max(
+              0,
+              base.commentReads + Number(patch.commentReadsDelta ?? 0),
+            )
+      const nextItem: ResultUnlockItem = {
+        ...base,
+        unlockLevel: nextUnlockLevel,
+        commentReads: nextCommentReads,
+        isWatchlisted:
+          typeof patch.isWatchlisted === 'boolean'
+            ? patch.isWatchlisted
+            : base.isWatchlisted,
+        updatedAt: new Date().toISOString(),
+      }
+
+      setResultUnlockMap((prev) => ({
+        ...prev,
+        [postId]: nextItem,
+      }))
+
+      const { data, error } = await supabase
+        .from('post_result_unlocks')
+        .upsert(
+          {
+            post_id: postId,
+            voter_key: currentActorUnifiedKey,
+            unlock_level: nextItem.unlockLevel,
+            comment_reads: nextItem.commentReads,
+            is_watchlisted: nextItem.isWatchlisted,
+            updated_at: nextItem.updatedAt,
+          },
+          {
+            onConflict: 'post_id,voter_key',
+          },
+        )
+        .select(
+          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+        )
+        .maybeSingle()
+
+      if (error) {
+        console.error('결과 공개 단계 저장 실패', error)
+        return null
+      }
+
+      if (data) {
+        const savedItem: ResultUnlockItem = {
+          postId: Number(data.post_id),
+          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
+          unlockLevel: Math.max(
+            1,
+            Number(data.unlock_level ?? nextItem.unlockLevel),
+          ),
+          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
+          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
+          createdAt: data.created_at ?? nextItem.createdAt,
+          updatedAt: data.updated_at ?? nextItem.updatedAt,
+        }
+        setResultUnlockMap((prev) => ({
+          ...prev,
+          [postId]: savedItem,
+        }))
+        return savedItem
+      }
+
+      return nextItem
     },
-    [],
+    [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
 
   useEffect(() => {
@@ -6493,8 +6616,28 @@ ${shareUrl}`)
   }
 
   const focusCurrentPostCard = useCallback(
-    (_behavior: ScrollBehavior = 'smooth') => {
-      return
+    (behavior: ScrollBehavior = 'smooth') => {
+      if (typeof window === 'undefined') return
+
+      window.requestAnimationFrame(() => {
+        const target = currentPostCardRef.current
+        if (!target) return
+
+        const rect = target.getBoundingClientRect()
+        const absoluteTop = window.scrollY + rect.top
+        const topOffset = 84
+        const nextTop = Math.max(absoluteTop - topOffset, 0)
+
+        window.scrollTo({ top: nextTop, behavior })
+
+        setPostFocusPulse(true)
+        if (postFocusPulseTimerRef.current) {
+          window.clearTimeout(postFocusPulseTimerRef.current)
+        }
+        postFocusPulseTimerRef.current = window.setTimeout(() => {
+          setPostFocusPulse(false)
+        }, 900)
+      })
     },
     [],
   )
@@ -6569,7 +6712,6 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, postId)
       endSharedEntryMode()
       setCurrentIndex(nextIndexInFiltered)
-
       return
     }
 
@@ -6594,7 +6736,6 @@ ${shareUrl}`)
       setTab('추천')
       setSelectedCategory('전체')
       setCurrentIndex(index)
-
       setActivityOpen(false)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
