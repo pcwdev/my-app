@@ -5150,6 +5150,193 @@ export default function MatnyaApp() {
     void loadResultUnlocks(postIds)
   }, [currentActorUnifiedKey, posts, loadResultUnlocks])
 
+  const loadOwnerShareInbox = useCallback(
+    async (silent = false) => {
+      if (!voterKey) {
+        setShareInboxItems([])
+        setShareInboxUnreadCount(0)
+        return
+      }
+
+      if (!silent) setShareInboxLoading(true)
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('share_sessions')
+        .select('id, post_id, owner_choice, created_at')
+        .eq('owner_key', voterKey)
+        .order('created_at', { ascending: false })
+        .limit(40)
+
+      if (sessionsError) {
+        console.error('보낸 공유함 조회 실패', sessionsError)
+        if (!silent) setShareInboxLoading(false)
+        return
+      }
+
+      const sessionRows = (sessions ?? []) as Array<{
+        id: string
+        post_id: number | null
+        owner_choice?: VoteSide | null
+        created_at?: string | null
+      }>
+
+      if (sessionRows.length === 0) {
+        setShareInboxItems([])
+        setShareInboxUnreadCount(0)
+        if (!silent) setShareInboxLoading(false)
+        return
+      }
+
+      const sessionIds = sessionRows.map((item) => String(item.id))
+      const postIds = Array.from(
+        new Set(
+          sessionRows
+            .map((item) => Number(item.post_id ?? 0))
+            .filter((value) => value > 0),
+        ),
+      )
+
+      const [
+        { data: statsRows, error: statsError },
+        { data: postRows, error: postError },
+      ] = await Promise.all([
+        supabase
+          .from('share_session_stats')
+          .select('share_session_id, left_count, right_count')
+          .in('share_session_id', sessionIds),
+        supabase
+          .from('posts')
+          .select('id, title, left_label, right_label, left_votes, right_votes')
+          .in('id', postIds),
+      ])
+
+      if (statsError) {
+        console.error('보낸 공유함 집계 조회 실패', statsError)
+      }
+      if (postError) {
+        console.error('보낸 공유함 게시글 조회 실패', postError)
+      }
+
+      const statsMap = new Map<string, { left: number; right: number }>()
+      for (const row of (statsRows ?? []) as Array<any>) {
+        statsMap.set(String(row.share_session_id), {
+          left: Number(row.left_count ?? 0),
+          right: Number(row.right_count ?? 0),
+        })
+      }
+
+      const postMap = new Map<
+        number,
+        {
+          title: string
+          leftLabel?: string
+          rightLabel?: string
+          overallLeftCount: number
+          overallRightCount: number
+        }
+      >()
+      for (const row of (postRows ?? []) as Array<any>) {
+        postMap.set(Number(row.id), {
+          title: String(row.title ?? '공유한 글'),
+          leftLabel: row.left_label ?? undefined,
+          rightLabel: row.right_label ?? undefined,
+          overallLeftCount: Number(row.left_votes ?? 0),
+          overallRightCount: Number(row.right_votes ?? 0),
+        })
+      }
+
+      const seenMap = readShareInboxSeenMap()
+      const items: ShareInboxItem[] = sessionRows.map((session) => {
+        const sessionId = String(session.id)
+        const postId = Number(session.post_id ?? 0)
+        const stats = statsMap.get(sessionId) ?? { left: 0, right: 0 }
+        const totalCount = stats.left + stats.right
+        const seenCount = Number(seenMap[sessionId] ?? 0)
+        const unreadCount = Math.max(0, totalCount - seenCount)
+        const postMeta = postMap.get(postId)
+
+        return {
+          sessionId,
+          postId,
+          title: postMeta?.title ?? '공유한 글',
+          ownerChoice: session.owner_choice ?? null,
+          createdAt: session.created_at ?? null,
+          leftCount: stats.left,
+          rightCount: stats.right,
+          totalCount,
+          unreadCount,
+          overallLeftCount: Number(postMeta?.overallLeftCount ?? 0),
+          overallRightCount: Number(postMeta?.overallRightCount ?? 0),
+          overallTotalCount:
+            Number(postMeta?.overallLeftCount ?? 0) +
+            Number(postMeta?.overallRightCount ?? 0),
+          leftLabel: postMeta?.leftLabel,
+          rightLabel: postMeta?.rightLabel,
+        }
+      })
+
+      setShareInboxItems(items)
+      setShareInboxUnreadCount(
+        items.filter((item) => item.unreadCount > 0).length,
+      )
+      if (!silent) setShareInboxLoading(false)
+    },
+    [voterKey],
+  )
+
+  const upsertLocalShareInboxItem = useCallback(
+    (input: {
+      sessionId: string
+      postId: number
+      title: string
+      ownerChoice: VoteSide | null
+      createdAt?: string | null
+      leftLabel?: string
+      rightLabel?: string
+      totalCount?: number
+      leftCount?: number
+      rightCount?: number
+      overallLeftCount?: number
+      overallRightCount?: number
+    }) => {
+      const nextItem: ShareInboxItem = {
+        sessionId: input.sessionId,
+        postId: input.postId,
+        title: input.title,
+        ownerChoice: input.ownerChoice,
+        createdAt: input.createdAt ?? new Date().toISOString(),
+        leftCount: Number(input.leftCount ?? 0),
+        rightCount: Number(input.rightCount ?? 0),
+        totalCount: Number(input.totalCount ?? 0),
+        unreadCount: 0,
+        overallLeftCount: Number(input.overallLeftCount ?? 0),
+        overallRightCount: Number(input.overallRightCount ?? 0),
+        overallTotalCount:
+          Number(input.overallLeftCount ?? 0) +
+          Number(input.overallRightCount ?? 0),
+        leftLabel: input.leftLabel,
+        rightLabel: input.rightLabel,
+      }
+
+      setShareInboxItems((prev) => {
+        const existingIndex = prev.findIndex(
+          (item) => item.sessionId === nextItem.sessionId,
+        )
+        if (existingIndex >= 0) {
+          const cloned = [...prev]
+          cloned[existingIndex] = {
+            ...cloned[existingIndex],
+            ...nextItem,
+            unreadCount: cloned[existingIndex].unreadCount,
+          }
+          return cloned
+        }
+        return [nextItem, ...prev]
+      })
+    },
+    [],
+  )
+
   const refreshLightweightMetaNow = useCallback(async () => {
     if (!currentActorUnifiedKey) return
 
@@ -5168,6 +5355,9 @@ export default function MatnyaApp() {
 
     try {
       await fetchWatchlist(currentActorUnifiedKey)
+      if (voterKey) {
+        await loadOwnerShareInbox(true)
+      }
       await loadReactionAndOutcomeData(postIds, commentIds)
       await loadDramaEnhancementData(postIds)
       await loadResultUnlocks(postIds)
@@ -5191,9 +5381,11 @@ export default function MatnyaApp() {
     currentActorUnifiedKey,
     fetchWatchlist,
     loadDramaEnhancementData,
+    loadOwnerShareInbox,
     loadReactionAndOutcomeData,
     loadResultUnlocks,
     posts,
+    voterKey,
   ])
 
   const requestLightweightMetaRefresh = useCallback(
@@ -5491,197 +5683,34 @@ export default function MatnyaApp() {
     [],
   )
 
-  const loadOwnerShareInbox = useCallback(
-    async (silent = false) => {
-      if (!voterKey) {
-        setShareInboxItems([])
-        setShareInboxUnreadCount(0)
-        return
-      }
-
-      if (!silent) setShareInboxLoading(true)
-
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('share_sessions')
-        .select('id, post_id, owner_choice, created_at')
-        .eq('owner_key', voterKey)
-        .order('created_at', { ascending: false })
-        .limit(40)
-
-      if (sessionsError) {
-        console.error('보낸 공유함 조회 실패', sessionsError)
-        if (!silent) setShareInboxLoading(false)
-        return
-      }
-
-      const sessionRows = (sessions ?? []) as Array<{
-        id: string
-        post_id: number | null
-        owner_choice?: VoteSide | null
-        created_at?: string | null
-      }>
-
-      if (sessionRows.length === 0) {
-        setShareInboxItems([])
-        setShareInboxUnreadCount(0)
-        if (!silent) setShareInboxLoading(false)
-        return
-      }
-
-      const sessionIds = sessionRows.map((item) => String(item.id))
-      const postIds = Array.from(
-        new Set(
-          sessionRows
-            .map((item) => Number(item.post_id ?? 0))
-            .filter((value) => value > 0),
-        ),
-      )
-
-      const [
-        { data: statsRows, error: statsError },
-        { data: postRows, error: postError },
-      ] = await Promise.all([
-        supabase
-          .from('share_session_stats')
-          .select('share_session_id, left_count, right_count')
-          .in('share_session_id', sessionIds),
-        supabase
-          .from('posts')
-          .select('id, title, left_label, right_label, left_votes, right_votes')
-          .in('id', postIds),
-      ])
-
-      if (statsError) {
-        console.error('보낸 공유함 집계 조회 실패', statsError)
-      }
-      if (postError) {
-        console.error('보낸 공유함 게시글 조회 실패', postError)
-      }
-
-      const statsMap = new Map<string, { left: number; right: number }>()
-      for (const row of (statsRows ?? []) as Array<any>) {
-        statsMap.set(String(row.share_session_id), {
-          left: Number(row.left_count ?? 0),
-          right: Number(row.right_count ?? 0),
-        })
-      }
-
-      const postMap = new Map<
-        number,
-        {
-          title: string
-          leftLabel?: string
-          rightLabel?: string
-          overallLeftCount: number
-          overallRightCount: number
-        }
-      >()
-      for (const row of (postRows ?? []) as Array<any>) {
-        postMap.set(Number(row.id), {
-          title: String(row.title ?? '공유한 글'),
-          leftLabel: row.left_label ?? undefined,
-          rightLabel: row.right_label ?? undefined,
-          overallLeftCount: Number(row.left_votes ?? 0),
-          overallRightCount: Number(row.right_votes ?? 0),
-        })
-      }
-
-      const seenMap = readShareInboxSeenMap()
-      const items: ShareInboxItem[] = sessionRows.map((session) => {
-        const sessionId = String(session.id)
-        const postId = Number(session.post_id ?? 0)
-        const stats = statsMap.get(sessionId) ?? { left: 0, right: 0 }
-        const totalCount = stats.left + stats.right
-        const seenCount = Number(seenMap[sessionId] ?? 0)
-        const unreadCount = Math.max(0, totalCount - seenCount)
-        const postMeta = postMap.get(postId)
-
-        return {
-          sessionId,
-          postId,
-          title: postMeta?.title ?? '공유한 글',
-          ownerChoice: session.owner_choice ?? null,
-          createdAt: session.created_at ?? null,
-          leftCount: stats.left,
-          rightCount: stats.right,
-          totalCount,
-          unreadCount,
-          overallLeftCount: Number(postMeta?.overallLeftCount ?? 0),
-          overallRightCount: Number(postMeta?.overallRightCount ?? 0),
-          overallTotalCount:
-            Number(postMeta?.overallLeftCount ?? 0) +
-            Number(postMeta?.overallRightCount ?? 0),
-          leftLabel: postMeta?.leftLabel,
-          rightLabel: postMeta?.rightLabel,
-        }
-      })
-
-      setShareInboxItems(items)
-      setShareInboxUnreadCount(
-        items.filter((item) => item.unreadCount > 0).length,
-      )
-      if (!silent) setShareInboxLoading(false)
-    },
-    [voterKey],
-  )
-
-  const upsertLocalShareInboxItem = useCallback(
-    (input: {
-      sessionId: string
-      postId: number
-      title: string
-      ownerChoice: VoteSide | null
-      createdAt?: string | null
-      leftLabel?: string
-      rightLabel?: string
-      totalCount?: number
-      leftCount?: number
-      rightCount?: number
-      overallLeftCount?: number
-      overallRightCount?: number
-    }) => {
-      const nextItem: ShareInboxItem = {
-        sessionId: input.sessionId,
-        postId: input.postId,
-        title: input.title,
-        ownerChoice: input.ownerChoice,
-        createdAt: input.createdAt ?? new Date().toISOString(),
-        leftCount: Number(input.leftCount ?? 0),
-        rightCount: Number(input.rightCount ?? 0),
-        totalCount: Number(input.totalCount ?? 0),
-        unreadCount: 0,
-        overallLeftCount: Number(input.overallLeftCount ?? 0),
-        overallRightCount: Number(input.overallRightCount ?? 0),
-        overallTotalCount:
-          Number(input.overallLeftCount ?? 0) +
-          Number(input.overallRightCount ?? 0),
-        leftLabel: input.leftLabel,
-        rightLabel: input.rightLabel,
-      }
-
-      setShareInboxItems((prev) => {
-        const existingIndex = prev.findIndex(
-          (item) => item.sessionId === nextItem.sessionId,
-        )
-        if (existingIndex >= 0) {
-          const cloned = [...prev]
-          cloned[existingIndex] = {
-            ...cloned[existingIndex],
-            ...nextItem,
-            unreadCount: cloned[existingIndex].unreadCount,
-          }
-          return cloned
-        }
-        return [nextItem, ...prev]
-      })
-    },
-    [],
-  )
-
   const openShareInbox = useCallback(() => {
     setShareInboxOpen(true)
     void loadOwnerShareInbox()
   }, [loadOwnerShareInbox])
+
+  useEffect(() => {
+    if (!voterKey) return
+
+    const refreshShareInboxSignals = () => {
+      void loadOwnerShareInbox(true)
+    }
+
+    const intervalId = window.setInterval(refreshShareInboxSignals, 4000)
+    const visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        refreshShareInboxSignals()
+      }
+    }
+
+    window.addEventListener('focus', refreshShareInboxSignals)
+    document.addEventListener('visibilitychange', visibilityHandler)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refreshShareInboxSignals)
+      document.removeEventListener('visibilitychange', visibilityHandler)
+    }
+  }, [voterKey, loadOwnerShareInbox])
 
   const filteredPosts = useMemo(() => {
     let result =
@@ -9007,6 +9036,10 @@ ${shareUrl}`)
                           {shareInboxUnreadCount > 0 ? (
                             <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(16,185,129,0.24)]">
                               {shareInboxUnreadCount}
+                            </span>
+                          ) : shareInboxItems.length > 0 ? (
+                            <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(15,23,42,0.18)]">
+                              {shareInboxItems.length}
                             </span>
                           ) : null}
                         </button>
