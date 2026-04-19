@@ -2040,10 +2040,18 @@ function MyActivityModal({
     }
   }, [open, initialTab])
 
-  useEffect(() => {
-    if (!open || tab !== 'watchlist') return
+  const watchlistRefreshStartedRef = useRef(false)
 
-    void onRefreshWatchlist()
+  useEffect(() => {
+    if (!open || tab !== 'watchlist') {
+      watchlistRefreshStartedRef.current = false
+      return
+    }
+
+    if (!watchlistRefreshStartedRef.current) {
+      watchlistRefreshStartedRef.current = true
+      void onRefreshWatchlist()
+    }
 
     const interval = window.setInterval(() => {
       if (
@@ -2056,7 +2064,7 @@ function MyActivityModal({
     }, 30000)
 
     return () => window.clearInterval(interval)
-  }, [open, tab, onRefreshWatchlist])
+  }, [open, tab])
 
   if (!open) return null
 
@@ -7857,6 +7865,10 @@ ${shareUrl}`)
     authOpen ||
     shareInboxOpen
 
+  const refreshCurrentActorWatchlist = useCallback(() => {
+    return fetchWatchlist(currentActorUnifiedKey)
+  }, [fetchWatchlist, currentActorUnifiedKey])
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
@@ -7976,7 +7988,7 @@ ${shareUrl}`)
           onOpenPost={openPostDirect}
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
-          onRefreshWatchlist={() => fetchWatchlist(currentActorUnifiedKey)}
+          onRefreshWatchlist={refreshCurrentActorWatchlist}
           watchlistRefreshing={watchlistRefreshing}
           watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
@@ -9187,7 +9199,7 @@ ${shareUrl}`)
           onOpenPost={openPostDirect}
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
-          onRefreshWatchlist={() => fetchWatchlist(currentActorUnifiedKey)}
+          onRefreshWatchlist={refreshCurrentActorWatchlist}
           watchlistRefreshing={watchlistRefreshing}
           watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
