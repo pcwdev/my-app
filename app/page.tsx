@@ -1929,12 +1929,26 @@ function MyActivityModal({
   badges: string[]
 }) {
   const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
+  const [profileExpanded, setProfileExpanded] = useState(false)
 
   useEffect(() => {
-    if (open) setTab(initialTab)
+    if (open) {
+      setTab(initialTab)
+      setProfileExpanded(false)
+    }
   }, [open, initialTab])
 
   if (!open) return null
+
+  const levelInfo = getLevelInfo(stats.points)
+  const levelTheme = getLevelTheme(levelInfo.level)
+  const topBadges = badges.slice(0, 3)
+  const extraBadgeCount = Math.max(0, badges.length - topBadges.length)
+  const summaryStats = [
+    { label: '글', value: stats.posts_count },
+    { label: '댓글', value: stats.comments_count },
+    { label: '궁금', value: watchlistItems.length },
+  ]
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -1943,7 +1957,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              로그인 계정으로 남긴 글과 댓글
+              내가 올린 글, 댓글, 저장한 글 모아보기
             </div>
           </div>
           <button
@@ -1954,107 +1968,149 @@ function MyActivityModal({
           </button>
         </div>
 
-        <div className="shrink-0 px-5 pt-4">
-          {(() => {
-            const levelInfo = getLevelInfo(stats.points)
-            const levelTheme = getLevelTheme(levelInfo.level)
-
-            return (
-              <div className="mb-3 rounded-3xl border border-slate-200 bg-white/95 px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      {profile?.anonymous_name ?? '익명 유저'}
-                    </div>
-                    <div className="mt-2">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${levelTheme.chipClass}`}
-                      >
-                        <span>{levelTheme.icon}</span>
-                        <span>Lv.{levelInfo.level}</span>
-                        <span>{levelInfo.label}</span>
-                      </span>
-                    </div>
+        <div className="shrink-0 px-4 pt-3">
+          <div className="rounded-[28px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="truncate text-[15px] font-bold text-slate-900">
+                    {profile?.anonymous_name ?? '익명 유저'}
                   </div>
-                  <div className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#4f7cff]">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${levelTheme.chipClass}`}
+                  >
+                    <span>{levelTheme.icon}</span>
+                    <span>Lv.{levelInfo.level}</span>
+                    <span>{levelInfo.label}</span>
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                  <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 font-black text-[#4f7cff]">
                     {stats.points}P
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>다음 레벨 진행도</span>
-                    <span>{levelInfo.progress}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div
-                      className="h-2 rounded-full bg-[#4f7cff] transition-all"
-                      style={{ width: `${levelInfo.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">판단</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.votes_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">댓글</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.comments_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">글</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.posts_count}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                    <div className="text-slate-400">받은 공감</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {stats.likes_received}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-2 text-xs font-semibold text-slate-500">
-                    획득 뱃지
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {badges.length === 0 ? (
-                      <div className="text-xs text-slate-400">
-                        아직 획득한 뱃지가 없음
-                      </div>
-                    ) : (
-                      badges.map((badge) => {
-                        const badgeTheme = getBadgeTheme(badge)
-                        return (
-                          <span
-                            key={badge}
-                            className={`rounded-full border px-3 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
-                          >
-                            {badgeTheme.icon} {badge}
-                          </span>
-                        )
-                      })
-                    )}
-                  </div>
+                  </span>
+                  <span>판단 {stats.votes_count}</span>
+                  <span>·</span>
+                  <span>받은 공감 {stats.likes_received}</span>
                 </div>
               </div>
-            )
-          })()}
 
-          <div className="flex gap-2">
+              <button
+                onClick={() => setProfileExpanded((prev) => !prev)}
+                className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600"
+              >
+                {profileExpanded ? '접기' : '더보기'}
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {summaryStats.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl bg-slate-50 px-2 py-2.5"
+                >
+                  <div className="text-[10px] font-semibold text-slate-400">
+                    {item.label}
+                  </div>
+                  <div className="mt-1 text-sm font-extrabold text-slate-900">
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topBadges.length === 0 ? (
+                <div className="text-[11px] text-slate-400">
+                  아직 획득한 뱃지 없음
+                </div>
+              ) : (
+                topBadges.map((badge) => {
+                  const badgeTheme = getBadgeTheme(badge)
+                  return (
+                    <span
+                      key={badge}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                    >
+                      {badgeTheme.icon} {badge}
+                    </span>
+                  )
+                })
+              )}
+              {extraBadgeCount > 0 ? (
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                  +{extraBadgeCount}
+                </span>
+              ) : null}
+            </div>
+
+            <AnimatePresence initial={false}>
+              {profileExpanded ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>다음 레벨 진행도</span>
+                      <span>{levelInfo.progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className="h-2 rounded-full bg-[#4f7cff] transition-all"
+                        style={{ width: `${levelInfo.progress}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">판단</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.votes_count}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-400">받은 공감</div>
+                        <div className="mt-1 font-bold text-slate-900">
+                          {stats.likes_received}
+                        </div>
+                      </div>
+                    </div>
+
+                    {badges.length > 0 ? (
+                      <div className="mt-3">
+                        <div className="mb-2 text-[11px] font-semibold text-slate-500">
+                          전체 뱃지
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {badges.map((badge) => {
+                            const badgeTheme = getBadgeTheme(badge)
+                            return (
+                              <span
+                                key={`expanded-${badge}`}
+                                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTheme.pillClass}`}
+                              >
+                                {badgeTheme.icon} {badge}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setTab('posts')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'posts'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2062,9 +2118,9 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('comments')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'comments'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2072,9 +2128,9 @@ function MyActivityModal({
             </button>
             <button
               onClick={() => setTab('watchlist')}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
                 tab === 'watchlist'
-                  ? 'bg-[#4f7cff] text-slate-900'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -2088,19 +2144,19 @@ function MyActivityModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
-            <div className="text-sm text-slate-500">
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               로그인 후 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
-            <div className="text-sm text-slate-500">
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               로그인 후 작성한 댓글이 없음
             </div>
           )}
           {tab === 'watchlist' && watchlistItems.length === 0 && (
-            <div className="text-sm text-slate-500">
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               결말궁금으로 저장한 글이 없음
             </div>
           )}
@@ -2110,7 +2166,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">
                   {item.category} · {item.ageGroup}
@@ -2127,7 +2183,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenComment(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">{item.postTitle}</div>
                 <div className="mt-1 text-sm text-slate-900/85">
@@ -2144,7 +2200,7 @@ function MyActivityModal({
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-left"
+                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-xs text-slate-500">
