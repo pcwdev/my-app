@@ -88,7 +88,7 @@ type PostReactionSummary = {
   shareworthy: number
 }
 
-type Post후기Item = {
+type PostOutcomeItem = {
   id: number
   postId: number
   outcomeType: 'resolved' | 'update' | 'author_followup' | 'twist'
@@ -121,17 +121,17 @@ type NextQueueItem = {
   score: number
 }
 
-type 결말궁금Item = {
+type WatchlistItem = {
   id: number
   postId: number
   title: string
   category: string
   ageGroup: string
   createdAt: string | null
-  latest후기Type: Post후기Item['outcomeType'] | null
-  latest후기Summary: string | null
-  has후기: boolean
-  unread후기: boolean
+  latestOutcomeType: PostOutcomeItem['outcomeType'] | null
+  latestOutcomeSummary: string | null
+  hasOutcome: boolean
+  unreadOutcome: boolean
 }
 
 type PostItem = {
@@ -287,7 +287,7 @@ type ResultUnlockItem = {
   voterKey: string
   unlockLevel: number
   commentReads: number
-  is결말궁금ed: boolean
+  isWatchlisted: boolean
   createdAt: string | null
   updatedAt: string | null
 }
@@ -300,7 +300,7 @@ type ResultRevealStage = {
   leftValue: number
   rightValue: number
   showExact: boolean
-  show후기: boolean
+  showOutcome: boolean
 }
 
 type AuthorMeta = {
@@ -641,7 +641,7 @@ function getShareTensionMeta(left: number, right: number) {
 
 function getShareNextActionText(totalCount: number, unreadCount: number) {
   if (unreadCount > 0)
-    return `새 반응 ${unreadCount}개 도착 · 🔥 지금 갈리는 중`
+    return `새 응답 ${unreadCount}개 도착 · 🔥 지금 갈리는 중`
   if (totalCount === 0) return '첫 친구 보내기부터 시작하면 여기서 쌓임'
   if (totalCount === 1) return '한 명 더 모이면 진짜 갈리는지 보이기 시작함'
   if (totalCount === 2)
@@ -1002,7 +1002,7 @@ function getTensionMeta(tension?: PostTensionState | null) {
   switch (tension?.tensionType) {
     case 'flip_imminent':
       return {
-        label: '⚡ 다음 한 표면 뒤집힘',
+        label: '⚡ 한 명만 더 오면 뒤집힘',
         helper: '지금 네 선택이 흐름을 바꿀 수도 있음',
         toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
       }
@@ -1121,7 +1121,7 @@ function getMinorityLabel(mySide: VoteSide | null, post?: PostItem | null) {
 
   if (ratio <= minoritySecondaryThreshold) {
     return {
-      text: '🤨 지금 너만 소수 의견',
+      text: '🤨 소수 의견',
       toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
       helper: '갈리는 판이라 더 재밌음',
     }
@@ -1200,35 +1200,35 @@ function getResultRevealStage(
   unlockLevel: number,
   leftVotes: number,
   rightVotes: number,
-  has후기: boolean,
+  hasOutcome: boolean,
 ): ResultRevealStage {
   const exact = percent(leftVotes, rightVotes)
 
   if (unlockLevel >= 4) {
     return {
       level: 4,
-      label: has후기 ? '후기 있음' : '결국 어떻게 됐는지 볼 수 있음',
-      helper: has후기
-        ? '결국 어떻게 됐는지까지 볼 수 있음'
-        : '지금 이 글의 결과를 바로 볼 수 있음',
+      label: hasOutcome ? '결말까지 공개됨' : '최종 결과 공개',
+      helper: hasOutcome
+        ? '이제 결과뿐 아니라 후기와 결말까지 같이 보면 됨'
+        : '정확한 결과가 전부 공개된 상태',
       toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
       leftValue: exact.left,
       rightValue: exact.right,
       showExact: true,
-      show후기: true,
+      showOutcome: true,
     }
   }
 
   if (unlockLevel >= 3) {
     return {
       level: 3,
-      label: '지금 결과 보기',
-      helper: '사람들이 계속 들어오고 있어서 결과는 조금씩 달라질 수 있음',
+      label: '정확한 결과 공개',
+      helper: '실시간 반응이 계속 들어와 수치는 조금씩 달라질 수 있음',
       toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
       leftValue: exact.left,
       rightValue: exact.right,
       showExact: true,
-      show후기: false,
+      showOutcome: false,
     }
   }
 
@@ -1242,7 +1242,7 @@ function getResultRevealStage(
       leftValue: exact.left,
       rightValue: exact.right,
       showExact: false,
-      show후기: false,
+      showOutcome: false,
     }
   }
 
@@ -1255,7 +1255,7 @@ function getResultRevealStage(
     leftValue: exact.left,
     rightValue: exact.right,
     showExact: false,
-    show후기: false,
+    showOutcome: false,
   }
 }
 
@@ -1360,7 +1360,7 @@ function getActorUnifiedKey(userId?: string | null, voterKey?: string | null) {
   return null
 }
 
-function get후기Tone(outcomeType: Post후기Item['outcomeType']) {
+function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -1375,7 +1375,7 @@ function get후기Tone(outcomeType: Post후기Item['outcomeType']) {
   }
 }
 
-function get후기Label(outcomeType: Post후기Item['outcomeType']) {
+function getOutcomeLabel(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
       return '결말 나옴'
@@ -1721,7 +1721,7 @@ const CommentCard = React.memo(function CommentCard({
   )
 })
 
-function 후기WriteModal({
+function OutcomeWriteModal({
   open,
   onClose,
   onSubmit,
@@ -1731,26 +1731,26 @@ function 후기WriteModal({
   open: boolean
   onClose: () => void
   onSubmit: (
-    outcomeType: Post후기Item['outcomeType'],
+    outcomeType: PostOutcomeItem['outcomeType'],
     summary: string,
   ) => void | Promise<void>
   postTitle: string
-  initialType?: Post후기Item['outcomeType']
+  initialType?: PostOutcomeItem['outcomeType']
 }) {
-  const [outcomeType, set후기Type] =
-    useState<Post후기Item['outcomeType']>(initialType)
+  const [outcomeType, setOutcomeType] =
+    useState<PostOutcomeItem['outcomeType']>(initialType)
   const [summary, setSummary] = useState('')
 
   useEffect(() => {
     if (!open) return
-    set후기Type(initialType)
+    setOutcomeType(initialType)
     setSummary('')
   }, [open, initialType])
 
   if (!open) return null
 
   const options: Array<{
-    value: Post후기Item['outcomeType']
+    value: PostOutcomeItem['outcomeType']
     label: string
     helper: string
   }> = [
@@ -1782,7 +1782,7 @@ function 후기WriteModal({
             return (
               <button
                 key={option.value}
-                onClick={() => set후기Type(option.value)}
+                onClick={() => setOutcomeType(option.value)}
                 className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                   active
                     ? 'border-[#bcd0ff] bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.20)]'
@@ -1838,7 +1838,7 @@ function MyActivityModal({
   myPosts,
   myComments,
   watchlistItems,
-  unread결말궁금Count,
+  unreadWatchlistCount,
   initialTab = 'posts',
   onOpenPost,
   onOpenComment,
@@ -1851,8 +1851,8 @@ function MyActivityModal({
   onClose: () => void
   myPosts: MyPostItem[]
   myComments: MyCommentItem[]
-  watchlistItems: 결말궁금Item[]
-  unread결말궁금Count: number
+  watchlistItems: WatchlistItem[]
+  unreadWatchlistCount: number
   initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number) => void
   onOpenComment: (postId: number) => void
@@ -2012,9 +2012,9 @@ function MyActivityModal({
               }`}
             >
               궁금한 글
-              {unread결말궁금Count > 0 ? (
+              {unreadWatchlistCount > 0 ? (
                 <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {unread결말궁금Count}
+                  {unreadWatchlistCount}
                 </span>
               ) : null}
             </button>
@@ -2083,14 +2083,14 @@ function MyActivityModal({
                   <div className="text-xs text-slate-500">
                     {item.category} · {item.ageGroup}
                   </div>
-                  {item.latest후기Type ? (
+                  {item.latestOutcomeType ? (
                     <>
                       <span
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${get후기Tone(item.latest후기Type)}`}
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getOutcomeTone(item.latestOutcomeType)}`}
                       >
-                        {get후기Label(item.latest후기Type)}
+                        {getOutcomeLabel(item.latestOutcomeType)}
                       </span>
-                      {item.unread후기 ? (
+                      {item.unreadOutcome ? (
                         <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
                           새 후기
                         </span>
@@ -2106,10 +2106,10 @@ function MyActivityModal({
                   {item.title}
                 </div>
                 <div className="mt-2 text-xs text-slate-500">
-                  {item.latest후기Summary ?? '나중에 결과 보려고 저장한 글'}
+                  {item.latestOutcomeSummary ?? '나중에 결과 보려고 저장한 글'}
                 </div>
                 <div className="mt-2 text-xs text-slate-400">
-                  {item.has후기 ? '후기 확인하러 가기' : '결말 기다리는 글'}
+                  {item.hasOutcome ? '후기 확인하러 가기' : '결말 기다리는 글'}
                 </div>
               </button>
             ))}
@@ -2871,7 +2871,7 @@ function ShareInboxModal({
   })
   const filterDescription =
     filter === 'new'
-      ? '새 반응 온 판만 모아보는 중'
+      ? '새 응답 온 판만 모아보는 중'
       : filter === 'ready'
         ? '지금 결과 볼 만한 판만 모아보는 중'
         : '내가 보낸 공유 전체를 보는 중'
@@ -2886,7 +2886,7 @@ function ShareInboxModal({
                 SHARE INBOX
               </div>
               <div className="mt-1 text-[22px] font-black tracking-[-0.02em] text-slate-950">
-                내가 보낸 판
+                보낸 공유함
               </div>
               <div className="mt-1 text-sm text-slate-500">
                 로그인 없이도 내가 친구에게 던진 논쟁을 다시 모아봄
@@ -2911,7 +2911,7 @@ function ShareInboxModal({
                   : 'border-[#dbe7ff] bg-[#f4f8ff] text-[#4f7cff]'
               }`}
             >
-              새 반응 {totalUnread}
+              새 응답 {totalUnread}
             </button>
             <button
               onClick={() => setFilter('ready')}
@@ -2969,7 +2969,7 @@ function ShareInboxModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[104px] space-y-3.5 [webkit-overflow-scrolling:touch]">
           {loading ? (
             <div className="rounded-[24px] border border-slate-200/80 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-              내가 보낸 판 불러오는 중...
+              보낸 공유함 불러오는 중...
             </div>
           ) : null}
 
@@ -2979,7 +2979,8 @@ function ShareInboxModal({
                 아직 보낸 공유가 없음
               </div>
               <div className="mt-2 text-sm leading-6 text-slate-500">
-                글에서 먼저 선택하고 이 판 보내기를 누르면 여기에 차곡차곡 쌓임
+                글에서 먼저 선택하고 친구한테 보내기를 누르면 여기에 차곡차곡
+                쌓임
               </div>
             </div>
           ) : null}
@@ -2988,14 +2989,14 @@ function ShareInboxModal({
             <div className="rounded-[24px] border border-dashed border-slate-300 bg-white/90 px-4 py-6 text-center shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
               <div className="text-base font-bold text-slate-900">
                 {filter === 'new'
-                  ? '새 반응 온 공유가 아직 없음'
+                  ? '새 응답 온 공유가 아직 없음'
                   : filter === 'ready'
-                    ? '아직 결과 볼 수 있을 만큼 반응이 모인 판이 없음'
-                    : '보낸 판이 아직 없음'}
+                    ? '아직 결과 볼 만큼 열린 판이 없음'
+                    : '보낸 공유가 아직 없음'}
               </div>
               <div className="mt-2 text-sm leading-6 text-slate-500">
                 {filter === 'new'
-                  ? '반응이 도착하면 여기서 바로 확인 가능'
+                  ? '친구 반응이 도착하면 여기서 바로 확인 가능'
                   : filter === 'ready'
                     ? '친구 반응이 1개 이상 쌓이면 여기에 나타남'
                     : '다른 글에서 친구에게 보내기를 누르면 여기에 쌓임'}
@@ -3050,7 +3051,7 @@ function ShareInboxModal({
                           </span>
                           {item.unreadCount > 0 ? (
                             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-600">
-                              새 반응 +{item.unreadCount}
+                              새 응답 +{item.unreadCount}
                             </span>
                           ) : null}
                         </div>
@@ -3336,18 +3337,18 @@ export default function MatnyaApp() {
   const [myPostReactions, setMyPostReactions] = useState<
     Record<string, boolean>
   >({})
-  const [post후기Map, setPost후기Map] = useState<
-    Record<number, Post후기Item[]>
+  const [postOutcomeMap, setPostOutcomeMap] = useState<
+    Record<number, PostOutcomeItem[]>
   >({})
   const [streakMap, setStreakMap] = useState<Record<string, UserStreakRow>>({})
   const [nextQueueMap, setNextQueueMap] = useState<
     Record<number, NextQueueItem[]>
   >({})
-  const [watchlistItems, set결말궁금Items] = useState<결말궁금Item[]>([])
-  const [my결말궁금Map, setMy결말궁금Map] = useState<Record<number, boolean>>(
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
+  const [myWatchlistMap, setMyWatchlistMap] = useState<Record<number, boolean>>(
     {},
   )
-  const [watch후기SeenMap, setWatch후기SeenMap] = useState<
+  const [watchOutcomeSeenMap, setWatchOutcomeSeenMap] = useState<
     Record<number, string | null>
   >({})
   const [resultUnlockMap, setResultUnlockMap] = useState<
@@ -3384,6 +3385,15 @@ export default function MatnyaApp() {
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deferredBootstrapTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null)
+  const deferredProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
+  const deferredActivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   useEffect(() => {
     postsRef.current = posts
@@ -3417,7 +3427,7 @@ export default function MatnyaApp() {
   const [activityInitialTab, setActivityInitialTab] = useState<
     'posts' | 'comments' | 'watchlist'
   >('posts')
-  const [outcomeModalOpen, set후기ModalOpen] = useState(false)
+  const [outcomeModalOpen, setOutcomeModalOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -3448,8 +3458,8 @@ export default function MatnyaApp() {
     setDeletedOpen(false)
     setMyPosts([])
     setMyComments([])
-    set결말궁금Items([])
-    setMy결말궁금Map({})
+    setWatchlistItems([])
+    setMyWatchlistMap({})
     setStats(
       normalizeStats({
         points: 0,
@@ -3640,7 +3650,7 @@ export default function MatnyaApp() {
     [voterKey],
   )
 
-  const loadReactionAnd후기Data = useCallback(
+  const loadReactionAndOutcomeData = useCallback(
     async (postIds: number[], commentIds: number[]) => {
       const [commentSummaryRes, postSummaryRes, outcomesRes, nextQueueRes] =
         await Promise.all([
@@ -3701,7 +3711,7 @@ export default function MatnyaApp() {
       }
 
       if (!outcomesRes.error) {
-        const nextMap: Record<number, Post후기Item[]> = {}
+        const nextMap: Record<number, PostOutcomeItem[]> = {}
         ;(outcomesRes.data ?? []).forEach((row: any) => {
           const postId = Number(row.post_id)
           if (!nextMap[postId]) nextMap[postId] = []
@@ -3713,7 +3723,7 @@ export default function MatnyaApp() {
             createdAt: row.created_at ?? null,
           })
         })
-        setPost후기Map(nextMap)
+        setPostOutcomeMap(nextMap)
       }
 
       if (!nextQueueRes.error) {
@@ -3843,7 +3853,7 @@ export default function MatnyaApp() {
       if (!currentActorUnifiedKey) {
         setMyCommentReactions({})
         setMyPostReactions({})
-        setMy결말궁금Map({})
+        setMyWatchlistMap({})
         return
       }
 
@@ -3911,7 +3921,7 @@ export default function MatnyaApp() {
         ;(watchlistRes.data ?? []).forEach((row: any) => {
           nextMap[Number(row.post_id)] = true
         })
-        setMy결말궁금Map(nextMap)
+        setMyWatchlistMap(nextMap)
       }
     },
     [currentActorUnifiedKey],
@@ -3995,7 +4005,7 @@ export default function MatnyaApp() {
       const commentIds = merged.flatMap((post) =>
         post.comments.map((comment) => comment.id),
       )
-      await loadReactionAnd후기Data(postIds, commentIds)
+      await loadReactionAndOutcomeData(postIds, commentIds)
       await loadDramaEnhancementData(postIds)
       await loadActorReactionSelections(postIds, commentIds)
 
@@ -4005,7 +4015,7 @@ export default function MatnyaApp() {
       loadActorReactionSelections,
       loadDiscoveryData,
       loadDramaEnhancementData,
-      loadReactionAnd후기Data,
+      loadReactionAndOutcomeData,
     ],
   )
 
@@ -4563,11 +4573,11 @@ export default function MatnyaApp() {
     }
   }, [])
 
-  const fetch결말궁금 = useCallback(async (actorKey: string | null) => {
+  const fetchWatchlist = useCallback(async (actorKey: string | null) => {
     if (!actorKey) {
-      set결말궁금Items([])
-      setMy결말궁금Map({})
-      setWatch후기SeenMap({})
+      setWatchlistItems([])
+      setMyWatchlistMap({})
+      setWatchOutcomeSeenMap({})
       return
     }
 
@@ -4590,8 +4600,8 @@ export default function MatnyaApp() {
     }))
 
     if (rows.length === 0) {
-      set결말궁금Items([])
-      setMy결말궁금Map({})
+      setWatchlistItems([])
+      setMyWatchlistMap({})
       return
     }
 
@@ -4638,17 +4648,18 @@ export default function MatnyaApp() {
 
     const watchedMap: Record<number, boolean> = {}
     const nextSeenState: Record<number, string | null> = {}
-    const items: 결말궁금Item[] = rows
+    const items: WatchlistItem[] = rows
       .map((row) => {
         const post = postMap.get(row.postId)
         if (!post) return null
-        const latest후기 = outcomeMap.get(row.postId) ?? null
+        const latestOutcome = outcomeMap.get(row.postId) ?? null
         const lastSeenAt = seenMap.get(row.postId) ?? null
-        const latest후기At = latest후기?.created_at ?? null
-        const unread후기 =
-          !!latest후기At &&
+        const latestOutcomeAt = latestOutcome?.created_at ?? null
+        const unreadOutcome =
+          !!latestOutcomeAt &&
           (!lastSeenAt ||
-            new Date(latest후기At).getTime() > new Date(lastSeenAt).getTime())
+            new Date(latestOutcomeAt).getTime() >
+              new Date(lastSeenAt).getTime())
 
         watchedMap[row.postId] = true
         nextSeenState[row.postId] = lastSeenAt
@@ -4659,40 +4670,76 @@ export default function MatnyaApp() {
           category: post.category,
           ageGroup: post.age_group,
           createdAt: row.createdAt,
-          latest후기Type: latest후기?.outcome_type ?? null,
-          latest후기Summary: latest후기?.summary ?? null,
-          has후기: !!latest후기,
-          unread후기,
-        } satisfies 결말궁금Item
+          latestOutcomeType: latestOutcome?.outcome_type ?? null,
+          latestOutcomeSummary: latestOutcome?.summary ?? null,
+          hasOutcome: !!latestOutcome,
+          unreadOutcome,
+        } satisfies WatchlistItem
       })
-      .filter(Boolean) as 결말궁금Item[]
+      .filter(Boolean) as WatchlistItem[]
 
     items.sort((a, b) => {
-      if (a.unread후기 !== b.unread후기) return a.unread후기 ? -1 : 1
-      if (a.has후기 !== b.has후기) return a.has후기 ? -1 : 1
+      if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
+      if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
       return (
         new Date(b.createdAt ?? 0).getTime() -
         new Date(a.createdAt ?? 0).getTime()
       )
     })
 
-    set결말궁금Items(items)
-    setMy결말궁금Map(watchedMap)
-    setWatch후기SeenMap(nextSeenState)
+    setWatchlistItems(items)
+    setMyWatchlistMap(watchedMap)
+    setWatchOutcomeSeenMap(nextSeenState)
   }, [])
 
   useEffect(() => {
+    if (deferredActivityTimerRef.current) {
+      clearTimeout(deferredActivityTimerRef.current)
+      deferredActivityTimerRef.current = null
+    }
+
     if (authUser?.id) {
-      void fetchMyActivity(authUser.id)
+      deferredActivityTimerRef.current = setTimeout(() => {
+        deferredActivityTimerRef.current = null
+        void fetchMyActivity(authUser.id)
+      }, 900)
     } else {
       setMyPosts([])
       setMyComments([])
     }
+
+    return () => {
+      if (deferredActivityTimerRef.current) {
+        clearTimeout(deferredActivityTimerRef.current)
+        deferredActivityTimerRef.current = null
+      }
+    }
   }, [authUser?.id, fetchMyActivity])
 
   useEffect(() => {
-    void fetch결말궁금(currentActorUnifiedKey)
-  }, [currentActorUnifiedKey, fetch결말궁금])
+    if (!currentActorUnifiedKey) {
+      setWatchlistItems([])
+      setMyWatchlistMap({})
+      setWatchOutcomeSeenMap({})
+      return
+    }
+
+    if (deferredBootstrapTimerRef.current) {
+      clearTimeout(deferredBootstrapTimerRef.current)
+    }
+
+    deferredBootstrapTimerRef.current = setTimeout(() => {
+      deferredBootstrapTimerRef.current = null
+      void fetchWatchlist(currentActorUnifiedKey)
+    }, 320)
+
+    return () => {
+      if (deferredBootstrapTimerRef.current) {
+        clearTimeout(deferredBootstrapTimerRef.current)
+        deferredBootstrapTimerRef.current = null
+      }
+    }
+  }, [currentActorUnifiedKey, fetchWatchlist])
 
   const loadResultUnlocks = useCallback(
     async (postIds: number[]) => {
@@ -4722,7 +4769,7 @@ export default function MatnyaApp() {
           voterKey: String(row.voter_key ?? currentActorUnifiedKey),
           unlockLevel: Math.max(1, Number(row.unlock_level ?? 1)),
           commentReads: Number(row.comment_reads ?? 0),
-          is결말궁금ed: Boolean(row.is_watchlisted ?? false),
+          isWatchlisted: Boolean(row.is_watchlisted ?? false),
           createdAt: row.created_at ?? null,
           updatedAt: row.updated_at ?? null,
         }
@@ -4738,7 +4785,12 @@ export default function MatnyaApp() {
       setResultUnlockMap({})
       return
     }
-    void loadResultUnlocks(postIds)
+
+    const timer = setTimeout(() => {
+      void loadResultUnlocks(postIds)
+    }, 520)
+
+    return () => clearTimeout(timer)
   }, [currentActorUnifiedKey, posts, loadResultUnlocks])
 
   const refreshLightweightMetaNow = useCallback(async () => {
@@ -4759,10 +4811,8 @@ export default function MatnyaApp() {
 
     try {
       await Promise.all([
-        fetch결말궁금(currentActorUnifiedKey),
-        loadReactionAnd후기Data(postIds, commentIds),
+        loadReactionAndOutcomeData(postIds, commentIds),
         loadDramaEnhancementData(postIds),
-        loadResultUnlocks(postIds),
       ])
     } finally {
       metaRefreshInFlightRef.current = false
@@ -4782,9 +4832,9 @@ export default function MatnyaApp() {
     }
   }, [
     currentActorUnifiedKey,
-    fetch결말궁금,
+    fetchWatchlist,
     loadDramaEnhancementData,
-    loadReactionAnd후기Data,
+    loadReactionAndOutcomeData,
     loadResultUnlocks,
     posts,
   ])
@@ -4828,7 +4878,7 @@ export default function MatnyaApp() {
         unlockLevel?: number
         commentReadsDelta?: number
         forceCommentReads?: number
-        is결말궁금ed?: boolean
+        isWatchlisted?: boolean
       },
     ) => {
       if (!currentActorUnifiedKey || !postId) return null
@@ -4851,7 +4901,7 @@ export default function MatnyaApp() {
           voterKey: currentActorUnifiedKey,
           unlockLevel: Number(count ?? 0) < 3 ? 3 : 1,
           commentReads: 0,
-          is결말궁금ed: !!my결말궁금Map[postId],
+          isWatchlisted: !!myWatchlistMap[postId],
           createdAt: null,
           updatedAt: null,
         }
@@ -4872,10 +4922,10 @@ export default function MatnyaApp() {
         ...base,
         unlockLevel: nextUnlockLevel,
         commentReads: nextCommentReads,
-        is결말궁금ed:
-          typeof patch.is결말궁금ed === 'boolean'
-            ? patch.is결말궁금ed
-            : base.is결말궁금ed,
+        isWatchlisted:
+          typeof patch.isWatchlisted === 'boolean'
+            ? patch.isWatchlisted
+            : base.isWatchlisted,
         updatedAt: new Date().toISOString(),
       }
 
@@ -4892,7 +4942,7 @@ export default function MatnyaApp() {
             voter_key: currentActorUnifiedKey,
             unlock_level: nextItem.unlockLevel,
             comment_reads: nextItem.commentReads,
-            is_watchlisted: nextItem.is결말궁금ed,
+            is_watchlisted: nextItem.isWatchlisted,
             updated_at: nextItem.updatedAt,
           },
           {
@@ -4918,7 +4968,7 @@ export default function MatnyaApp() {
             Number(data.unlock_level ?? nextItem.unlockLevel),
           ),
           commentReads: Number(data.comment_reads ?? nextItem.commentReads),
-          is결말궁금ed: Boolean(data.is_watchlisted ?? nextItem.is결말궁금ed),
+          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
           createdAt: data.created_at ?? nextItem.createdAt,
           updatedAt: data.updated_at ?? nextItem.updatedAt,
         }
@@ -4931,12 +4981,28 @@ export default function MatnyaApp() {
 
       return nextItem
     },
-    [currentActorUnifiedKey, my결말궁금Map, resultUnlockMap],
+    [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
 
   useEffect(() => {
+    if (deferredProgressTimerRef.current) {
+      clearTimeout(deferredProgressTimerRef.current)
+      deferredProgressTimerRef.current = null
+    }
+
     if (!voterKey) return
-    void loadProgress()
+
+    deferredProgressTimerRef.current = setTimeout(() => {
+      deferredProgressTimerRef.current = null
+      void loadProgress()
+    }, 1100)
+
+    return () => {
+      if (deferredProgressTimerRef.current) {
+        clearTimeout(deferredProgressTimerRef.current)
+        deferredProgressTimerRef.current = null
+      }
+    }
   }, [voterKey, authUser?.id, loadProgress])
 
   useEffect(() => {
@@ -4949,6 +5015,15 @@ export default function MatnyaApp() {
       }
       if (metaRefreshTimerRef.current) {
         clearTimeout(metaRefreshTimerRef.current)
+      }
+      if (deferredBootstrapTimerRef.current) {
+        clearTimeout(deferredBootstrapTimerRef.current)
+      }
+      if (deferredProgressTimerRef.current) {
+        clearTimeout(deferredProgressTimerRef.current)
+      }
+      if (deferredActivityTimerRef.current) {
+        clearTimeout(deferredActivityTimerRef.current)
       }
     }
   }, [])
@@ -5067,7 +5142,7 @@ export default function MatnyaApp() {
         .limit(40)
 
       if (sessionsError) {
-        console.error('내가 보낸 판 조회 실패', sessionsError)
+        console.error('보낸 공유함 조회 실패', sessionsError)
         if (!silent) setShareInboxLoading(false)
         return
       }
@@ -5110,10 +5185,10 @@ export default function MatnyaApp() {
       ])
 
       if (statsError) {
-        console.error('내가 보낸 판 집계 조회 실패', statsError)
+        console.error('보낸 공유함 집계 조회 실패', statsError)
       }
       if (postError) {
-        console.error('내가 보낸 판 게시글 조회 실패', postError)
+        console.error('보낸 공유함 게시글 조회 실패', postError)
       }
 
       const statsMap = new Map<string, { left: number; right: number }>()
@@ -5290,16 +5365,19 @@ ${shareUrl}`)
   }, [shareId, loadShareStats])
 
   useEffect(() => {
-    if (!voterKey) return
-    void loadOwnerShareInbox(true)
-  }, [voterKey, loadOwnerShareInbox])
+    if (!voterKey) {
+      setShareInboxItems([])
+      setShareInboxUnreadCount(0)
+      return
+    }
+  }, [voterKey])
 
   useEffect(() => {
     if (!shareInboxOpen || !voterKey) return
 
     const interval = window.setInterval(() => {
       void loadOwnerShareInbox(true)
-    }, 5000)
+    }, 7000)
 
     return () => window.clearInterval(interval)
   }, [shareInboxOpen, voterKey, loadOwnerShareInbox])
@@ -5314,7 +5392,7 @@ ${shareUrl}`)
     filteredPosts[currentIndex] ?? filteredPosts[0] ?? null
 
   useEffect(() => {
-    set후기ModalOpen(false)
+    setOutcomeModalOpen(false)
   }, [currentPost?.id])
 
   const isViewingSharedPost =
@@ -5358,10 +5436,10 @@ ${shareUrl}`)
   const currentResultEmotion = currentPost
     ? getResultEmotion(currentPost.leftVotes, currentPost.rightVotes)
     : null
-  const current후기Items = currentPost
-    ? (post후기Map[currentPost.id] ?? [])
+  const currentOutcomeItems = currentPost
+    ? (postOutcomeMap[currentPost.id] ?? [])
     : []
-  const latest후기 = current후기Items[0] ?? null
+  const latestOutcome = currentOutcomeItems[0] ?? null
   const currentFlipEvent = currentPost
     ? (postFlipMap[currentPost.id] ?? null)
     : null
@@ -5374,14 +5452,14 @@ ${shareUrl}`)
     ? (postTensionMap[currentPost.id] ?? null)
     : null
   const currentTensionMeta = getTensionMeta(currentTension)
-  const current결말궁금ed = !!(currentPost && my결말궁금Map[currentPost.id])
-  const unread결말궁금Count = watchlistItems.filter(
-    (item) => item.unread후기,
+  const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
+  const unreadWatchlistCount = watchlistItems.filter(
+    (item) => item.unreadOutcome,
   ).length
   const currentWatchUnread =
     !!currentPost &&
     (watchlistItems.find((item) => item.postId === currentPost.id)
-      ?.unread후기 ??
+      ?.unreadOutcome ??
       false)
   const currentResultUnlock =
     currentPost && votes[currentPost.id]
@@ -5396,17 +5474,17 @@ ${shareUrl}`)
         currentResultUnlockLevel,
         currentPost.leftVotes,
         currentPost.rightVotes,
-        !!latest후기,
+        !!latestOutcome,
       )
     : null
-  const canAdminWrite후기 = isAdmin && adminMode
-  const canWrite후기 =
+  const canAdminWriteOutcome = isAdmin && adminMode
+  const canWriteOutcome =
     (!!currentPost?.authorKey &&
       !!currentActorKey &&
       String(currentPost.authorKey) === String(currentActorKey)) ||
-    canAdminWrite후기
-  const outcomeActionLabel = canAdminWrite후기
-    ? '관리자 후기 남기기'
+    canAdminWriteOutcome
+  const outcomeActionLabel = canAdminWriteOutcome
+    ? '관리자 후기 등록'
     : '작성자 후기 남기기'
   const currentPostReactionSummary =
     (currentPost ? postReactionSummaryMap[currentPost.id] : null) ??
@@ -5449,7 +5527,7 @@ ${shareUrl}`)
     queuedNextPost?.post?.title ||
     filteredPosts[Math.min(currentIndex + 1, filteredPosts.length - 1)]
       ?.title ||
-    '더 미친 판 보기'
+    '다음 글 보기'
 
   const nextRecommendationHelper = choicePathNextPost
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
@@ -5459,16 +5537,16 @@ ${shareUrl}`)
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
-    if (current결말궁금ed) {
+    if (currentWatchlisted) {
       void upsertResultUnlock(currentPost.id, {
         unlockLevel: 3,
-        is결말궁금ed: true,
+        isWatchlisted: true,
       })
     }
   }, [
     currentActorUnifiedKey,
     currentPost?.id,
-    current결말궁금ed,
+    currentWatchlisted,
     votes,
     upsertResultUnlock,
   ])
@@ -5477,7 +5555,7 @@ ${shareUrl}`)
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
-    if (latest후기 || revisitMeta) {
+    if (latestOutcome || revisitMeta) {
       void upsertResultUnlock(currentPost.id, {
         unlockLevel: 4,
       })
@@ -5485,7 +5563,7 @@ ${shareUrl}`)
   }, [
     currentActorUnifiedKey,
     currentPost?.id,
-    latest후기?.id,
+    latestOutcome?.id,
     revisitMeta?.label,
     votes,
     upsertResultUnlock,
@@ -5995,7 +6073,7 @@ ${shareUrl}`)
         p_actor_key: currentActorUnifiedKey,
         p_post_id: postId,
       })
-    }, 1600)
+    }, 2600)
 
     return () => {
       if (shadowViewTimerRef.current) {
@@ -6276,8 +6354,8 @@ ${shareUrl}`)
       )
 
       void upsertResultUnlock(currentPostId, {
-        unlockLevel: latest후기 ? 4 : current결말궁금ed ? 3 : undefined,
-        is결말궁금ed: current결말궁금ed,
+        unlockLevel: latestOutcome ? 4 : currentWatchlisted ? 3 : undefined,
+        isWatchlisted: currentWatchlisted,
       })
 
       markPostMeaningful({
@@ -6429,7 +6507,7 @@ ${shareUrl}`)
   const openPostDirect = (postId: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
-      const latestSeenAt = post후기Map[postId]?.[0]?.createdAt ?? null
+      const latestSeenAt = postOutcomeMap[postId]?.[0]?.createdAt ?? null
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
       }
@@ -6439,8 +6517,8 @@ ${shareUrl}`)
       setCurrentIndex(index)
       focusCurrentPostCard()
       setActivityOpen(false)
-      if (my결말궁금Map[postId] && latestSeenAt) {
-        void mark결말궁금후기Seen(postId, latestSeenAt)
+      if (myWatchlistMap[postId] && latestSeenAt) {
+        void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
     }
   }
@@ -6460,7 +6538,7 @@ ${shareUrl}`)
     }
   }
 
-  const open결말궁금Activity = () => {
+  const openWatchlistActivity = () => {
     setActivityInitialTab('watchlist')
     setActivityOpen(true)
     requestLightweightMetaRefresh()
@@ -6529,27 +6607,28 @@ ${shareUrl}`)
     showToast('반응 반영')
   }
 
-  const mark결말궁금후기Seen = useCallback(
+  const markWatchlistOutcomeSeen = useCallback(
     async (postId: number, outcomeCreatedAt?: string | null) => {
       if (!currentActorUnifiedKey || !postId) return
 
       const latestSeenAt =
-        outcomeCreatedAt ?? post후기Map[postId]?.[0]?.createdAt ?? null
+        outcomeCreatedAt ?? postOutcomeMap[postId]?.[0]?.createdAt ?? null
 
       if (!latestSeenAt) return
 
-      setWatch후기SeenMap((prev) => ({
+      setWatchOutcomeSeenMap((prev) => ({
         ...prev,
         [postId]: latestSeenAt,
       }))
-      set결말궁금Items((prev) =>
+      setWatchlistItems((prev) =>
         prev
           .map((item) =>
-            item.postId === postId ? { ...item, unread후기: false } : item,
+            item.postId === postId ? { ...item, unreadOutcome: false } : item,
           )
           .sort((a, b) => {
-            if (a.unread후기 !== b.unread후기) return a.unread후기 ? -1 : 1
-            if (a.has후기 !== b.has후기) return a.has후기 ? -1 : 1
+            if (a.unreadOutcome !== b.unreadOutcome)
+              return a.unreadOutcome ? -1 : 1
+            if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
             return (
               new Date(b.createdAt ?? 0).getTime() -
               new Date(a.createdAt ?? 0).getTime()
@@ -6575,11 +6654,11 @@ ${shareUrl}`)
         console.error('궁금한 글 읽음 처리 실패', error)
       }
     },
-    [currentActorUnifiedKey, post후기Map],
+    [currentActorUnifiedKey, postOutcomeMap],
   )
 
-  const submit후기 = async (
-    outcomeType: Post후기Item['outcomeType'],
+  const submitOutcome = async (
+    outcomeType: PostOutcomeItem['outcomeType'],
     summary: string,
   ) => {
     if (!currentPost) return
@@ -6589,9 +6668,9 @@ ${shareUrl}`)
       !!authorKey &&
       !!currentActorKey &&
       String(authorKey) === String(currentActorKey)
-    const canManage후기 = isAuthor || (isAdmin && adminMode)
+    const canManageOutcome = isAuthor || (isAdmin && adminMode)
 
-    if (!canManage후기) {
+    if (!canManageOutcome) {
       showToast('작성자 또는 관리자만 후기 등록 가능')
       return
     }
@@ -6619,15 +6698,15 @@ ${shareUrl}`)
       return
     }
 
-    const nextItem: Post후기Item = {
+    const nextItem: PostOutcomeItem = {
       id: Number(inserted.id),
       postId: Number(inserted.post_id),
-      outcomeType: inserted.outcome_type as Post후기Item['outcomeType'],
+      outcomeType: inserted.outcome_type as PostOutcomeItem['outcomeType'],
       summary: inserted.summary,
       createdAt: inserted.created_at ?? null,
     }
 
-    setPost후기Map((prev) => {
+    setPostOutcomeMap((prev) => {
       const prevItems = prev[currentPost.id] ?? []
       return {
         ...prev,
@@ -6639,22 +6718,23 @@ ${shareUrl}`)
       }
     })
 
-    set결말궁금Items((prev) =>
+    setWatchlistItems((prev) =>
       prev
         .map((item) =>
           item.postId === currentPost.id
             ? {
                 ...item,
-                latest후기Type: nextItem.outcomeType,
-                latest후기Summary: nextItem.summary,
-                has후기: true,
-                unread후기: false,
+                latestOutcomeType: nextItem.outcomeType,
+                latestOutcomeSummary: nextItem.summary,
+                hasOutcome: true,
+                unreadOutcome: false,
               }
             : item,
         )
         .sort((a, b) => {
-          if (a.unread후기 !== b.unread후기) return a.unread후기 ? -1 : 1
-          if (a.has후기 !== b.has후기) return a.has후기 ? -1 : 1
+          if (a.unreadOutcome !== b.unreadOutcome)
+            return a.unreadOutcome ? -1 : 1
+          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
           return (
             new Date(b.createdAt ?? 0).getTime() -
             new Date(a.createdAt ?? 0).getTime()
@@ -6662,32 +6742,32 @@ ${shareUrl}`)
         }),
     )
 
-    await mark결말궁금후기Seen(currentPost.id, nextItem.createdAt)
+    await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
     void upsertResultUnlock(currentPost.id, {
       unlockLevel: 4,
-      is결말궁금ed: current결말궁금ed,
+      isWatchlisted: currentWatchlisted,
     })
     requestLightweightMetaRefresh({ immediate: true, delay: 0 })
-    set후기ModalOpen(false)
+    setOutcomeModalOpen(false)
     showToast('후기 등록 완료')
   }
 
-  const toggleCurrentPost결말궁금 = async () => {
+  const toggleCurrentPostWatchlist = async () => {
     if (!currentPost || !currentActorUnifiedKey) return
 
-    const alreadyActive = !!my결말궁금Map[currentPost.id]
+    const alreadyActive = !!myWatchlistMap[currentPost.id]
 
-    setMy결말궁금Map((prev) => ({
+    setMyWatchlistMap((prev) => ({
       ...prev,
       [currentPost.id]: !alreadyActive,
     }))
 
     if (alreadyActive) {
-      set결말궁금Items((prev) =>
+      setWatchlistItems((prev) =>
         prev.filter((item) => item.postId !== currentPost.id),
       )
       void upsertResultUnlock(currentPost.id, {
-        is결말궁금ed: false,
+        isWatchlisted: false,
       })
       const { error } = await supabase
         .from('post_watchlist')
@@ -6699,7 +6779,7 @@ ${shareUrl}`)
       if (error) {
         console.error('궁금한 글 해제 실패', error)
         showToast('결말궁금 반영 실패')
-        void fetch결말궁금(currentActorUnifiedKey)
+        void fetchWatchlist(currentActorUnifiedKey)
         return
       }
 
@@ -6707,27 +6787,27 @@ ${shareUrl}`)
       return
     }
 
-    const optimisticItem: 결말궁금Item = {
+    const optimisticItem: WatchlistItem = {
       id: -currentPost.id,
       postId: currentPost.id,
       title: currentPost.title,
       category: currentPost.category,
       ageGroup: currentPost.ageGroup,
       createdAt: new Date().toISOString(),
-      latest후기Type: latest후기?.outcomeType ?? null,
-      latest후기Summary: latest후기?.summary ?? null,
-      has후기: !!latest후기,
-      unread후기: false,
+      latestOutcomeType: latestOutcome?.outcomeType ?? null,
+      latestOutcomeSummary: latestOutcome?.summary ?? null,
+      hasOutcome: !!latestOutcome,
+      unreadOutcome: false,
     }
 
-    set결말궁금Items((prev) => {
+    setWatchlistItems((prev) => {
       const next = [
         optimisticItem,
         ...prev.filter((item) => item.postId !== currentPost.id),
       ]
       next.sort((a, b) => {
-        if (a.unread후기 !== b.unread후기) return a.unread후기 ? -1 : 1
-        if (a.has후기 !== b.has후기) return a.has후기 ? -1 : 1
+        if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
+        if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
         return (
           new Date(b.createdAt ?? 0).getTime() -
           new Date(a.createdAt ?? 0).getTime()
@@ -6749,11 +6829,11 @@ ${shareUrl}`)
     if (error) {
       console.error('궁금한 글 등록 실패', error)
       showToast('결말궁금 반영 실패')
-      void fetch결말궁금(currentActorUnifiedKey)
+      void fetchWatchlist(currentActorUnifiedKey)
       return
     }
 
-    set결말궁금Items((prev) =>
+    setWatchlistItems((prev) =>
       prev
         .map((item) =>
           item.postId === currentPost.id
@@ -6765,8 +6845,9 @@ ${shareUrl}`)
             : item,
         )
         .sort((a, b) => {
-          if (a.unread후기 !== b.unread후기) return a.unread후기 ? -1 : 1
-          if (a.has후기 !== b.has후기) return a.has후기 ? -1 : 1
+          if (a.unreadOutcome !== b.unreadOutcome)
+            return a.unreadOutcome ? -1 : 1
+          if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
           return (
             new Date(b.createdAt ?? 0).getTime() -
             new Date(a.createdAt ?? 0).getTime()
@@ -6776,7 +6857,7 @@ ${shareUrl}`)
 
     void upsertResultUnlock(currentPost.id, {
       unlockLevel: 3,
-      is결말궁금ed: true,
+      isWatchlisted: true,
     })
     showToast('결말궁금 저장')
   }
@@ -7427,13 +7508,13 @@ ${shareUrl}`)
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
-                  {unread결말궁금Count > 0 ? (
+                  {unreadWatchlistCount > 0 ? (
                     <button
-                      onClick={open결말궁금Activity}
+                      onClick={openWatchlistActivity}
                       className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
                     >
                       <span>새 후기 도착</span>
-                      <span>{unread결말궁금Count}개</span>
+                      <span>{unreadWatchlistCount}개</span>
                     </button>
                   ) : null}
                 </div>
@@ -7448,15 +7529,15 @@ ${shareUrl}`)
                     </button>
                   ) : (
                     <button
-                      onClick={open결말궁금Activity}
+                      onClick={openWatchlistActivity}
                       className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
                     >
                       <span className="text-xs font-bold">
                         {profile?.anonymous_name ?? '익명'}
                       </span>
-                      {unread결말궁금Count > 0 ? (
+                      {unreadWatchlistCount > 0 ? (
                         <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                          {unread결말궁금Count}
+                          {unreadWatchlistCount}
                         </span>
                       ) : null}
                     </button>
@@ -7514,7 +7595,7 @@ ${shareUrl}`)
           myPosts={myPosts}
           myComments={myComments}
           watchlistItems={watchlistItems}
-          unread결말궁금Count={unread결말궁금Count}
+          unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
@@ -7586,13 +7667,13 @@ ${shareUrl}`)
                     ⚡ 연속 판단 {currentVoteStreak.currentCount}회
                   </div>
                 ) : null}
-                {unread결말궁금Count > 0 ? (
+                {unreadWatchlistCount > 0 ? (
                   <button
-                    onClick={open결말궁금Activity}
+                    onClick={openWatchlistActivity}
                     className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
                   >
                     <span>새 후기 도착</span>
-                    <span>{unread결말궁금Count}개</span>
+                    <span>{unreadWatchlistCount}개</span>
                   </button>
                 ) : null}
               </div>
@@ -7612,7 +7693,7 @@ ${shareUrl}`)
                   </button>
                 ) : (
                   <button
-                    onClick={open결말궁금Activity}
+                    onClick={openWatchlistActivity}
                     className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
@@ -7621,9 +7702,9 @@ ${shareUrl}`)
                     <span className="text-xs font-bold">
                       Lv.{levelInfo.level}
                     </span>
-                    {unread결말궁금Count > 0 ? (
+                    {unreadWatchlistCount > 0 ? (
                       <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                        {unread결말궁금Count}
+                        {unreadWatchlistCount}
                       </span>
                     ) : null}
                   </button>
@@ -7898,11 +7979,11 @@ ${shareUrl}`)
                     {currentTensionMeta.label}
                   </div>
                 ) : null}
-                {latest후기 ? (
+                {latestOutcome ? (
                   <div
-                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${get후기Tone(latest후기.outcomeType)}`}
+                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getOutcomeTone(latestOutcome.outcomeType)}`}
                   >
-                    {get후기Label(latest후기.outcomeType)}
+                    {getOutcomeLabel(latestOutcome.outcomeType)}
                   </div>
                 ) : null}
               </div>
@@ -8018,8 +8099,8 @@ ${shareUrl}`)
                                   {displayedPercent.right}%
                                 </div>
                                 <div className="mt-1 text-[12px] text-slate-500">
-                                  사람들이 계속 들어오고 있어서 결과는 조금씩
-                                  달라질 수 있음
+                                  실시간 반응이 계속 들어와 수치는 조금씩 달라질
+                                  수 있음
                                 </div>
                               </div>
                             ) : null}
@@ -8034,7 +8115,7 @@ ${shareUrl}`)
                                 </button>
                                 <button
                                   onClick={() =>
-                                    void toggleCurrentPost결말궁금()
+                                    void toggleCurrentPostWatchlist()
                                   }
                                   className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
                                 >
@@ -8152,29 +8233,29 @@ ${shareUrl}`)
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <button
-                          onClick={() => void toggleCurrentPost결말궁금()}
+                          onClick={() => void toggleCurrentPostWatchlist()}
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-bold transition ${
-                            current결말궁금ed
+                            currentWatchlisted
                               ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
                               : 'border-slate-200 bg-white text-slate-600'
                           }`}
                         >
                           <span>
-                            {current결말궁금ed ? '결말궁금 ✓' : '결말궁금'}
+                            {currentWatchlisted ? '결말기다림 ✓' : '결말궁금'}
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            {current결말궁금ed
+                            {currentWatchlisted
                               ? '내 활동에서 다시 보기'
-                              : '결국 어떻게 됐는지 보기'}
+                              : '나중에 결과 보기'}
                           </span>
                         </button>
                       </div>
-                      {latest후기 && currentResultReveal?.show후기 ? (
+                      {latestOutcome && currentResultReveal?.showOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                {get후기Label(latest후기.outcomeType)}
+                                {getOutcomeLabel(latestOutcome.outcomeType)}
                               </div>
                               {currentWatchUnread ? (
                                 <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">
@@ -8182,38 +8263,38 @@ ${shareUrl}`)
                                 </span>
                               ) : null}
                             </div>
-                            {canWrite후기 ? (
+                            {canWriteOutcome ? (
                               <button
-                                onClick={() => set후기ModalOpen(true)}
+                                onClick={() => setOutcomeModalOpen(true)}
                                 className="rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]"
                               >
-                                {canAdminWrite후기
-                                  ? '관리자 후기 남기기'
-                                  : '후기 남기기'}
+                                {canAdminWriteOutcome
+                                  ? '관리자 후기 등록'
+                                  : '후기 추가'}
                               </button>
                             ) : null}
                           </div>
-                          <div className="mt-1">{latest후기.summary}</div>
+                          <div className="mt-1">{latestOutcome.summary}</div>
                         </div>
-                      ) : latest후기 ? (
+                      ) : latestOutcome ? (
                         <button
-                          onClick={() => void toggleCurrentPost결말궁금()}
+                          onClick={() => void toggleCurrentPostWatchlist()}
                           className="mt-3 w-full rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf7_0%,#fff7db_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(250,204,21,0.12)]"
                         >
                           <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
-                            후기 미리보기
+                            OUTCOME TEASER
                           </div>
                           <div className="mt-1 text-sm font-bold text-slate-900">
-                            후기 있음 · 결말궁금에 넣으면 뒷얘기까지 볼 수 있음
+                            후기 도착 · 저장하면 결말까지 공개
                           </div>
                           <div className="mt-1 text-xs text-slate-500">
-                            지금은 일부만 보임. 결말궁금에 넣으면 이 글의 나중
-                            얘기까지 볼 수 있음
+                            지금은 일부만 열려 있음. 결말궁금에 넣으면 이 글의
+                            이후 상황까지 바로 확인 가능
                           </div>
                         </button>
-                      ) : canWrite후기 ? (
+                      ) : canWriteOutcome ? (
                         <button
-                          onClick={() => set후기ModalOpen(true)}
+                          onClick={() => setOutcomeModalOpen(true)}
                           className="mt-3 w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
                         >
                           <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
@@ -8284,13 +8365,13 @@ ${shareUrl}`)
                           onClick={() => void shareCurrentPost()}
                           className="rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
                         >
-                          이 판 보내기
+                          친구한테 보내기
                         </button>
                         <button
                           onClick={openShareInbox}
                           className="relative rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.10)]"
                         >
-                          내가 보낸 판
+                          보낸 공유함
                           {shareInboxUnreadCount > 0 ? (
                             <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(16,185,129,0.24)]">
                               {shareInboxUnreadCount}
@@ -8581,7 +8662,7 @@ ${shareUrl}`)
                                 onClick={openShareInbox}
                                 className="mt-2.5 w-full rounded-[18px] border border-[#dbe7ff] bg-white/90 px-4 py-3 text-sm font-black text-[#4f7cff] shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
                               >
-                                내가 보낸 판에서 다른 논쟁도 보기
+                                보낸 공유함에서 다른 논쟁도 보기
                               </button>
                             ) : null}
                           </>
@@ -8657,14 +8738,14 @@ ${shareUrl}`)
                   onClick={prev}
                   className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
-                  이전 판
+                  이전 글
                 </button>
 
                 <button
                   onClick={handleNextWithGuard}
                   className="rounded-[18px] bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(79,124,255,0.22)]"
                 >
-                  다음 판
+                  다음 글
                 </button>
               </div>
             </div>
@@ -8715,7 +8796,7 @@ ${shareUrl}`)
             void upsertResultUnlock(currentPost.id, {
               commentReadsDelta: count,
               unlockLevel: nextReads >= 3 ? 2 : undefined,
-              is결말궁금ed: current결말궁금ed,
+              isWatchlisted: currentWatchlisted,
             })
           }}
         />
@@ -8733,7 +8814,7 @@ ${shareUrl}`)
           myPosts={myPosts}
           myComments={myComments}
           watchlistItems={watchlistItems}
-          unread결말궁금Count={unread결말궁금Count}
+          unreadWatchlistCount={unreadWatchlistCount}
           initialTab={activityInitialTab}
           onOpenPost={openPostDirect}
           onOpenComment={openCommentDirect}
@@ -8769,11 +8850,11 @@ ${shareUrl}`)
           onGoogleLogin={() => void handleGoogleLogin()}
         />
 
-        <후기WriteModal
+        <OutcomeWriteModal
           open={outcomeModalOpen}
-          onClose={() => set후기ModalOpen(false)}
+          onClose={() => setOutcomeModalOpen(false)}
           onSubmit={(outcomeType, summary) =>
-            void submit후기(outcomeType, summary)
+            void submitOutcome(outcomeType, summary)
           }
           postTitle={currentPost?.title ?? '후기 등록'}
           initialType="author_followup"
