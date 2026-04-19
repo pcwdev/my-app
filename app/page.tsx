@@ -1221,11 +1221,11 @@ function getPreVoteSignalHelper(
   }
 
   if (totalVotes >= 50) {
-    return '사람들이 계속 보는 판 · 선택 후 결과 흐름 보기'
+    return '사람들이 계속 보는 판 · 선택하면 분위기 공개'
   }
 
   if (totalVotes >= 10) {
-    return '이미 반응이 들어온 판 · 선택 후 결과 흐름 보기'
+    return '이미 반응이 들어온 판 · 선택하면 분위기 공개'
   }
 
   return '지금 반응 오는 중 · 선택하면 분위기 공개'
@@ -8044,7 +8044,7 @@ ${shareUrl}`)
                     {(currentResultEmotion ||
                       currentMinorityLabel ||
                       currentTensionMeta ||
-                      currentResultReveal) && (
+                      votes[currentPost.id]) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex flex-wrap items-center gap-2">
                           {currentTensionMeta ? (
@@ -8066,78 +8066,50 @@ ${shareUrl}`)
                               {currentMinorityLabel.text}
                             </div>
                           ) : null}
-                          {currentResultReveal ? (
-                            <div
-                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentResultReveal.toneClass}`}
-                            >
-                              {currentResultReveal.label}
-                            </div>
-                          ) : null}
                         </div>
 
-                        {currentResultReveal ? (
+                        {votes[currentPost.id] ? (
                           <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                             <div className="flex items-end justify-between gap-3">
                               <div>
                                 <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                  RESULT FLOW
-                                </div>
-                                <div className="mt-1 text-base font-black text-slate-900">
-                                  {currentResultReveal.label}
-                                </div>
-                              </div>
-                              <div
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${currentResultReveal.toneClass}`}
-                              >
-                                {currentResultUnlockLevel >= 4
-                                  ? '후기 4/4'
-                                  : currentResultUnlockLevel === 3
-                                    ? '결과 3/4'
-                                    : currentResultUnlockLevel === 2
-                                      ? '반응 2/4'
-                                      : currentResultUnlockLevel === 1
-                                        ? '분위기 1/4'
-                                        : '분위기 0/4'}
-                              </div>
-                            </div>
-                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                              {currentResultReveal.helper}
-                            </div>
-
-                            {currentResultReveal.showExact ? (
-                              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
                                   LIVE RESULT
                                 </div>
                                 <div className="mt-1 text-base font-black text-slate-900">
-                                  {displayedPercent.left}% vs{' '}
-                                  {displayedPercent.right}%
-                                </div>
-                                <div className="mt-1 text-[12px] text-slate-500">
-                                  사람들이 계속 들어오고 있어서 결과는 조금씩
-                                  달라질 수 있음
+                                  지금 사람들 반응
                                 </div>
                               </div>
-                            ) : null}
+                              <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">
+                                결과 보기
+                              </div>
+                            </div>
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                              <div className="text-base font-black text-slate-900">
+                                {displayedPercent.left}% vs{' '}
+                                {displayedPercent.right}%
+                              </div>
+                              <div className="mt-1 text-[12px] text-slate-500">
+                                사람들이 계속 들어오고 있어서 결과는 조금씩
+                                달라질 수 있음
+                              </div>
+                            </div>
 
-                            {currentResultUnlockLevel < 3 ? (
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                <button
-                                  onClick={() => setCommentOpen(true)}
-                                  className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
-                                >
-                                  댓글 분위기 보기
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    void toggleCurrentPostWatchlist()
-                                  }
-                                  className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
-                                >
-                                  결과 보기
-                                </button>
-                              </div>
-                            ) : null}
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setCommentOpen(true)}
+                                className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
+                              >
+                                댓글 보기
+                              </button>
+                              <button
+                                onClick={() =>
+                                  void toggleCurrentPostWatchlist()
+                                }
+                                className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
+                              >
+                                결말궁금 저장
+                              </button>
+                            </div>
                           </div>
                         ) : null}
 
@@ -8154,8 +8126,7 @@ ${shareUrl}`)
                                     ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
                                     : currentTensionMeta
                                       ? currentTensionMeta.helper
-                                      : (currentResultReveal?.helper ??
-                                        '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.')}
+                                      : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
                         </div>
                       </div>
                     )}
@@ -8265,16 +8236,18 @@ ${shareUrl}`)
                           }`}
                         >
                           <span>
-                            {currentWatchlisted ? '결말기다림 ✓' : '결말궁금'}
+                            {currentWatchlisted
+                              ? '결말궁금 저장됨 ✓'
+                              : '결말궁금'}
                           </span>
                           <span className="text-[11px] text-slate-400">
                             {currentWatchlisted
-                              ? '내 활동에서 다시 보기'
-                              : '나중에 결과 보기'}
+                              ? '내 활동에서 나중에 다시 보기'
+                              : '이 글 저장하고 나중에 다시 보기'}
                           </span>
                         </button>
                       </div>
-                      {latestOutcome && currentResultReveal?.showOutcome ? (
+                      {latestOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
@@ -8298,7 +8271,11 @@ ${shareUrl}`)
                               </button>
                             ) : null}
                           </div>
-                          <div className="mt-1">{latestOutcome.summary}</div>
+                          <div className="mt-1">
+                            {currentWatchlisted
+                              ? latestOutcome.summary
+                              : '후기가 올라온 글임 · 결말궁금에 저장해두고 나중에 다시 볼 수 있음'}
+                          </div>
                         </div>
                       ) : latestOutcome ? (
                         <button
@@ -8812,16 +8789,8 @@ ${shareUrl}`)
           onReactComment={(commentId, reactionType) =>
             void reactToComment(commentId, reactionType)
           }
-          onExposeComments={(count) => {
-            if (!currentPost?.id || !votes[currentPost.id]) return
-            const currentReads =
-              resultUnlockMap[currentPost.id]?.commentReads ?? 0
-            if (currentReads > 0) return
-            void upsertResultUnlock(currentPost.id, {
-              forceCommentReads: Math.max(1, count),
-              unlockLevel: 2,
-              isWatchlisted: currentWatchlisted,
-            })
+          onExposeComments={() => {
+            // result flow 제거: 댓글은 그냥 바로 보여주기만 함
           }}
         />
 
