@@ -2040,31 +2040,10 @@ function MyActivityModal({
     }
   }, [open, initialTab])
 
-  const watchlistRefreshStartedRef = useRef(false)
-
   useEffect(() => {
-    if (!open || tab !== 'watchlist') {
-      watchlistRefreshStartedRef.current = false
-      return
-    }
-
-    if (!watchlistRefreshStartedRef.current) {
-      watchlistRefreshStartedRef.current = true
-      void onRefreshWatchlist()
-    }
-
-    const interval = window.setInterval(() => {
-      if (
-        typeof document !== 'undefined' &&
-        document.visibilityState !== 'visible'
-      ) {
-        return
-      }
-      void onRefreshWatchlist()
-    }, 30000)
-
-    return () => window.clearInterval(interval)
-  }, [open, tab])
+    if (!open || tab !== 'watchlist') return
+    void onRefreshWatchlist()
+  }, [open, tab, onRefreshWatchlist])
 
   if (!open) return null
 
@@ -2287,9 +2266,7 @@ function MyActivityModal({
             >
               궁금한 글
               {unreadWatchlistCount > 0 ? (
-                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {unreadWatchlistCount}
-                </span>
+                <span className="ml-2 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
               ) : null}
             </button>
           </div>
@@ -2309,38 +2286,38 @@ function MyActivityModal({
           {tab === 'watchlist' && (
             <>
               <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-[linear-gradient(180deg,#fff8fb_0%,#fff1f5_100%)] px-3 py-2.5">
+                <div
+                  className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 ${updatedWatchlistItems.length > 0 ? 'border-rose-100 bg-[linear-gradient(180deg,#fff8fb_0%,#fff1f5_100%)]' : 'border-slate-200 bg-slate-50'}`}
+                >
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-[12px] font-black text-rose-700">
-                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse" />
-                      <span>새 소식 {updatedWatchlistItems.length}개</span>
+                    <div className="flex items-center gap-2 text-[12px] font-black text-slate-800">
+                      {updatedWatchlistItems.length > 0 ? (
+                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+                      ) : (
+                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-slate-300" />
+                      )}
+                      <span>
+                        {updatedWatchlistItems.length > 0
+                          ? '확인할 새 소식 있음'
+                          : '지금은 새 소식 없음'}
+                      </span>
                     </div>
-                    <div className="mt-1 text-[11px] text-rose-600/80">
+                    <div className="mt-1 text-[11px] text-slate-500">
                       {updatedWatchlistItems.length > 0
                         ? `가장 최근 업데이트 ${latestUpdatedLabel}`
-                        : '아직 새로 도착한 후기는 없음'}
+                        : '다음글 보거나 내 활동 다시 열 때 새로 확인됨'}
                     </div>
                   </div>
                   <button
                     onClick={() => void onRefreshWatchlist()}
-                    className="shrink-0 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700"
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700"
                   >
-                    {watchlistRefreshing ? '확인중…' : '새로고침'}
+                    {watchlistRefreshing ? '확인중…' : '지금 확인'}
                   </button>
                 </div>
 
-                <div className="mt-2 flex items-center justify-between gap-3 px-1 text-[11px] text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex h-2 w-2 rounded-full ${watchlistRefreshing ? 'bg-emerald-500 animate-pulse' : 'bg-sky-500'}`}
-                    />
-                    <span>
-                      {watchlistRefreshing
-                        ? '새 소식 확인중'
-                        : `${lastSyncedLabel} 동기화`}
-                    </span>
-                  </div>
-                  <span>열려 있을 때만 30초마다 자동 확인</span>
+                <div className="mt-2 px-1 text-[11px] text-slate-500">
+                  빨간 점이 보이면 새 후기/결말이 온 상태
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -7869,6 +7846,25 @@ ${shareUrl}`)
     return fetchWatchlist(currentActorUnifiedKey)
   }, [fetchWatchlist, currentActorUnifiedKey])
 
+  useEffect(() => {
+    if (!currentActorUnifiedKey || !currentPost?.id) return
+    void refreshCurrentActorWatchlist()
+  }, [currentActorUnifiedKey, currentPost?.id, refreshCurrentActorWatchlist])
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || !currentActorUnifiedKey) return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshCurrentActorWatchlist()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [currentActorUnifiedKey, refreshCurrentActorWatchlist])
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
@@ -7896,15 +7892,6 @@ ${shareUrl}`)
                   <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
                     이거 맞냐?
                   </div>
-                  {unreadWatchlistCount > 0 ? (
-                    <button
-                      onClick={openWatchlistActivity}
-                      className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
-                    >
-                      <span>새 후기 도착</span>
-                      <span>{unreadWatchlistCount}개</span>
-                    </button>
-                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -7924,9 +7911,7 @@ ${shareUrl}`)
                         {profile?.anonymous_name ?? '익명'}
                       </span>
                       {unreadWatchlistCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                          {unreadWatchlistCount}
-                        </span>
+                        <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
                       ) : null}
                     </button>
                   )}
@@ -8059,15 +8044,6 @@ ${shareUrl}`)
                     ⚡ 연속 판단 {currentVoteStreak.currentCount}회
                   </div>
                 ) : null}
-                {unreadWatchlistCount > 0 ? (
-                  <button
-                    onClick={openWatchlistActivity}
-                    className="mt-2 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700"
-                  >
-                    <span>새 후기 도착</span>
-                    <span>{unreadWatchlistCount}개</span>
-                  </button>
-                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -8095,9 +8071,7 @@ ${shareUrl}`)
                       Lv.{levelInfo.level}
                     </span>
                     {unreadWatchlistCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                        {unreadWatchlistCount}
-                      </span>
+                      <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
                     ) : null}
                   </button>
                 )}
