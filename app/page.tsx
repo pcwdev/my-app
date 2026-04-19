@@ -5418,7 +5418,7 @@ export default function MatnyaApp() {
       .order('created_at', { ascending: false })
 
     if (watchError) {
-      console.error('궁금한 글 불러오기 실패', watchError)
+      console.error('궁금한 글 불러오기 실패.', watchError)
       return
     }
 
