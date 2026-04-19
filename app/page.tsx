@@ -6867,7 +6867,7 @@ ${shareUrl}`)
         prev
           .map((item) =>
             item.postId === postId
-              ? {
+              ? ({
                   ...item,
                   unreadOutcome: false,
                   watchStatus: normalizeWatchStatus(
@@ -6877,7 +6877,7 @@ ${shareUrl}`)
                     item.latestOutcomeType && !item.archivedAt
                       ? new Date().toISOString()
                       : item.archivedAt,
-                }
+                } as WatchlistItem)
               : item,
           )
           .sort(compareWatchlistItems),
@@ -6982,7 +6982,7 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? {
+            ? ({
                 ...item,
                 latestOutcomeType: nextItem.outcomeType,
                 latestOutcomeSummary: nextItem.summary,
@@ -6991,7 +6991,7 @@ ${shareUrl}`)
                 unreadOutcome: false,
                 watchStatus: 'archived',
                 archivedAt: new Date().toISOString(),
-              }
+              } as WatchlistItem)
             : item,
         )
         .sort(compareWatchlistItems),
@@ -7090,11 +7090,11 @@ ${shareUrl}`)
       prev
         .map((item) =>
           item.postId === currentPost.id
-            ? {
+            ? ({
                 ...item,
                 id: Number(data?.id ?? item.id),
                 createdAt: data?.created_at ?? item.createdAt,
-              }
+              } as WatchlistItem)
             : item,
         )
         .sort(compareWatchlistItems),
