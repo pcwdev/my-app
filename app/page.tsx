@@ -6675,29 +6675,23 @@ ${shareUrl}`)
   const toggleCurrentPostWatchlist = async () => {
     if (!currentPost || !currentActorUnifiedKey) return
 
-    const targetPostId = currentPost.id
-    const alreadyActive = !!myWatchlistMap[targetPostId]
+    const postId = currentPost.id
+    const alreadyActive = !!myWatchlistMap[postId]
+    const previousWatchlisted = alreadyActive
+    const previousItems = [...watchlistItems]
 
     setMyWatchlistMap((prev) => ({
       ...prev,
-      [targetPostId]: !alreadyActive,
+      [postId]: !alreadyActive,
     }))
 
     if (alreadyActive) {
-      const removedItem =
-        watchlistItems.find((item) => item.postId === targetPostId) ?? null
-
-      setWatchlistItems((prev) =>
-        prev.filter((item) => item.postId !== targetPostId),
-      )
-      void upsertResultUnlock(targetPostId, {
-        isWatchlisted: false,
-      })
+      setWatchlistItems((prev) => prev.filter((item) => item.postId !== postId))
 
       const { error } = await supabase
         .from('post_watchlist')
         .delete()
-        .eq('post_id', targetPostId)
+        .eq('post_id', postId)
         .eq('actor_key', currentActorUnifiedKey)
         .eq('watch_type', 'curious')
 
@@ -6705,39 +6699,21 @@ ${shareUrl}`)
         console.error('궁금한 글 해제 실패', error)
         setMyWatchlistMap((prev) => ({
           ...prev,
-          [targetPostId]: true,
+          [postId]: previousWatchlisted,
         }))
-        if (removedItem) {
-          setWatchlistItems((prev) => {
-            const next = [
-              removedItem,
-              ...prev.filter((item) => item.postId !== targetPostId),
-            ]
-            next.sort((a, b) => {
-              if (a.unreadOutcome !== b.unreadOutcome)
-                return a.unreadOutcome ? -1 : 1
-              if (a.hasOutcome !== b.hasOutcome) return a.hasOutcome ? -1 : 1
-              return (
-                new Date(b.createdAt ?? 0).getTime() -
-                new Date(a.createdAt ?? 0).getTime()
-              )
-            })
-            return next
-          })
-        }
+        setWatchlistItems(previousItems)
         showToast('결말궁금 반영 실패')
-        void fetchWatchlist(currentActorUnifiedKey)
         return
       }
 
-      requestLightweightMetaRefresh({ immediate: true, delay: 0 })
+      void fetchWatchlist(currentActorUnifiedKey)
       showToast('궁금한 글 해제')
       return
     }
 
     const optimisticItem: WatchlistItem = {
-      id: -targetPostId,
-      postId: targetPostId,
+      id: -postId,
+      postId,
       title: currentPost.title,
       category: currentPost.category,
       ageGroup: currentPost.ageGroup,
@@ -6751,7 +6727,7 @@ ${shareUrl}`)
     setWatchlistItems((prev) => {
       const next = [
         optimisticItem,
-        ...prev.filter((item) => item.postId !== targetPostId),
+        ...prev.filter((item) => item.postId !== postId),
       ]
       next.sort((a, b) => {
         if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
@@ -6768,7 +6744,7 @@ ${shareUrl}`)
       .from('post_watchlist')
       .upsert(
         {
-          post_id: targetPostId,
+          post_id: postId,
           actor_key: currentActorUnifiedKey,
           watch_type: 'curious',
         },
@@ -6784,20 +6760,17 @@ ${shareUrl}`)
       console.error('궁금한 글 등록 실패', error)
       setMyWatchlistMap((prev) => ({
         ...prev,
-        [targetPostId]: false,
+        [postId]: previousWatchlisted,
       }))
-      setWatchlistItems((prev) =>
-        prev.filter((item) => item.postId !== targetPostId),
-      )
+      setWatchlistItems(previousItems)
       showToast('결말궁금 반영 실패')
-      void fetchWatchlist(currentActorUnifiedKey)
       return
     }
 
     setWatchlistItems((prev) =>
       prev
         .map((item) =>
-          item.postId === targetPostId
+          item.postId === postId
             ? {
                 ...item,
                 id: Number(data?.id ?? item.id),
@@ -6816,11 +6789,7 @@ ${shareUrl}`)
         }),
     )
 
-    void upsertResultUnlock(targetPostId, {
-      unlockLevel: 3,
-      isWatchlisted: true,
-    })
-    requestLightweightMetaRefresh({ immediate: true, delay: 0 })
+    void fetchWatchlist(currentActorUnifiedKey)
     showToast('결말궁금 저장')
   }
 
