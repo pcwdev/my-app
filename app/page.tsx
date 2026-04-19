@@ -1185,15 +1185,65 @@ function getRevealStateLabel(leftVotes: number, rightVotes: number) {
   }
 }
 
+function getPreVoteSignalTitle(
+  totalVotes: number,
+  commentsCount: number,
+  tension?: PostTensionState | null,
+) {
+  if (tension?.isFlipImminent) return '다음 한 표면 뒤집힘'
+  if (tension?.tensionType === 'brawl') return '지금 완전 갈리는 판'
+  if (tension?.tensionType === 'tight') return '생각보다 팽팽한 판'
+  if (commentsCount >= 20) return '댓글도 꽤 붙은 판'
+  if (totalVotes >= 50) return '사람들이 많이 보고 있는 판'
+  if (totalVotes >= 10) return '이미 반응이 들어온 판'
+  return '지금 반응이 쌓이는 중'
+}
+
+function getPreVoteSignalHelper(
+  totalVotes: number,
+  commentsCount: number,
+  tension?: PostTensionState | null,
+) {
+  if (tension?.isFlipImminent) {
+    return '지금 분위기가 바로 바뀔 수 있음'
+  }
+
+  if (tension?.tensionType === 'brawl') {
+    return '생각보다 꽤 갈리는 중 · 선택하면 분위기 공개'
+  }
+
+  if (tension?.tensionType === 'tight') {
+    return '팽팽하게 갈리는 중 · 선택하면 분위기 공개'
+  }
+
+  if (commentsCount >= 20) {
+    return '댓글도 계속 붙는 중 · 선택하면 분위기 공개'
+  }
+
+  if (totalVotes >= 50) {
+    return '사람들이 계속 보는 판 · 선택하면 분위기 공개'
+  }
+
+  if (totalVotes >= 10) {
+    return '이미 반응이 들어온 판 · 선택하면 분위기 공개'
+  }
+
+  return '지금 반응 오는 중 · 선택하면 분위기 공개'
+}
+
 function getRevealHintLabel(leftVotes: number, rightVotes: number) {
   const left = Math.max(0, Number(leftVotes ?? 0))
   const right = Math.max(0, Number(rightVotes ?? 0))
   const total = left + right
 
-  if (total <= 0) return '첫 반응이 아직 없음'
-  if (left === right) return '거의 반반 수준'
-  if (left > right * 2 || right > left * 2) return '대부분이 한쪽 의견'
-  return '생각보다 더 많이 갈리는 중'
+  if (total <= 0) return '댓글 반응이 아직 없음'
+
+  const diffRatio = Math.abs(left - right) / Math.max(total, 1)
+
+  if (left === right || diffRatio <= 0.1) return '댓글 분위기: 거의 반반'
+  if (left > right * 2 || right > left * 2)
+    return '댓글 분위기: 한쪽 의견이 훨씬 많음'
+  return '댓글 분위기: 생각보다 꽤 갈림'
 }
 
 function getResultRevealStage(
@@ -1203,14 +1253,13 @@ function getResultRevealStage(
   hasOutcome: boolean,
 ): ResultRevealStage {
   const exact = percent(leftVotes, rightVotes)
+  const effectiveLevel = hasOutcome ? unlockLevel : Math.min(unlockLevel, 3)
 
-  if (unlockLevel >= 4) {
+  if (effectiveLevel >= 4) {
     return {
       level: 4,
-      label: hasOutcome ? '결말까지 공개됨' : '최종 결과 공개',
-      helper: hasOutcome
-        ? '이제 결과뿐 아니라 후기와 결말까지 같이 보면 됨'
-        : '정확한 결과가 전부 공개된 상태',
+      label: '후기 있음',
+      helper: '결국 어떻게 됐는지까지 볼 수 있음',
       toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1219,11 +1268,11 @@ function getResultRevealStage(
     }
   }
 
-  if (unlockLevel >= 3) {
+  if (effectiveLevel >= 3) {
     return {
       level: 3,
-      label: '정확한 결과 공개',
-      helper: '실시간 반응이 계속 들어와 수치는 조금씩 달라질 수 있음',
+      label: '지금 결과 보기',
+      helper: '사람들이 계속 들어오고 있어서 결과는 조금씩 달라질 수 있음',
       toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1232,12 +1281,12 @@ function getResultRevealStage(
     }
   }
 
-  if (unlockLevel >= 2) {
+  if (effectiveLevel >= 2) {
     const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
     return {
       level: 2,
-      label: getRevealHintLabel(leftVotes, rightVotes),
-      helper: '실시간 반응이 계속 들어와 정확한 수치는 마지막에 공개됨',
+      label: '댓글 분위기',
+      helper: '댓글에서 사람들이 왜 그렇게 보는지 바로 느낄 수 있음',
       toneClass: stateMeta.toneClass,
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1249,7 +1298,7 @@ function getResultRevealStage(
   const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
   return {
     level: 1,
-    label: stateMeta.label,
+    label: '지금 분위기',
     helper: stateMeta.helper,
     toneClass: stateMeta.toneClass,
     leftValue: exact.left,
@@ -1420,12 +1469,18 @@ const VoteOption = React.memo(function VoteOption({
   active,
   label,
   value,
+  showValue = false,
+  previewTitle = '지금 반응이 쌓이는 중',
+  previewHelper = '선택하면 분위기 공개',
   onClick,
   disabled = false,
 }: {
   active: boolean
   label: string
   value: number
+  showValue?: boolean
+  previewTitle?: string
+  previewHelper?: string
   onClick: () => void
   disabled?: boolean
 }) {
@@ -1433,13 +1488,13 @@ const VoteOption = React.memo(function VoteOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-[22px] border px-4 py-2.5 text-left transition-all duration-200 ${
+      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
         active
           ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
           : 'border-slate-200/80 bg-white shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
       } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-slate-50'}`}
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <span
           className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
             active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
@@ -1447,16 +1502,28 @@ const VoteOption = React.memo(function VoteOption({
         >
           {label}
         </span>
-        <span className="text-[17px] font-extrabold text-slate-900">
-          {value}%
-        </span>
+        {showValue ? (
+          <span className="text-[17px] font-extrabold text-slate-900">
+            {value}%
+          </span>
+        ) : (
+          <span className="text-[12px] font-bold text-slate-500">
+            {previewTitle}
+          </span>
+        )}
       </div>
-      <div className="h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
-        <div
-          className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
-          style={{ width: `${value}%` }}
-        />
-      </div>
+      {showValue ? (
+        <div className="mt-2 h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
+          <div
+            className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
+            style={{ width: `${value}%` }}
+          />
+        </div>
+      ) : (
+        <div className="mt-2 text-[12px] font-semibold text-slate-500">
+          {previewHelper}
+        </div>
+      )}
     </button>
   )
 })
@@ -5376,6 +5443,20 @@ ${shareUrl}`)
     ? (postTensionMap[currentPost.id] ?? null)
     : null
   const currentTensionMeta = getTensionMeta(currentTension)
+  const currentPreVoteSignalTitle = currentPost
+    ? getPreVoteSignalTitle(
+        currentPost.leftVotes + currentPost.rightVotes,
+        currentPost.comments.length,
+        currentTension,
+      )
+    : '지금 반응이 쌓이는 중'
+  const currentPreVoteSignalHelper = currentPost
+    ? getPreVoteSignalHelper(
+        currentPost.leftVotes + currentPost.rightVotes,
+        currentPost.comments.length,
+        currentTension,
+      )
+    : '선택하면 분위기 공개'
   const currentWatchlisted = !!(currentPost && myWatchlistMap[currentPost.id])
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
@@ -5440,9 +5521,11 @@ ${shareUrl}`)
     )
   }, [currentChoicePathTop, posts])
 
-  const nextRecommendationReason = queuedNextPost
-    ? getNextReasonLabel(queuedNextPost.item.reasonType)
-    : '다음 맞냐'
+  const nextRecommendationReason = choicePathNextPost
+    ? '너처럼 고른 사람들 다음 판'
+    : queuedNextPost
+      ? getNextReasonLabel(queuedNextPost.item.reasonType)
+      : '다음 맞냐'
 
   const nextRecommendationTitle =
     choicePathNextPost?.title ||
@@ -5451,7 +5534,9 @@ ${shareUrl}`)
       ?.title ||
     '다음 글 보기'
 
-  const nextRecommendationHelper = '지금 가장 오래 보게 만들 다음 판으로 이동'
+  const nextRecommendationHelper = choicePathNextPost
+    ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
+    : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
   useEffect(() => {
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
@@ -5475,7 +5560,7 @@ ${shareUrl}`)
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
 
-    if (latestOutcome || revisitMeta) {
+    if (latestOutcome) {
       void upsertResultUnlock(currentPost.id, {
         unlockLevel: 4,
       })
@@ -6675,45 +6760,41 @@ ${shareUrl}`)
   const toggleCurrentPostWatchlist = async () => {
     if (!currentPost || !currentActorUnifiedKey) return
 
-    const postId = currentPost.id
-    const alreadyActive = !!myWatchlistMap[postId]
-    const previousWatchlisted = alreadyActive
-    const previousItems = [...watchlistItems]
+    const alreadyActive = !!myWatchlistMap[currentPost.id]
 
     setMyWatchlistMap((prev) => ({
       ...prev,
-      [postId]: !alreadyActive,
+      [currentPost.id]: !alreadyActive,
     }))
 
     if (alreadyActive) {
-      setWatchlistItems((prev) => prev.filter((item) => item.postId !== postId))
-
+      setWatchlistItems((prev) =>
+        prev.filter((item) => item.postId !== currentPost.id),
+      )
+      void upsertResultUnlock(currentPost.id, {
+        isWatchlisted: false,
+      })
       const { error } = await supabase
         .from('post_watchlist')
         .delete()
-        .eq('post_id', postId)
+        .eq('post_id', currentPost.id)
         .eq('actor_key', currentActorUnifiedKey)
         .eq('watch_type', 'curious')
 
       if (error) {
         console.error('궁금한 글 해제 실패', error)
-        setMyWatchlistMap((prev) => ({
-          ...prev,
-          [postId]: previousWatchlisted,
-        }))
-        setWatchlistItems(previousItems)
         showToast('결말궁금 반영 실패')
+        void fetchWatchlist(currentActorUnifiedKey)
         return
       }
 
-      void fetchWatchlist(currentActorUnifiedKey)
       showToast('궁금한 글 해제')
       return
     }
 
     const optimisticItem: WatchlistItem = {
-      id: -postId,
-      postId,
+      id: -currentPost.id,
+      postId: currentPost.id,
       title: currentPost.title,
       category: currentPost.category,
       ageGroup: currentPost.ageGroup,
@@ -6727,7 +6808,7 @@ ${shareUrl}`)
     setWatchlistItems((prev) => {
       const next = [
         optimisticItem,
-        ...prev.filter((item) => item.postId !== postId),
+        ...prev.filter((item) => item.postId !== currentPost.id),
       ]
       next.sort((a, b) => {
         if (a.unreadOutcome !== b.unreadOutcome) return a.unreadOutcome ? -1 : 1
@@ -6742,35 +6823,25 @@ ${shareUrl}`)
 
     const { data, error } = await supabase
       .from('post_watchlist')
-      .upsert(
-        {
-          post_id: postId,
-          actor_key: currentActorUnifiedKey,
-          watch_type: 'curious',
-        },
-        {
-          onConflict: 'post_id,actor_key,watch_type',
-          ignoreDuplicates: false,
-        },
-      )
+      .insert({
+        post_id: currentPost.id,
+        actor_key: currentActorUnifiedKey,
+        watch_type: 'curious',
+      })
       .select('id, created_at')
       .single()
 
     if (error) {
       console.error('궁금한 글 등록 실패', error)
-      setMyWatchlistMap((prev) => ({
-        ...prev,
-        [postId]: previousWatchlisted,
-      }))
-      setWatchlistItems(previousItems)
       showToast('결말궁금 반영 실패')
+      void fetchWatchlist(currentActorUnifiedKey)
       return
     }
 
     setWatchlistItems((prev) =>
       prev
         .map((item) =>
-          item.postId === postId
+          item.postId === currentPost.id
             ? {
                 ...item,
                 id: Number(data?.id ?? item.id),
@@ -6789,8 +6860,11 @@ ${shareUrl}`)
         }),
     )
 
-    void fetchWatchlist(currentActorUnifiedKey)
-    showToast('결말궁금 저장')
+    void upsertResultUnlock(currentPost.id, {
+      unlockLevel: 3,
+      isWatchlisted: true,
+    })
+    showToast('결과 보기')
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -7947,16 +8021,20 @@ ${shareUrl}`)
                 <VoteOption
                   active={votes[currentPost.id] === 'left'}
                   label={currentPost.leftLabel}
-                  value={votes[currentPost.id] ? displayedPercent.left : p.left}
+                  value={displayedPercent.left}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
                   onClick={() => void handleVote('left')}
                   disabled={isVoting}
                 />
                 <VoteOption
                   active={votes[currentPost.id] === 'right'}
                   label={currentPost.rightLabel}
-                  value={
-                    votes[currentPost.id] ? displayedPercent.right : p.right
-                  }
+                  value={displayedPercent.right}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
                   onClick={() => void handleVote('right')}
                   disabled={isVoting}
                 />
@@ -7966,7 +8044,7 @@ ${shareUrl}`)
                     {(currentResultEmotion ||
                       currentMinorityLabel ||
                       currentTensionMeta ||
-                      currentResultReveal) && (
+                      votes[currentPost.id]) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex flex-wrap items-center gap-2">
                           {currentTensionMeta ? (
@@ -7988,72 +8066,50 @@ ${shareUrl}`)
                               {currentMinorityLabel.text}
                             </div>
                           ) : null}
-                          {currentResultReveal ? (
-                            <div
-                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentResultReveal.toneClass}`}
-                            >
-                              {currentResultReveal.label}
-                            </div>
-                          ) : null}
                         </div>
 
-                        {currentResultReveal ? (
+                        {votes[currentPost.id] ? (
                           <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                             <div className="flex items-end justify-between gap-3">
                               <div>
                                 <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                  RESULT FLOW
-                                </div>
-                                <div className="mt-1 text-base font-black text-slate-900">
-                                  {currentResultReveal.label}
-                                </div>
-                              </div>
-                              <div
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${currentResultReveal.toneClass}`}
-                              >
-                                {currentResultUnlockLevel > 0
-                                  ? `공개 ${currentResultUnlockLevel}/4`
-                                  : '공개 0/4'}
-                              </div>
-                            </div>
-                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                              {currentResultReveal.helper}
-                            </div>
-
-                            {currentResultReveal.showExact ? (
-                              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
                                   LIVE RESULT
                                 </div>
                                 <div className="mt-1 text-base font-black text-slate-900">
-                                  {displayedPercent.left}% vs{' '}
-                                  {displayedPercent.right}%
-                                </div>
-                                <div className="mt-1 text-[12px] text-slate-500">
-                                  실시간 반응이 계속 들어와 수치는 조금씩 달라질
-                                  수 있음
+                                  지금 사람들 반응
                                 </div>
                               </div>
-                            ) : null}
+                              <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">
+                                결과 보기
+                              </div>
+                            </div>
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                              <div className="text-base font-black text-slate-900">
+                                {displayedPercent.left}% vs{' '}
+                                {displayedPercent.right}%
+                              </div>
+                              <div className="mt-1 text-[12px] text-slate-500">
+                                사람들이 계속 들어오고 있어서 결과는 조금씩
+                                달라질 수 있음
+                              </div>
+                            </div>
 
-                            {currentResultUnlockLevel < 3 ? (
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                <button
-                                  onClick={() => setCommentOpen(true)}
-                                  className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
-                                >
-                                  댓글 보면 더 공개
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    void toggleCurrentPostWatchlist()
-                                  }
-                                  className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
-                                >
-                                  결말궁금 저장
-                                </button>
-                              </div>
-                            ) : null}
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setCommentOpen(true)}
+                                className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
+                              >
+                                댓글 보기
+                              </button>
+                              <button
+                                onClick={() =>
+                                  void toggleCurrentPostWatchlist()
+                                }
+                                className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-3 py-2 text-[12px] font-black text-slate-900 shadow-[0_10px_18px_rgba(79,124,255,0.16)]"
+                              >
+                                결말궁금 저장
+                              </button>
+                            </div>
                           </div>
                         ) : null}
 
@@ -8070,47 +8126,77 @@ ${shareUrl}`)
                                     ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
                                     : currentTensionMeta
                                       ? currentTensionMeta.helper
-                                      : (currentResultReveal?.helper ??
-                                        '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.')}
+                                      : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
                         </div>
                       </div>
                     )}
 
-                    {currentFlipDrama ||
-                    currentShadowDrama ||
-                    currentChoicePathTop ? (
-                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                          DRAMA SIGNAL
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {currentFlipDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
-                              >
-                                {currentFlipDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentFlipDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                          {currentShadowDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
-                              >
-                                {currentShadowDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentShadowDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
+                    <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                      <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                        DRAMA SIGNAL
                       </div>
-                    ) : null}
+                      <div className="mt-3 space-y-2">
+                        {currentFlipDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
+                            >
+                              {currentFlipDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentFlipDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentShadowDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
+                            >
+                              {currentShadowDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentShadowDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentChoicePathTop && choicePathNextPost ? (
+                          <button
+                            onClick={() =>
+                              moveToPostWithGuard(choicePathNextPost.id)
+                            }
+                            className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
+                          >
+                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                              SAME SIDE NEXT
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              너처럼 고른 사람들 다음으로 이 글 봄
+                            </div>
+                            <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                              {choicePathNextPost.title}
+                            </div>
+                            <div className="mt-1 text-[12px] text-slate-500">
+                              같은 선택 흐름에서 {currentChoicePathTop.count}번
+                              이어짐
+                            </div>
+                          </button>
+                        ) : null}
+                        {!currentFlipDrama &&
+                        !currentShadowDrama &&
+                        !(currentChoicePathTop && choicePathNextPost) ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-600">
+                              지금은 조용한 판
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              아직 크게 흔들린 신호는 없지만 댓글이나 다음
+                              반응에서 다시 붙을 수 있음.
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
 
                     <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                       <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
@@ -8150,16 +8236,18 @@ ${shareUrl}`)
                           }`}
                         >
                           <span>
-                            {currentWatchlisted ? '결말기다림 ✓' : '결말궁금'}
+                            {currentWatchlisted
+                              ? '결말궁금 저장됨 ✓'
+                              : '결말궁금'}
                           </span>
                           <span className="text-[11px] text-slate-400">
                             {currentWatchlisted
-                              ? '내 활동에서 다시 보기'
-                              : '나중에 결과 보기'}
+                              ? '내 활동에서 나중에 다시 보기'
+                              : '이 글 저장하고 나중에 다시 보기'}
                           </span>
                         </button>
                       </div>
-                      {latestOutcome && currentResultReveal?.showOutcome ? (
+                      {latestOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
@@ -8183,7 +8271,11 @@ ${shareUrl}`)
                               </button>
                             ) : null}
                           </div>
-                          <div className="mt-1">{latestOutcome.summary}</div>
+                          <div className="mt-1">
+                            {currentWatchlisted
+                              ? latestOutcome.summary
+                              : '후기가 올라온 글임 · 결말궁금에 저장해두고 나중에 다시 볼 수 있음'}
+                          </div>
                         </div>
                       ) : latestOutcome ? (
                         <button
@@ -8243,6 +8335,30 @@ ${shareUrl}`)
                         {nextRecommendationHelper}
                       </div>
                     </button>
+
+                    {controversialPosts.length > 0 && (
+                      <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                        <div className="mb-3 text-sm font-bold text-slate-900">
+                          지금 들어가면 바로 갈릴 논쟁 TOP3
+                        </div>
+                        <div className="space-y-2">
+                          {controversialPosts.map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => moveToPostWithGuard(item.id)}
+                              className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
+                            >
+                              <div className="text-sm font-semibold text-slate-900">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-500">
+                                {item.total}명 참여 · 의견 팽팽
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {!isViewingSharedPost ? (
                       <div className="grid grid-cols-2 gap-2">
@@ -8673,16 +8789,8 @@ ${shareUrl}`)
           onReactComment={(commentId, reactionType) =>
             void reactToComment(commentId, reactionType)
           }
-          onExposeComments={(count) => {
-            if (!currentPost?.id || !votes[currentPost.id]) return
-            const currentReads =
-              resultUnlockMap[currentPost.id]?.commentReads ?? 0
-            const nextReads = currentReads + count
-            void upsertResultUnlock(currentPost.id, {
-              commentReadsDelta: count,
-              unlockLevel: nextReads >= 3 ? 2 : undefined,
-              isWatchlisted: currentWatchlisted,
-            })
+          onExposeComments={() => {
+            // result flow 제거: 댓글은 그냥 바로 보여주기만 함
           }}
         />
 
