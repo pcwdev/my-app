@@ -462,6 +462,428 @@ async function ensureProfile() {
   return { user, profile: inserted as ProfileRow }
 }
 
+async function migrateGuestActivityToAccount(params: {
+  voterKey: string
+  userId: string
+}) {
+  const guestActorKey = `voter:${params.voterKey}`
+  const userActorKey = `user:${params.userId}`
+
+  const failIfError = (error: any, label: string) => {
+    if (error) {
+      console.error(label, error)
+      throw error
+    }
+  }
+
+  let migratedCount = 0
+
+  const [
+    guestWatchlistRes,
+    userWatchlistRes,
+    guestUnlockRes,
+    userUnlockRes,
+    guestPostReactionRes,
+    guestCommentReactionRes,
+    guestStreakRes,
+    userStreakRes,
+    guestStatsRes,
+    userStatsRes,
+    guestBadgesRes,
+    userBadgesRes,
+  ] = await Promise.all([
+    supabase
+      .from('post_watchlist')
+      .select('post_id, watch_type, created_at, watch_status, archived_at')
+      .eq('actor_key', guestActorKey),
+    supabase
+      .from('post_watchlist')
+      .select('post_id, watch_type, created_at, watch_status, archived_at')
+      .eq('actor_key', userActorKey),
+    supabase
+      .from('post_result_unlocks')
+      .select(
+        'post_id, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+      )
+      .eq('voter_key', guestActorKey),
+    supabase
+      .from('post_result_unlocks')
+      .select(
+        'post_id, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+      )
+      .eq('voter_key', userActorKey),
+    supabase
+      .from('post_reactions')
+      .select('post_id, reaction_type')
+      .eq('reactor_key', guestActorKey),
+    supabase
+      .from('comment_reactions')
+      .select('comment_id, reaction_type')
+      .eq('reactor_key', guestActorKey),
+    supabase
+      .from('user_streaks')
+      .select('streak_type, current_count, best_count, last_action_at')
+      .eq('actor_key', guestActorKey),
+    supabase
+      .from('user_streaks')
+      .select('streak_type, current_count, best_count, last_action_at')
+      .eq('actor_key', userActorKey),
+    supabase
+      .from('user_stats')
+      .select('*')
+      .eq('voter_key', params.voterKey)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', params.userId)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('user_badges')
+      .select('badge_name')
+      .eq('voter_key', params.voterKey),
+    supabase
+      .from('user_badges')
+      .select('badge_name')
+      .eq('user_id', params.userId),
+  ])
+
+  failIfError(guestWatchlistRes.error, 'guest watchlist 조회 실패')
+  failIfError(userWatchlistRes.error, 'user watchlist 조회 실패')
+  failIfError(guestUnlockRes.error, 'guest result unlock 조회 실패')
+  failIfError(userUnlockRes.error, 'user result unlock 조회 실패')
+  failIfError(guestPostReactionRes.error, 'guest post reactions 조회 실패')
+  failIfError(
+    guestCommentReactionRes.error,
+    'guest comment reactions 조회 실패',
+  )
+  failIfError(guestStreakRes.error, 'guest streak 조회 실패')
+  failIfError(userStreakRes.error, 'user streak 조회 실패')
+  failIfError(guestStatsRes.error, 'guest user_stats 조회 실패')
+  failIfError(userStatsRes.error, 'user user_stats 조회 실패')
+  failIfError(guestBadgesRes.error, 'guest badges 조회 실패')
+  failIfError(userBadgesRes.error, 'user badges 조회 실패')
+
+  const watchStatusRank: Record<string, number> = {
+    updated: 3,
+    waiting: 2,
+    archived: 1,
+  }
+
+  const mergedWatchlistMap = new Map<string, any>()
+
+  ;(userWatchlistRes.data ?? []).forEach((row: any) => {
+    mergedWatchlistMap.set(`${row.post_id}:${row.watch_type ?? 'curious'}`, {
+      post_id: row.post_id,
+      actor_key: userActorKey,
+      watch_type: row.watch_type ?? 'curious',
+      created_at: row.created_at ?? null,
+      watch_status: row.watch_status ?? 'waiting',
+      archived_at: row.archived_at ?? null,
+    })
+  })
+  ;(guestWatchlistRes.data ?? []).forEach((row: any) => {
+    const key = `${row.post_id}:${row.watch_type ?? 'curious'}`
+    const prev = mergedWatchlistMap.get(key)
+
+    if (!prev) {
+      mergedWatchlistMap.set(key, {
+        post_id: row.post_id,
+        actor_key: userActorKey,
+        watch_type: row.watch_type ?? 'curious',
+        created_at: row.created_at ?? null,
+        watch_status: row.watch_status ?? 'waiting',
+        archived_at: row.archived_at ?? null,
+      })
+      migratedCount += 1
+      return
+    }
+
+    const nextStatus =
+      (watchStatusRank[row.watch_status ?? 'waiting'] ?? 0) >
+      (watchStatusRank[prev.watch_status ?? 'waiting'] ?? 0)
+        ? (row.watch_status ?? 'waiting')
+        : (prev.watch_status ?? 'waiting')
+
+    mergedWatchlistMap.set(key, {
+      ...prev,
+      created_at:
+        [prev.created_at, row.created_at].filter(Boolean).sort()[0] ??
+        prev.created_at ??
+        row.created_at ??
+        null,
+      watch_status: nextStatus,
+      archived_at:
+        nextStatus === 'archived'
+          ? ([prev.archived_at, row.archived_at]
+              .filter(Boolean)
+              .sort()
+              .reverse()[0] ?? null)
+          : null,
+    })
+    migratedCount += 1
+  })
+
+  if (mergedWatchlistMap.size > 0) {
+    const { error } = await supabase
+      .from('post_watchlist')
+      .upsert(Array.from(mergedWatchlistMap.values()), {
+        onConflict: 'actor_key,post_id,watch_type',
+      })
+    failIfError(error, 'watchlist 병합 저장 실패')
+  }
+
+  const mergedUnlockMap = new Map<number, any>()
+
+  ;(userUnlockRes.data ?? []).forEach((row: any) => {
+    mergedUnlockMap.set(Number(row.post_id), {
+      post_id: Number(row.post_id),
+      voter_key: userActorKey,
+      unlock_level: Number(row.unlock_level ?? 0),
+      comment_reads: Number(row.comment_reads ?? 0),
+      is_watchlisted: !!row.is_watchlisted,
+      created_at: row.created_at ?? null,
+      updated_at: row.updated_at ?? null,
+    })
+  })
+  ;(guestUnlockRes.data ?? []).forEach((row: any) => {
+    const postId = Number(row.post_id)
+    const prev = mergedUnlockMap.get(postId)
+
+    if (!prev) {
+      mergedUnlockMap.set(postId, {
+        post_id: postId,
+        voter_key: userActorKey,
+        unlock_level: Number(row.unlock_level ?? 0),
+        comment_reads: Number(row.comment_reads ?? 0),
+        is_watchlisted: !!row.is_watchlisted,
+        created_at: row.created_at ?? null,
+        updated_at: row.updated_at ?? null,
+      })
+      migratedCount += 1
+      return
+    }
+
+    mergedUnlockMap.set(postId, {
+      ...prev,
+      unlock_level: Math.max(
+        Number(prev.unlock_level ?? 0),
+        Number(row.unlock_level ?? 0),
+      ),
+      comment_reads: Math.max(
+        Number(prev.comment_reads ?? 0),
+        Number(row.comment_reads ?? 0),
+      ),
+      is_watchlisted: !!prev.is_watchlisted || !!row.is_watchlisted,
+      created_at:
+        [prev.created_at, row.created_at].filter(Boolean).sort()[0] ??
+        prev.created_at ??
+        row.created_at ??
+        null,
+      updated_at:
+        [prev.updated_at, row.updated_at].filter(Boolean).sort().reverse()[0] ??
+        prev.updated_at ??
+        row.updated_at ??
+        null,
+    })
+    migratedCount += 1
+  })
+
+  if (mergedUnlockMap.size > 0) {
+    const { error } = await supabase
+      .from('post_result_unlocks')
+      .upsert(Array.from(mergedUnlockMap.values()), {
+        onConflict: 'post_id,voter_key',
+      })
+    failIfError(error, 'result unlock 병합 저장 실패')
+  }
+
+  const guestPostReactions = guestPostReactionRes.data ?? []
+  if (guestPostReactions.length > 0) {
+    const { error } = await supabase.from('post_reactions').upsert(
+      guestPostReactions.map((row: any) => ({
+        post_id: row.post_id,
+        reactor_key: userActorKey,
+        reaction_type: row.reaction_type,
+      })),
+      {
+        onConflict: 'post_id,reactor_key,reaction_type',
+        ignoreDuplicates: true,
+      },
+    )
+    failIfError(error, 'post reactions 병합 저장 실패')
+    migratedCount += guestPostReactions.length
+  }
+
+  const guestCommentReactions = guestCommentReactionRes.data ?? []
+  if (guestCommentReactions.length > 0) {
+    const { error } = await supabase.from('comment_reactions').upsert(
+      guestCommentReactions.map((row: any) => ({
+        comment_id: row.comment_id,
+        reactor_key: userActorKey,
+        reaction_type: row.reaction_type,
+      })),
+      {
+        onConflict: 'comment_id,reactor_key,reaction_type',
+        ignoreDuplicates: true,
+      },
+    )
+    failIfError(error, 'comment reactions 병합 저장 실패')
+    migratedCount += guestCommentReactions.length
+  }
+
+  const mergedStreakMap = new Map<string, any>()
+
+  ;(userStreakRes.data ?? []).forEach((row: any) => {
+    mergedStreakMap.set(String(row.streak_type), {
+      actor_key: userActorKey,
+      streak_type: row.streak_type,
+      current_count: Number(row.current_count ?? 0),
+      best_count: Number(row.best_count ?? 0),
+      last_action_at: row.last_action_at ?? null,
+    })
+  })
+  ;(guestStreakRes.data ?? []).forEach((row: any) => {
+    const key = String(row.streak_type)
+    const prev = mergedStreakMap.get(key)
+
+    if (!prev) {
+      mergedStreakMap.set(key, {
+        actor_key: userActorKey,
+        streak_type: row.streak_type,
+        current_count: Number(row.current_count ?? 0),
+        best_count: Number(row.best_count ?? 0),
+        last_action_at: row.last_action_at ?? null,
+      })
+      migratedCount += 1
+      return
+    }
+
+    mergedStreakMap.set(key, {
+      actor_key: userActorKey,
+      streak_type: row.streak_type,
+      current_count: Math.max(
+        Number(prev.current_count ?? 0),
+        Number(row.current_count ?? 0),
+      ),
+      best_count: Math.max(
+        Number(prev.best_count ?? 0),
+        Number(row.best_count ?? 0),
+      ),
+      last_action_at:
+        [prev.last_action_at, row.last_action_at]
+          .filter(Boolean)
+          .sort()
+          .reverse()[0] ??
+        prev.last_action_at ??
+        row.last_action_at ??
+        null,
+    })
+    migratedCount += 1
+  })
+
+  if (mergedStreakMap.size > 0) {
+    const { error } = await supabase
+      .from('user_streaks')
+      .upsert(Array.from(mergedStreakMap.values()), {
+        onConflict: 'actor_key,streak_type',
+      })
+    failIfError(error, 'streak 병합 저장 실패')
+  }
+
+  const guestStats = guestStatsRes.data
+  const userStats = userStatsRes.data
+
+  if (guestStats || userStats) {
+    const totalPoints =
+      Number(guestStats?.points ?? 0) + Number(userStats?.points ?? 0)
+    const totalVotes =
+      Number(guestStats?.votes_count ?? 0) + Number(userStats?.votes_count ?? 0)
+    const totalComments =
+      Number(guestStats?.comments_count ?? 0) +
+      Number(userStats?.comments_count ?? 0)
+    const totalPosts =
+      Number(guestStats?.posts_count ?? 0) + Number(userStats?.posts_count ?? 0)
+    const totalLikes =
+      Number(guestStats?.likes_received ?? 0) +
+      Number(userStats?.likes_received ?? 0)
+    const levelInfo = getLevelInfo(totalPoints)
+
+    const statsPayload = {
+      user_id: params.userId,
+      voter_key: null,
+      points: totalPoints,
+      level: levelInfo.level,
+      votes_count: totalVotes,
+      comments_count: totalComments,
+      posts_count: totalPosts,
+      likes_received: totalLikes,
+    }
+
+    if (userStats?.id) {
+      const { error } = await supabase
+        .from('user_stats')
+        .update(statsPayload)
+        .eq('id', userStats.id)
+      failIfError(error, 'user_stats 업데이트 실패')
+    } else {
+      const { error } = await supabase.from('user_stats').insert(statsPayload)
+      failIfError(error, 'user_stats 생성 실패')
+    }
+
+    if (guestStats?.id) {
+      const { error } = await supabase
+        .from('user_stats')
+        .delete()
+        .eq('id', guestStats.id)
+      failIfError(error, 'guest user_stats 삭제 실패')
+    }
+
+    migratedCount += Number(!!guestStats)
+  }
+
+  const userBadgeSet = new Set(
+    (userBadgesRes.data ?? []).map((row: any) => String(row.badge_name)),
+  )
+  const guestBadgeNames = (guestBadgesRes.data ?? []).map((row: any) =>
+    String(row.badge_name),
+  )
+  const badgesToInsert = guestBadgeNames
+    .filter((badgeName) => !userBadgeSet.has(badgeName))
+    .map((badgeName) => ({
+      user_id: params.userId,
+      voter_key: null,
+      badge_name: badgeName,
+    }))
+
+  if (badgesToInsert.length > 0) {
+    const { error } = await supabase.from('user_badges').insert(badgesToInsert)
+    failIfError(error, 'user_badges 병합 저장 실패')
+    migratedCount += badgesToInsert.length
+  }
+
+  await Promise.all([
+    supabase.from('post_watchlist').delete().eq('actor_key', guestActorKey),
+    supabase
+      .from('post_result_unlocks')
+      .delete()
+      .eq('voter_key', guestActorKey),
+    supabase.from('post_reactions').delete().eq('reactor_key', guestActorKey),
+    supabase
+      .from('comment_reactions')
+      .delete()
+      .eq('reactor_key', guestActorKey),
+    supabase.from('user_streaks').delete().eq('actor_key', guestActorKey),
+    supabase.from('user_badges').delete().eq('voter_key', params.voterKey),
+  ])
+
+  return {
+    migratedCount,
+  }
+}
+
 function percent(
   leftVotes: number,
   rightVotes: number,
@@ -1712,7 +2134,8 @@ function AuthOptionalModal({
         <div className="mb-4 text-sm leading-6 text-slate-500">
           글쓰기와 댓글쓰기는 로그인 없이 가능.
           <br />
-          로그인하면 내 활동, 포인트, 뱃지 저장용으로 쓸 수 있게 확장하기 좋음.
+          로그인 없이도 대부분 이용 가능. 로그인하면 내 활동, 포인트, 뱃지를
+          기기 바뀌어도 이어서 저장할 수 있음.
         </div>
 
         <div className="space-y-3">
@@ -3750,6 +4173,8 @@ export default function MatnyaApp() {
   const autoUnlockSignatureRef = useRef<Record<string, string>>({})
   const postReactionInFlightRef = useRef<Record<string, boolean>>({})
   const commentReactionInFlightRef = useRef<Record<string, boolean>>({})
+  const guestMergeDoneRef = useRef(false)
+  const lastGuestMergeSignatureRef = useRef<string | null>(null)
 
   useEffect(() => {
     postsRef.current = posts
@@ -5114,6 +5539,53 @@ export default function MatnyaApp() {
   useEffect(() => {
     void fetchWatchlist(currentActorUnifiedKey)
   }, [currentActorUnifiedKey, fetchWatchlist])
+
+  useEffect(() => {
+    const run = async () => {
+      if (!authUser?.id || !voterKey) return
+
+      const signature = `${authUser.id}:${voterKey}`
+
+      if (
+        guestMergeDoneRef.current &&
+        lastGuestMergeSignatureRef.current === signature
+      ) {
+        return
+      }
+
+      try {
+        guestMergeDoneRef.current = true
+        lastGuestMergeSignatureRef.current = signature
+
+        const mergeResult = await migrateGuestActivityToAccount({
+          voterKey,
+          userId: authUser.id,
+        })
+
+        if ((mergeResult?.migratedCount ?? 0) > 0) {
+          showToast('비로그인 활동이 계정에 이어서 연결됨')
+        }
+
+        await Promise.all([
+          fetchWatchlist(`user:${authUser.id}`),
+          fetchMyActivity(authUser.id),
+          fetchAll(voterKey),
+        ])
+      } catch (error) {
+        console.error('게스트 활동 계정 연결 실패', error)
+        guestMergeDoneRef.current = false
+      }
+    }
+
+    void run()
+  }, [
+    authUser?.id,
+    voterKey,
+    fetchAll,
+    fetchMyActivity,
+    fetchWatchlist,
+    showToast,
+  ])
 
   const loadResultUnlocks = useCallback(
     async (postIds: number[]) => {
@@ -7523,7 +7995,11 @@ ${shareUrl}`)
       isWatchlisted: true,
     })
     refreshWatchlistSignalsAfterAction(80)
-    showToast('결말궁금 저장됨')
+    showToast(
+      authUser?.id
+        ? '결말궁금 저장됨'
+        : '이 기기에는 저장됨 · 로그인하면 계속 이어볼 수 있음',
+    )
   }
 
   const reactToPost = async (reactionType: PostReactionType) => {
@@ -8356,8 +8832,8 @@ ${shareUrl}`)
               <div className="flex items-center gap-2">
                 {!authUser ? (
                   <button
-                    onClick={() => setAuthOpen(true)}
-                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                    onClick={openWatchlistActivity}
+                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
                       {getLevelTheme(levelInfo.level).icon}
@@ -8365,6 +8841,11 @@ ${shareUrl}`)
                     <span className="text-xs font-bold">
                       Lv.{levelInfo.level}
                     </span>
+                    {unreadWatchlistCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                        {unreadWatchlistCount}
+                      </span>
+                    ) : null}
                   </button>
                 ) : (
                   <button
@@ -8849,7 +9330,9 @@ ${shareUrl}`)
                                     </div>
                                     <div className="mt-1 text-[12px] leading-5 text-slate-600">
                                       {currentWatchlisted
-                                        ? '내 활동 > 결말궁금 에서 다시 확인 가능'
+                                        ? authUser?.id
+                                          ? '내 활동 > 결말궁금 에서 계속 확인 가능'
+                                          : '이 기기에는 저장됨 · 로그인하면 계속 이어볼 수 있음'
                                         : '후기 올라오면 빨간불로 바로 알려줌'}
                                     </div>
                                   </div>
