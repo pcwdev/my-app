@@ -1204,16 +1204,31 @@ function getPreVoteSignalHelper(
   commentsCount: number,
   tension?: PostTensionState | null,
 ) {
-  const parts: string[] = []
-  if (totalVotes > 0) parts.push(`${totalVotes}명 참여`)
-  if (commentsCount > 0) parts.push(`댓글 ${commentsCount}개`)
-
-  const base =
-    parts.length > 0 ? parts.join(' · ') : '아직 첫 반응이 들어오는 중'
-  if (tension?.tensionType === 'brawl' || tension?.tensionType === 'tight') {
-    return `${base} · 선택하면 분위기 공개`
+  if (tension?.isFlipImminent) {
+    return '지금 분위기가 바로 바뀔 수 있음'
   }
-  return `${base} · 선택 후 결과 흐름 보기`
+
+  if (tension?.tensionType === 'brawl') {
+    return '생각보다 꽤 갈리는 중 · 선택하면 분위기 공개'
+  }
+
+  if (tension?.tensionType === 'tight') {
+    return '팽팽하게 갈리는 중 · 선택하면 분위기 공개'
+  }
+
+  if (commentsCount >= 20) {
+    return '댓글도 계속 붙는 중 · 선택하면 분위기 공개'
+  }
+
+  if (totalVotes >= 50) {
+    return '사람들이 계속 보는 판 · 선택 후 결과 흐름 보기'
+  }
+
+  if (totalVotes >= 10) {
+    return '이미 반응이 들어온 판 · 선택 후 결과 흐름 보기'
+  }
+
+  return '지금 반응 오는 중 · 선택하면 분위기 공개'
 }
 
 function getRevealHintLabel(leftVotes: number, rightVotes: number) {
