@@ -5058,87 +5058,25 @@ export default function MatnyaApp() {
   ])
 
   const requestLightweightMetaRefresh = useCallback(
-    (options?: { immediate?: boolean; delay?: number }) => {
-      if (!currentActorUnifiedKey) return
-
-      const immediate = options?.immediate ?? false
-      const baseDelay = options?.delay ?? 160
-
-      if (immediate) {
-        if (metaRefreshTimerRef.current) {
-          clearTimeout(metaRefreshTimerRef.current)
-          metaRefreshTimerRef.current = null
-        }
-
-        void refreshLightweightMetaNow()
-        return
-      }
-
-      const sinceLast = Date.now() - lastMetaRefreshAtRef.current
-      const delay = sinceLast < 1200 ? Math.max(baseDelay, 260) : baseDelay
-
-      if (metaRefreshTimerRef.current) {
-        clearTimeout(metaRefreshTimerRef.current)
-      }
-
-      metaRefreshTimerRef.current = setTimeout(() => {
-        metaRefreshTimerRef.current = null
-        void refreshLightweightMetaNow()
-      }, delay)
+    (_options?: { immediate?: boolean; delay?: number }) => {
+      return
     },
-    [currentActorUnifiedKey, refreshLightweightMetaNow],
+    [],
   )
 
   const upsertResultUnlock = useCallback(
     async (
-      postId: number,
-      patch: {
+      _postId: number,
+      _patch: {
         unlockLevel?: number
         commentReadsDelta?: number
         forceCommentReads?: number
         isWatchlisted?: boolean
       },
     ) => {
-      if (!currentActorUnifiedKey || !postId) return null
-
-      const existing = resultUnlockMap[postId] ?? {
-        postId,
-        voterKey: currentActorUnifiedKey,
-        unlockLevel: 1,
-        commentReads: 0,
-        isWatchlisted: !!myWatchlistMap[postId],
-        createdAt: null,
-        updatedAt: null,
-      }
-
-      const nextItem: ResultUnlockItem = {
-        ...existing,
-        unlockLevel: Math.max(
-          existing.unlockLevel,
-          Number(patch.unlockLevel ?? existing.unlockLevel),
-        ),
-        commentReads:
-          typeof patch.forceCommentReads === 'number'
-            ? Math.max(0, patch.forceCommentReads)
-            : Math.max(
-                0,
-                existing.commentReads + Number(patch.commentReadsDelta ?? 0),
-              ),
-        isWatchlisted:
-          typeof patch.isWatchlisted === 'boolean'
-            ? patch.isWatchlisted
-            : existing.isWatchlisted,
-        updatedAt: new Date().toISOString(),
-      }
-
-      setResultUnlockMap((prev) => ({
-        ...prev,
-        [postId]: nextItem,
-      }))
-
-      return nextItem
+      return null
     },
-    [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
+    [],
   )
 
   useEffect(() => {
