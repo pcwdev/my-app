@@ -8751,25 +8751,14 @@ ${shareUrl}`)
                                 사람들이 계속 들어오고 있어서 결과는 조금씩
                                 달라질 수 있음
                               </div>
-                              <div className="mt-2 text-[11px] text-slate-500">
-                                {currentWatchlisted
-                                  ? '내 활동에서 다시 확인 가능'
-                                  : '후기 올라오면 빨간불로 알려줌'}
-                              </div>
                             </div>
 
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => setCommentOpen(true)}
-                                className="rounded-[18px] border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700"
-                              >
-                                댓글 보기
-                              </button>
+                            <div className="mt-3">
                               <button
                                 onClick={() =>
                                   void toggleCurrentPostWatchlist()
                                 }
-                                className={`rounded-[18px] px-3 py-2 text-[12px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.16)] ${
+                                className={`rounded-[18px] px-3 py-2 text-[12px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.16)] transition ${
                                   currentWatchlisted
                                     ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
                                     : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
@@ -8779,6 +8768,11 @@ ${shareUrl}`)
                                   ? '결말궁금 저장됨 ✓'
                                   : '결말궁금 저장'}
                               </button>
+                              <div className="mt-2 text-[11px] font-medium text-slate-400">
+                                {currentWatchlisted
+                                  ? '내 활동 > 결말궁금 에서 확인 가능'
+                                  : '후기 올라오면 빨간불로 알려줌'}
+                              </div>
                             </div>
                           </div>
                         ) : null}
