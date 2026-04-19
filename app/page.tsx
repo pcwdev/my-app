@@ -8885,7 +8885,7 @@ ${shareUrl}`)
                           )
                         })}
                       </div>
-                      <div className="mt-3 flex items-center gap-2">
+                      <div className="mt-3">
                         <button
                           onClick={() => void toggleCurrentPostWatchlist()}
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-bold transition ${
@@ -8897,14 +8897,14 @@ ${shareUrl}`)
                           <span>
                             {currentWatchlisted
                               ? '결말궁금 저장됨 ✓'
-                              : '결말궁금'}
-                          </span>
-                          <span className="text-[11px] text-slate-400">
-                            {currentWatchlisted
-                              ? '내 활동에서 나중에 다시 보기'
-                              : '이 글 저장하고 나중에 다시 보기'}
+                              : '결말궁금 저장'}
                           </span>
                         </button>
+                        <div className="mt-1.5 pl-1 text-[11px] font-semibold text-slate-400">
+                          {currentWatchlisted
+                            ? '내 활동에서 다시 확인 가능'
+                            : '후기 올라오면 빨간불로 알려줌'}
+                        </div>
                       </div>
                       {latestOutcome ? (
                         <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
