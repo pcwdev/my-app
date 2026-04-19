@@ -6342,8 +6342,7 @@ ${shareUrl}`)
     setShareOwnerKey(voterKey || null)
     setSharedPostId(currentPost.id)
     setSharedEntryActive(false)
-    setShowOwnerShareResults(true)
-    setShareInboxOpen(true)
+    setShowOwnerShareResults(false)
     upsertLocalShareInboxItem({
       sessionId: activeShareId,
       postId: currentPost.id,
@@ -6359,7 +6358,7 @@ ${shareUrl}`)
       overallRightCount: currentPost.rightVotes,
     })
     void loadOwnerShareInbox(true)
-    showToast('보낸 공유함에 바로 저장됨')
+    showToast('보낸 공유함에 저장됨 · 친구 답변 오면 빨간불로 알려줌')
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
     const shareText = `이거 맞냐?
