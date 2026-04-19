@@ -2624,17 +2624,38 @@ function CommentModal({
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open || typeof window === 'undefined') return
 
-    const isMobile =
-      typeof window !== 'undefined' &&
-      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    const focusInput = () => {
+      const target = inputRef.current
+      if (!target) return
 
-    if (isMobile) return
+      try {
+        target.focus({ preventScroll: true })
+      } catch {
+        target.focus()
+      }
 
-    const timer = setTimeout(() => inputRef.current?.focus(), 80)
-    return () => clearTimeout(timer)
-  }, [open])
+      try {
+        const length = target.value?.length ?? 0
+        target.setSelectionRange(length, length)
+      } catch {
+        // noop
+      }
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      focusInput()
+    })
+    const timer = window.setTimeout(() => {
+      focusInput()
+    }, 160)
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      window.clearTimeout(timer)
+    }
+  }, [open, post?.id])
 
   useEffect(() => {
     if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
@@ -3596,6 +3617,7 @@ export default function MatnyaApp() {
   const postsRef = useRef<PostItem[]>([])
   const currentPostCardRef = useRef<HTMLDivElement | null>(null)
   const postFocusPulseTimerRef = useRef<number | null>(null)
+  const pendingPostFocusRef = useRef(false)
   const kakaoTransitionLockRef = useRef(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [postFocusPulse, setPostFocusPulse] = useState(false)
@@ -6358,6 +6380,7 @@ ${shareUrl}`)
 
   const handleLiveTickerOpen = () => {
     if (!activeLiveTickerItem) return
+    requestCurrentPostFocus()
     moveToPostWithGuard(activeLiveTickerItem.id)
   }
 
@@ -6758,6 +6781,12 @@ ${shareUrl}`)
 
         window.scrollTo({ top: nextTop, behavior })
 
+        try {
+          target.focus({ preventScroll: true })
+        } catch {
+          target.focus()
+        }
+
         setPostFocusPulse(true)
         if (postFocusPulseTimerRef.current) {
           window.clearTimeout(postFocusPulseTimerRef.current)
@@ -6769,6 +6798,37 @@ ${shareUrl}`)
     },
     [],
   )
+
+  const requestCurrentPostFocus = useCallback(() => {
+    pendingPostFocusRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      !currentPost?.id ||
+      !pendingPostFocusRef.current
+    )
+      return
+
+    pendingPostFocusRef.current = false
+    const timer = window.setTimeout(
+      () => {
+        focusCurrentPostCard(isKakaoSafeMode ? 'auto' : 'smooth')
+      },
+      isKakaoSafeMode ? 90 : 40,
+    )
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [
+    currentPost?.id,
+    tab,
+    selectedCategory,
+    focusCurrentPostCard,
+    isKakaoSafeMode,
+  ])
 
   useEffect(() => {
     return () => {
@@ -6833,6 +6893,7 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, targetPost.id)
     }
 
+    requestCurrentPostFocus()
     runKakaoSafeTransition(() => {
       endSharedEntryMode()
       setCurrentIndex(targetIndex)
@@ -6847,6 +6908,7 @@ ${shareUrl}`)
       recordChoicePath(currentPost.id, targetPost.id)
     }
 
+    requestCurrentPostFocus()
     runKakaoSafeTransition(() => {
       endSharedEntryMode()
       setCurrentIndex(targetIndex)
@@ -6872,6 +6934,7 @@ ${shareUrl}`)
     const nextIndexInFiltered = filteredPosts.findIndex((p) => p.id === postId)
     if (nextIndexInFiltered >= 0) {
       recordChoicePath(currentPost.id, postId)
+      requestCurrentPostFocus()
       runKakaoSafeTransition(() => {
         endSharedEntryMode()
         setCurrentIndex(nextIndexInFiltered)
@@ -6882,6 +6945,7 @@ ${shareUrl}`)
     const fallbackIndex = posts.findIndex((p) => p.id === postId)
     if (fallbackIndex >= 0) {
       recordChoicePath(currentPost.id, postId)
+      requestCurrentPostFocus()
       runKakaoSafeTransition(() => {
         endSharedEntryMode()
         setTab('추천')
@@ -6898,6 +6962,7 @@ ${shareUrl}`)
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
       }
+      requestCurrentPostFocus()
       runKakaoSafeTransition(() => {
         endSharedEntryMode()
         setTab('추천')
@@ -6924,6 +6989,7 @@ ${shareUrl}`)
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
       }
+      requestCurrentPostFocus()
       runKakaoSafeTransition(() => {
         endSharedEntryMode()
         setTab('추천')
@@ -7697,6 +7763,7 @@ ${shareUrl}`)
     }
 
     clearShareMode()
+    requestCurrentPostFocus()
     runKakaoSafeTransition(() => {
       setTab('최신')
       setSelectedCategory('전체')
@@ -8170,6 +8237,7 @@ ${shareUrl}`)
                 <button
                   key={label}
                   onClick={() => {
+                    requestCurrentPostFocus()
                     runKakaoSafeTransition(() => {
                       setTab(label)
                       setCurrentIndex(0)
@@ -8192,6 +8260,7 @@ ${shareUrl}`)
                   <button
                     key={category}
                     onClick={() => {
+                      requestCurrentPostFocus()
                       runKakaoSafeTransition(() => {
                         setSelectedCategory(category)
                         setCurrentIndex(0)
@@ -8289,6 +8358,7 @@ ${shareUrl}`)
           <div
             key={`${currentPost?.id ?? 'empty'}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
             ref={currentPostCardRef}
+            tabIndex={-1}
             className={`rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_22px_48px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/90'}`}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
