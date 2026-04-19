@@ -305,6 +305,13 @@ type ResultRevealStage = {
   showOutcome: boolean
 }
 
+type ResultUnlockPatch = {
+  unlockLevel?: number
+  commentReadsDelta?: number
+  forceCommentReads?: number
+  isWatchlisted?: boolean
+}
+
 type AuthorMeta = {
   level: number
   badgeName: string | null
@@ -369,6 +376,34 @@ function getOrCreateGuestName() {
   const newName = makeAnonymousName()
   window.localStorage.setItem(STORAGE_KEYS.guestName, newName)
   return newName
+}
+
+function isKakaoInAppBrowser() {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  return /KAKAOTALK/i.test(ua)
+}
+
+function mergeResultUnlockPatch(
+  base: ResultUnlockPatch | undefined,
+  next: ResultUnlockPatch,
+): ResultUnlockPatch {
+  return {
+    unlockLevel:
+      Math.max(Number(base?.unlockLevel ?? 0), Number(next.unlockLevel ?? 0)) ||
+      undefined,
+    commentReadsDelta:
+      Number(base?.commentReadsDelta ?? 0) +
+        Number(next.commentReadsDelta ?? 0) || undefined,
+    forceCommentReads:
+      typeof next.forceCommentReads === 'number'
+        ? next.forceCommentReads
+        : base?.forceCommentReads,
+    isWatchlisted:
+      typeof next.isWatchlisted === 'boolean'
+        ? next.isWatchlisted
+        : base?.isWatchlisted,
+  }
 }
 
 async function signInWithGoogle() {
@@ -3670,6 +3705,13 @@ export default function MatnyaApp() {
   const metaRefreshQueuedRef = useRef(false)
   const lastMetaRefreshAtRef = useRef(0)
   const shadowViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const authHydrationInFlightRef = useRef(false)
+  const lastAuthUserIdRef = useRef<string | null>(null)
+  const resultUnlockInFlightRef = useRef<Record<number, boolean>>({})
+  const resultUnlockQueuedPatchRef = useRef<Record<number, ResultUnlockPatch>>(
+    {},
+  )
+  const autoUnlockSignatureRef = useRef<Record<string, string>>({})
 
   useEffect(() => {
     postsRef.current = posts
@@ -3752,27 +3794,62 @@ export default function MatnyaApp() {
     setActivityInitialTab('posts')
   }, [])
 
-  const loadAuthState = useCallback(async () => {
-    try {
-      const result = await ensureProfile()
-      setAuthUser(result.user)
-      setProfile(result.profile)
-    } catch (error: any) {
-      if (error?.name === 'AuthSessionMissingError') {
-        setAuthUser(null)
-        setProfile(null)
-        return
-      }
+  const loadAuthState = useCallback(
+    async (force = false) => {
+      if (authHydrationInFlightRef.current && !force) return
 
-      console.error('auth/profile 로딩 실패', {
-        message: error?.message,
-        name: error?.name,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-      })
-    }
-  }, [])
+      authHydrationInFlightRef.current = true
+
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession()
+
+        if (sessionError) throw sessionError
+
+        const sessionUser = session?.user ?? null
+        const nextUserId = sessionUser?.id ?? null
+
+        if (!nextUserId) {
+          lastAuthUserIdRef.current = null
+          clearAuthLocalState()
+          return
+        }
+
+        if (
+          !force &&
+          lastAuthUserIdRef.current === nextUserId &&
+          authUser?.id === nextUserId &&
+          profile?.id === nextUserId
+        ) {
+          return
+        }
+
+        const result = await ensureProfile()
+        lastAuthUserIdRef.current = result.user?.id ?? null
+        setAuthUser(result.user)
+        setProfile(result.profile)
+      } catch (error: any) {
+        if (error?.name === 'AuthSessionMissingError') {
+          lastAuthUserIdRef.current = null
+          clearAuthLocalState()
+          return
+        }
+
+        console.error('auth/profile 로딩 실패', {
+          message: error?.message,
+          name: error?.name,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        })
+      } finally {
+        authHydrationInFlightRef.current = false
+      }
+    },
+    [authUser?.id, clearAuthLocalState, profile?.id],
+  )
 
   const markPostMeaningful = useCallback(
     (post: PostItem | null | undefined) => {
@@ -4810,21 +4887,34 @@ export default function MatnyaApp() {
 
   useEffect(() => {
     setGuestName(getOrCreateGuestName())
-    void loadAuthState()
+    void loadAuthState(true)
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
+      const nextUserId = session?.user?.id ?? null
+
+      if (!nextUserId) {
+        lastAuthUserIdRef.current = null
         clearAuthLocalState()
+        return
       }
-      void loadAuthState()
+
+      if (
+        lastAuthUserIdRef.current === nextUserId &&
+        authUser?.id === nextUserId
+      ) {
+        return
+      }
+
+      lastAuthUserIdRef.current = nextUserId
+      void loadAuthState(true)
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [clearAuthLocalState, loadAuthState])
+  }, [authUser?.id, clearAuthLocalState, loadAuthState])
 
   useEffect(() => {
     const key = getOrCreateVoterKey()
@@ -5113,52 +5203,33 @@ export default function MatnyaApp() {
   )
 
   const upsertResultUnlock = useCallback(
-    async (
-      postId: number,
-      patch: {
-        unlockLevel?: number
-        commentReadsDelta?: number
-        forceCommentReads?: number
-        isWatchlisted?: boolean
-      },
-    ) => {
+    async (postId: number, patch: ResultUnlockPatch) => {
       if (!currentActorUnifiedKey || !postId) return null
 
       const existing = resultUnlockMap[postId] ?? null
-      let base = existing
-
-      if (!base) {
-        const { count, error: countError } = await supabase
-          .from('post_result_unlocks')
-          .select('*', { count: 'exact', head: true })
-          .eq('voter_key', currentActorUnifiedKey)
-
-        if (countError) {
-          console.error('결과 공개 단계 개수 조회 실패', countError)
-        }
-
-        base = {
-          postId,
-          voterKey: currentActorUnifiedKey,
-          unlockLevel: Number(count ?? 0) < 3 ? 3 : 1,
-          commentReads: 0,
-          isWatchlisted: !!myWatchlistMap[postId],
-          createdAt: null,
-          updatedAt: null,
-        }
+      const base: ResultUnlockItem = existing ?? {
+        postId,
+        voterKey: currentActorUnifiedKey,
+        unlockLevel: Number(patch.unlockLevel ?? 1),
+        commentReads: 0,
+        isWatchlisted: !!myWatchlistMap[postId],
+        createdAt: null,
+        updatedAt: null,
       }
 
       const nextUnlockLevel = Math.max(
-        base.unlockLevel,
-        Number(patch.unlockLevel ?? base.unlockLevel),
+        Number(base.unlockLevel ?? 1),
+        Number(patch.unlockLevel ?? base.unlockLevel ?? 1),
       )
       const nextCommentReads =
         typeof patch.forceCommentReads === 'number'
           ? Math.max(0, patch.forceCommentReads)
           : Math.max(
               0,
-              base.commentReads + Number(patch.commentReadsDelta ?? 0),
+              Number(base.commentReads ?? 0) +
+                Number(patch.commentReadsDelta ?? 0),
             )
+
       const nextItem: ResultUnlockItem = {
         ...base,
         unlockLevel: nextUnlockLevel,
@@ -5170,57 +5241,100 @@ export default function MatnyaApp() {
         updatedAt: new Date().toISOString(),
       }
 
+      if (
+        existing &&
+        existing.unlockLevel === nextItem.unlockLevel &&
+        existing.commentReads === nextItem.commentReads &&
+        existing.isWatchlisted === nextItem.isWatchlisted
+      ) {
+        return existing
+      }
+
       setResultUnlockMap((prev) => ({
         ...prev,
         [postId]: nextItem,
       }))
 
-      const { data, error } = await supabase
-        .from('post_result_unlocks')
-        .upsert(
-          {
-            post_id: postId,
-            voter_key: currentActorUnifiedKey,
-            unlock_level: nextItem.unlockLevel,
-            comment_reads: nextItem.commentReads,
-            is_watchlisted: nextItem.isWatchlisted,
-            updated_at: nextItem.updatedAt,
-          },
-          {
-            onConflict: 'post_id,voter_key',
-          },
+      if (resultUnlockInFlightRef.current[postId]) {
+        resultUnlockQueuedPatchRef.current[postId] = mergeResultUnlockPatch(
+          resultUnlockQueuedPatchRef.current[postId],
+          patch,
         )
-        .select(
-          'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
-        )
-        .maybeSingle()
-
-      if (error) {
-        console.error('결과 공개 단계 저장 실패', error)
-        return null
+        return nextItem
       }
 
-      if (data) {
-        const savedItem: ResultUnlockItem = {
-          postId: Number(data.post_id),
-          voterKey: String(data.voter_key ?? currentActorUnifiedKey),
-          unlockLevel: Math.max(
-            1,
-            Number(data.unlock_level ?? nextItem.unlockLevel),
-          ),
-          commentReads: Number(data.comment_reads ?? nextItem.commentReads),
-          isWatchlisted: Boolean(data.is_watchlisted ?? nextItem.isWatchlisted),
-          createdAt: data.created_at ?? nextItem.createdAt,
-          updatedAt: data.updated_at ?? nextItem.updatedAt,
+      resultUnlockInFlightRef.current[postId] = true
+
+      try {
+        const { data, error } = await supabase
+          .from('post_result_unlocks')
+          .upsert(
+            {
+              post_id: postId,
+              voter_key: currentActorUnifiedKey,
+              unlock_level: nextItem.unlockLevel,
+              comment_reads: nextItem.commentReads,
+              is_watchlisted: nextItem.isWatchlisted,
+              updated_at: nextItem.updatedAt,
+            },
+            {
+              onConflict: 'post_id,voter_key',
+            },
+          )
+          .select(
+            'post_id, voter_key, unlock_level, comment_reads, is_watchlisted, created_at, updated_at',
+          )
+          .maybeSingle()
+
+        if (error) {
+          const lockBroken = /Lock broken|AbortError|timeout/i.test(
+            String(error?.message ?? error?.details ?? ''),
+          )
+
+          if (!lockBroken) {
+            console.error('결과 공개 단계 저장 실패', error)
+          }
+
+          return nextItem
         }
-        setResultUnlockMap((prev) => ({
-          ...prev,
-          [postId]: savedItem,
-        }))
-        return savedItem
-      }
 
-      return nextItem
+        if (data) {
+          const savedItem: ResultUnlockItem = {
+            postId: Number(data.post_id),
+            voterKey: String(data.voter_key ?? currentActorUnifiedKey),
+            unlockLevel: Math.max(
+              1,
+              Number(data.unlock_level ?? nextItem.unlockLevel),
+            ),
+            commentReads: Number(data.comment_reads ?? nextItem.commentReads),
+            isWatchlisted: Boolean(
+              data.is_watchlisted ?? nextItem.isWatchlisted,
+            ),
+            createdAt: data.created_at ?? nextItem.createdAt,
+            updatedAt: data.updated_at ?? nextItem.updatedAt,
+          }
+          setResultUnlockMap((prev) => ({
+            ...prev,
+            [postId]: savedItem,
+          }))
+          return savedItem
+        }
+
+        return nextItem
+      } finally {
+        resultUnlockInFlightRef.current[postId] = false
+
+        const queuedPatch = resultUnlockQueuedPatchRef.current[postId]
+        if (queuedPatch) {
+          delete resultUnlockQueuedPatchRef.current[postId]
+          window.setTimeout(
+            () => {
+              void upsertResultUnlock(postId, queuedPatch)
+            },
+            isKakaoInAppBrowser() ? 240 : 80,
+          )
+        }
+      }
     },
     [currentActorUnifiedKey, myWatchlistMap, resultUnlockMap],
   )
@@ -5763,13 +5877,16 @@ ${shareUrl}`)
   useEffect(() => {
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
+    if (!currentWatchlisted) return
 
-    if (currentWatchlisted) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 3,
-        isWatchlisted: true,
-      })
-    }
+    const signature = `${currentActorUnifiedKey}:${currentPost.id}:watch:${Number(currentWatchlisted)}`
+    if (autoUnlockSignatureRef.current.watch === signature) return
+    autoUnlockSignatureRef.current.watch = signature
+
+    void upsertResultUnlock(currentPost.id, {
+      unlockLevel: 3,
+      isWatchlisted: true,
+    })
   }, [
     currentActorUnifiedKey,
     currentPost?.id,
@@ -5781,17 +5898,19 @@ ${shareUrl}`)
   useEffect(() => {
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
+    if (!latestOutcome) return
 
-    if (latestOutcome) {
-      void upsertResultUnlock(currentPost.id, {
-        unlockLevel: 4,
-      })
-    }
+    const signature = `${currentActorUnifiedKey}:${currentPost.id}:outcome:${latestOutcome.id}`
+    if (autoUnlockSignatureRef.current.outcome === signature) return
+    autoUnlockSignatureRef.current.outcome = signature
+
+    void upsertResultUnlock(currentPost.id, {
+      unlockLevel: 4,
+    })
   }, [
     currentActorUnifiedKey,
     currentPost?.id,
     latestOutcome?.id,
-    revisitMeta?.label,
     votes,
     upsertResultUnlock,
   ])
