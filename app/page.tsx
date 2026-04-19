@@ -1465,6 +1465,23 @@ function getWatchlistStatusMeta(status: WatchlistItem['watchStatus']) {
   }
 }
 
+function getWatchlistRealtimeLabel(value?: string | null) {
+  if (!value) return '방금 확인 가능'
+
+  const diffMs = Date.now() - new Date(value).getTime()
+  if (!Number.isFinite(diffMs) || diffMs < 0) return '방금 도착'
+
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return '방금 도착'
+  if (minutes < 60) return `${minutes}분 전`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}시간 전`
+
+  const days = Math.floor(hours / 24)
+  return `${days}일 전`
+}
+
 function compareWatchlistItems(a: WatchlistItem, b: WatchlistItem) {
   const order: Record<WatchlistItem['watchStatus'], number> = {
     updated: 0,
@@ -1984,6 +2001,9 @@ function MyActivityModal({
   onOpenPost,
   onOpenWatchlistItem,
   onOpenComment,
+  onRefreshWatchlist,
+  watchlistRefreshing,
+  watchlistLastSyncedAt,
   onLogout,
   profile,
   stats,
@@ -1999,6 +2019,9 @@ function MyActivityModal({
   onOpenPost: (postId: number) => void
   onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number) => void
+  onRefreshWatchlist: () => void | Promise<void>
+  watchlistRefreshing: boolean
+  watchlistLastSyncedAt: string | null
   onLogout: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
@@ -2016,6 +2039,24 @@ function MyActivityModal({
       setWatchlistFilter('updated')
     }
   }, [open, initialTab])
+
+  useEffect(() => {
+    if (!open || tab !== 'watchlist') return
+
+    void onRefreshWatchlist()
+
+    const interval = window.setInterval(() => {
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState !== 'visible'
+      ) {
+        return
+      }
+      void onRefreshWatchlist()
+    }, 30000)
+
+    return () => window.clearInterval(interval)
+  }, [open, tab, onRefreshWatchlist])
 
   if (!open) return null
 
@@ -2043,6 +2084,14 @@ function MyActivityModal({
       : watchlistFilter === 'waiting'
         ? waitingWatchlistItems
         : archivedWatchlistItems
+  const latestUpdatedItem =
+    [...updatedWatchlistItems].sort(compareWatchlistItems)[0] ?? null
+  const latestUpdatedLabel = getWatchlistRealtimeLabel(
+    latestUpdatedItem?.latestOutcomeCreatedAt ?? null,
+  )
+  const lastSyncedLabel = watchlistLastSyncedAt
+    ? getWatchlistRealtimeLabel(watchlistLastSyncedAt)
+    : '방금 동기화'
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2252,7 +2301,41 @@ function MyActivityModal({
           {tab === 'watchlist' && (
             <>
               <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-[linear-gradient(180deg,#fff8fb_0%,#fff1f5_100%)] px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[12px] font-black text-rose-700">
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse" />
+                      <span>새 소식 {updatedWatchlistItems.length}개</span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-rose-600/80">
+                      {updatedWatchlistItems.length > 0
+                        ? `가장 최근 업데이트 ${latestUpdatedLabel}`
+                        : '아직 새로 도착한 후기는 없음'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => void onRefreshWatchlist()}
+                    className="shrink-0 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700"
+                  >
+                    {watchlistRefreshing ? '확인중…' : '새로고침'}
+                  </button>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-3 px-1 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex h-2 w-2 rounded-full ${watchlistRefreshing ? 'bg-emerald-500 animate-pulse' : 'bg-sky-500'}`}
+                    />
+                    <span>
+                      {watchlistRefreshing
+                        ? '새 소식 확인중'
+                        : `${lastSyncedLabel} 동기화`}
+                    </span>
+                  </div>
+                  <span>열려 있을 때만 30초마다 자동 확인</span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
                   {[
                     {
                       key: 'updated',
@@ -2271,6 +2354,7 @@ function MyActivityModal({
                     },
                   ].map((item) => {
                     const active = watchlistFilter === item.key
+                    const isUpdated = item.key === 'updated'
                     return (
                       <button
                         key={item.key}
@@ -2282,7 +2366,9 @@ function MyActivityModal({
                         className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
                           active
                             ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
-                            : 'bg-slate-100 text-slate-600'
+                            : isUpdated && item.count > 0
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {item.label}
@@ -2290,7 +2376,9 @@ function MyActivityModal({
                           className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
                             active
                               ? 'bg-white/20 text-white'
-                              : 'bg-white text-slate-500'
+                              : isUpdated && item.count > 0
+                                ? 'bg-white text-rose-600'
+                                : 'bg-white text-slate-500'
                           }`}
                         >
                           {item.count}
@@ -2358,11 +2446,20 @@ function MyActivityModal({
           {tab === 'watchlist' &&
             filteredWatchlistItems.map((item) => {
               const statusMeta = getWatchlistStatusMeta(item.watchStatus)
+              const realtimeLabel = getWatchlistRealtimeLabel(
+                item.latestOutcomeCreatedAt ??
+                  item.archivedAt ??
+                  item.createdAt,
+              )
               return (
                 <button
                   key={item.id}
                   onClick={() => onOpenWatchlistItem(item)}
-                  className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                  className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] ${
+                    item.watchStatus === 'updated'
+                      ? 'border-rose-200 bg-[linear-gradient(180deg,#fff8fb_0%,#fff2f6_100%)]'
+                      : 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
+                  }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-xs text-slate-500">
@@ -2381,7 +2478,8 @@ function MyActivityModal({
                       </span>
                     ) : null}
                     {item.unreadOutcome ? (
-                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
                         읽기 전
                       </span>
                     ) : null}
@@ -2389,7 +2487,27 @@ function MyActivityModal({
                   <div className="mt-1 font-bold text-slate-900">
                     {item.title}
                   </div>
-                  <div className="mt-2 text-xs text-slate-500">
+                  <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold">
+                    {item.watchStatus === 'updated' ? (
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-rose-700">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                          새 후기 도착
+                        </span>
+                        <span className="text-rose-600">{realtimeLabel}</span>
+                      </>
+                    ) : item.watchStatus === 'archived' ? (
+                      <>
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                          확인 완료
+                        </span>
+                        <span className="text-slate-500">{realtimeLabel}</span>
+                      </>
+                    ) : (
+                      <span className="text-sky-600">결말 기다리는 중</span>
+                    )}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-600">
                     {item.latestOutcomeSummary ??
                       (item.watchStatus === 'archived'
                         ? '이미 확인한 업데이트 글'
@@ -2400,7 +2518,7 @@ function MyActivityModal({
                       ? '눌러서 확인하면 보관됨으로 이동'
                       : item.watchStatus === 'archived'
                         ? '다시 본 업데이트 글'
-                        : '결말 기다리는 글'}
+                        : '새 소식이 생기면 맨 위로 올라옴'}
                   </div>
                 </button>
               )
@@ -3637,6 +3755,10 @@ export default function MatnyaApp() {
     Record<number, NextQueueItem[]>
   >({})
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
+  const [watchlistRefreshing, setWatchlistRefreshing] = useState(false)
+  const [watchlistLastSyncedAt, setWatchlistLastSyncedAt] = useState<
+    string | null
+  >(null)
   const [myWatchlistMap, setMyWatchlistMap] = useState<Record<number, boolean>>(
     {},
   )
@@ -4861,8 +4983,11 @@ export default function MatnyaApp() {
       setWatchlistItems([])
       setMyWatchlistMap({})
       setWatchOutcomeSeenMap({})
+      setWatchlistLastSyncedAt(null)
       return
     }
+
+    setWatchlistRefreshing(true)
 
     const { data: watchRows, error: watchError } = await supabase
       .from('post_watchlist')
@@ -4873,6 +4998,7 @@ export default function MatnyaApp() {
 
     if (watchError) {
       console.error('궁금한 글 불러오기 실패', watchError)
+      setWatchlistRefreshing(false)
       return
     }
 
@@ -4887,6 +5013,8 @@ export default function MatnyaApp() {
     if (rows.length === 0) {
       setWatchlistItems([])
       setMyWatchlistMap({})
+      setWatchlistLastSyncedAt(new Date().toISOString())
+      setWatchlistRefreshing(false)
       return
     }
 
@@ -4910,6 +5038,7 @@ export default function MatnyaApp() {
 
     if (watchPostsRes.error) {
       console.error('궁금한 글 게시글 불러오기 실패', watchPostsRes.error)
+      setWatchlistRefreshing(false)
       return
     }
 
@@ -4979,6 +5108,8 @@ export default function MatnyaApp() {
     setWatchlistItems(items)
     setMyWatchlistMap(watchedMap)
     setWatchOutcomeSeenMap(nextSeenState)
+    setWatchlistLastSyncedAt(new Date().toISOString())
+    setWatchlistRefreshing(false)
   }, [])
 
   useEffect(() => {
@@ -7845,6 +7976,9 @@ ${shareUrl}`)
           onOpenPost={openPostDirect}
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
+          onRefreshWatchlist={() => fetchWatchlist(currentActorUnifiedKey)}
+          watchlistRefreshing={watchlistRefreshing}
+          watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
           profile={profile}
           stats={stats}
@@ -9053,6 +9187,9 @@ ${shareUrl}`)
           onOpenPost={openPostDirect}
           onOpenWatchlistItem={openWatchlistItemDirect}
           onOpenComment={openCommentDirect}
+          onRefreshWatchlist={() => fetchWatchlist(currentActorUnifiedKey)}
+          watchlistRefreshing={watchlistRefreshing}
+          watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
           profile={profile}
           stats={stats}
