@@ -7373,6 +7373,8 @@ ${shareUrl}`)
       }
     })
 
+    const shouldTriggerWatchlistUnread = !!myWatchlistMap[currentPost.id]
+
     setWatchlistItems((prev) =>
       prev
         .map((item) =>
@@ -7383,16 +7385,19 @@ ${shareUrl}`)
                 latestOutcomeSummary: nextItem.summary,
                 latestOutcomeCreatedAt: nextItem.createdAt,
                 hasOutcome: true,
-                unreadOutcome: false,
-                watchStatus: 'archived',
-                archivedAt: new Date().toISOString(),
+                unreadOutcome: shouldTriggerWatchlistUnread,
+                watchStatus: shouldTriggerWatchlistUnread
+                  ? 'updated'
+                  : 'archived',
+                archivedAt: shouldTriggerWatchlistUnread
+                  ? null
+                  : new Date().toISOString(),
               } as WatchlistItem)
             : item,
         )
         .sort(compareWatchlistItems),
     )
 
-    await markWatchlistOutcomeSeen(currentPost.id, nextItem.createdAt)
     void upsertResultUnlock(currentPost.id, {
       unlockLevel: 4,
       isWatchlisted: currentWatchlisted,
@@ -7400,7 +7405,11 @@ ${shareUrl}`)
     requestLightweightMetaRefresh({ immediate: true, delay: 0 })
     refreshWatchlistSignalsAfterAction(0)
     setOutcomeModalOpen(false)
-    showToast('후기 등록 완료')
+    showToast(
+      shouldTriggerWatchlistUnread
+        ? '후기 등록 완료 · 새 후기로 표시됨'
+        : '후기 등록 완료',
+    )
   }
 
   const toggleCurrentPostWatchlist = async () => {
