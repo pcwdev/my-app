@@ -1207,9 +1207,9 @@ function getResultRevealStage(
   hasOutcome: boolean,
 ): ResultRevealStage {
   const exact = percent(leftVotes, rightVotes)
-  const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
+  const effectiveLevel = hasOutcome ? unlockLevel : Math.min(unlockLevel, 3)
 
-  if (unlockLevel >= 4 && hasOutcome) {
+  if (effectiveLevel >= 4) {
     return {
       level: 4,
       label: '후기 있음',
@@ -1222,7 +1222,7 @@ function getResultRevealStage(
     }
   }
 
-  if (unlockLevel >= 3) {
+  if (effectiveLevel >= 3) {
     return {
       level: 3,
       label: '지금 결과 보기',
@@ -1235,11 +1235,12 @@ function getResultRevealStage(
     }
   }
 
-  if (unlockLevel >= 2) {
+  if (effectiveLevel >= 2) {
+    const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
     return {
       level: 2,
-      label: getRevealHintLabel(leftVotes, rightVotes),
-      helper: '사람들이 왜 그렇게 보는지 댓글에서 바로 확인할 수 있음',
+      label: '댓글 분위기',
+      helper: '댓글에서 사람들이 왜 그렇게 보는지 바로 느낄 수 있음',
       toneClass: stateMeta.toneClass,
       leftValue: exact.left,
       rightValue: exact.right,
@@ -1248,9 +1249,10 @@ function getResultRevealStage(
     }
   }
 
+  const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
   return {
     level: 1,
-    label: stateMeta.label,
+    label: '지금 분위기',
     helper: stateMeta.helper,
     toneClass: stateMeta.toneClass,
     leftValue: exact.left,
@@ -8076,63 +8078,72 @@ ${shareUrl}`)
                       </div>
                     )}
 
-                    {currentFlipDrama ||
-                    currentShadowDrama ||
-                    currentChoicePathTop ? (
-                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                          DRAMA SIGNAL
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {currentFlipDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
-                              >
-                                {currentFlipDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentFlipDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                          {currentShadowDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
-                              >
-                                {currentShadowDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentShadowDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                          {currentChoicePathTop && choicePathNextPost ? (
-                            <button
-                              onClick={() =>
-                                moveToPostWithGuard(choicePathNextPost.id)
-                              }
-                              className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
-                            >
-                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                                SAME SIDE NEXT
-                              </div>
-                              <div className="mt-1 text-sm font-black text-slate-900">
-                                너처럼 고른 사람들 다음으로 이 글 봄
-                              </div>
-                              <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
-                                {choicePathNextPost.title}
-                              </div>
-                              <div className="mt-1 text-[12px] text-slate-500">
-                                같은 선택 흐름에서 {currentChoicePathTop.count}
-                                번 이어짐
-                              </div>
-                            </button>
-                          ) : null}
-                        </div>
+                    <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                      <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                        DRAMA SIGNAL
                       </div>
-                    ) : null}
+                      <div className="mt-3 space-y-2">
+                        {currentFlipDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
+                            >
+                              {currentFlipDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentFlipDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentShadowDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
+                            >
+                              {currentShadowDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentShadowDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentChoicePathTop && choicePathNextPost ? (
+                          <button
+                            onClick={() =>
+                              moveToPostWithGuard(choicePathNextPost.id)
+                            }
+                            className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
+                          >
+                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                              SAME SIDE NEXT
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              너처럼 고른 사람들 다음으로 이 글 봄
+                            </div>
+                            <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                              {choicePathNextPost.title}
+                            </div>
+                            <div className="mt-1 text-[12px] text-slate-500">
+                              같은 선택 흐름에서 {currentChoicePathTop.count}번
+                              이어짐
+                            </div>
+                          </button>
+                        ) : null}
+                        {!currentFlipDrama &&
+                        !currentShadowDrama &&
+                        !(currentChoicePathTop && choicePathNextPost) ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-600">
+                              지금은 조용한 판
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              아직 크게 흔들린 신호는 없지만 댓글이나 다음
+                              반응에서 다시 붙을 수 있음.
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
 
                     <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                       <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
