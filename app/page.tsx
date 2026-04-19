@@ -2005,7 +2005,10 @@ function MyActivityModal({
   watchlistRefreshing,
   watchlistLastSyncedAt,
   onLogout,
+  onRequestLogin,
   profile,
+  guestName,
+  isLoggedIn,
   stats,
   badges,
 }: {
@@ -2023,7 +2026,10 @@ function MyActivityModal({
   watchlistRefreshing: boolean
   watchlistLastSyncedAt: string | null
   onLogout: () => void
+  onRequestLogin: () => void
   profile: ProfileRow | null
+  guestName: string
+  isLoggedIn: boolean
   stats: UserStatsRow
   badges: string[]
 }) {
@@ -2104,7 +2110,7 @@ function MyActivityModal({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="truncate text-[15px] font-bold text-slate-900">
-                    {profile?.anonymous_name ?? '익명 유저'}
+                    {profile?.anonymous_name ?? guestName ?? '익명 유저'}
                   </div>
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${levelTheme.chipClass}`}
@@ -2275,12 +2281,12 @@ function MyActivityModal({
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 글이 없음
+              아직 내가 올린 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 댓글이 없음
+              아직 내가 남긴 댓글이 없음
             </div>
           )}
           {tab === 'watchlist' && (
@@ -2511,12 +2517,27 @@ function MyActivityModal({
         </div>
 
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
-          <button
-            onClick={onLogout}
-            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
-          >
-            로그아웃
-          </button>
+          {isLoggedIn ? (
+            <button
+              onClick={onLogout}
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+            >
+              로그아웃
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] leading-5 text-slate-600">
+                비로그인이어도 내가 쓴 글/댓글은 이 기기에서 기억됨. 로그인하면
+                계정으로 그대로 이어서 관리하기 쉬움.
+              </div>
+              <button
+                onClick={onRequestLogin}
+                className="w-full rounded-2xl border border-[#cfe0ff] bg-[#eef3ff] px-4 py-3 text-sm font-bold text-[#315fdc]"
+              >
+                로그인해서 계정으로 이어쓰기
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -4418,13 +4439,13 @@ export default function MatnyaApp() {
     void loadActorReactionSelections(postIds, commentIds)
   }, [posts, loadActorReactionSelections])
 
-  const fetchMyActivity = useCallback(async (userId: string) => {
-    if (!userId) return
+  const fetchMyActivity = useCallback(async (authorKey: string) => {
+    if (!authorKey) return
 
     const { data: myPostsData, error: myPostsError } = await supabase
       .from('posts')
       .select('id, title, category, age_group')
-      .eq('author_key', userId)
+      .eq('author_key', authorKey)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -4445,7 +4466,7 @@ export default function MatnyaApp() {
     const { data: myCommentsData, error: myCommentsError } = await supabase
       .from('comments')
       .select('id, post_id, text')
-      .eq('author_key', userId)
+      .eq('author_key', authorKey)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -5098,13 +5119,13 @@ export default function MatnyaApp() {
   }, [])
 
   useEffect(() => {
-    if (authUser?.id) {
-      void fetchMyActivity(authUser.id)
+    if (currentActorKey) {
+      void fetchMyActivity(currentActorKey)
     } else {
       setMyPosts([])
       setMyComments([])
     }
-  }, [authUser?.id, fetchMyActivity])
+  }, [currentActorKey, fetchMyActivity])
 
   useEffect(() => {
     void fetchWatchlist(currentActorUnifiedKey)
@@ -7326,18 +7347,16 @@ ${shareUrl}`)
       ),
     )
 
-    if (authUser) {
-      setMyComments((prev) => [
-        {
-          id: newComment.id,
-          commentId: newComment.id,
-          postId: currentPost.id,
-          postTitle: currentPost.title,
-          text: newComment.text,
-        },
-        ...prev,
-      ])
-    }
+    setMyComments((prev) => [
+      {
+        id: newComment.id,
+        commentId: newComment.id,
+        postId: currentPost.id,
+        postTitle: currentPost.title,
+        text: newComment.text,
+      },
+      ...prev,
+    ])
 
     await logPostEvent({
       postId: currentPost.id,
@@ -7617,18 +7636,16 @@ ${shareUrl}`)
 
     setPosts((prev) => [newPost, ...prev])
 
-    if (authUser) {
-      setMyPosts((prev) => [
-        {
-          id: newPost.id,
-          postId: newPost.id,
-          title: newPost.title,
-          category: newPost.category,
-          ageGroup: newPost.ageGroup,
-        },
-        ...prev.filter((item) => item.postId !== newPost.id),
-      ])
-    }
+    setMyPosts((prev) => [
+      {
+        id: newPost.id,
+        postId: newPost.id,
+        title: newPost.title,
+        category: newPost.category,
+        ageGroup: newPost.ageGroup,
+      },
+      ...prev.filter((item) => item.postId !== newPost.id),
+    ])
 
     clearShareMode()
     setTab('최신')
@@ -7895,26 +7912,17 @@ ${shareUrl}`)
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {!authUser ? (
-                    <button
-                      onClick={() => setAuthOpen(true)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
-                    >
-                      <User className="h-5 w-5" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={openWatchlistActivity}
-                      className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
-                    >
-                      <span className="text-xs font-bold">
-                        {profile?.anonymous_name ?? '익명'}
-                      </span>
-                      {unreadWatchlistCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
-                      ) : null}
-                    </button>
-                  )}
+                  <button
+                    onClick={openWatchlistActivity}
+                    className="relative flex h-10 min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                  >
+                    <span className="text-xs font-bold">
+                      {profile?.anonymous_name ?? guestName ?? '익명'}
+                    </span>
+                    {unreadWatchlistCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
+                    ) : null}
+                  </button>
 
                   {isAdmin && (
                     <button
@@ -7977,7 +7985,10 @@ ${shareUrl}`)
           watchlistRefreshing={watchlistRefreshing}
           watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
+          onRequestLogin={() => setAuthOpen(true)}
           profile={profile}
+          guestName={guestName}
+          isLoggedIn={!!authUser}
           stats={stats}
           badges={badges}
         />
@@ -8047,34 +8058,20 @@ ${shareUrl}`)
               </div>
 
               <div className="flex items-center gap-2">
-                {!authUser ? (
-                  <button
-                    onClick={() => setAuthOpen(true)}
-                    className={`flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
-                  >
-                    <span className="text-xs">
-                      {getLevelTheme(levelInfo.level).icon}
-                    </span>
-                    <span className="text-xs font-bold">
-                      Lv.{levelInfo.level}
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={openWatchlistActivity}
-                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
-                  >
-                    <span className="text-xs">
-                      {getLevelTheme(levelInfo.level).icon}
-                    </span>
-                    <span className="text-xs font-bold">
-                      Lv.{levelInfo.level}
-                    </span>
-                    {unreadWatchlistCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
-                    ) : null}
-                  </button>
-                )}
+                <button
+                  onClick={openWatchlistActivity}
+                  className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                >
+                  <span className="text-xs">
+                    {getLevelTheme(levelInfo.level).icon}
+                  </span>
+                  <span className="text-xs font-bold">
+                    Lv.{levelInfo.level}
+                  </span>
+                  {unreadWatchlistCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 inline-flex h-3 w-3 rounded-full border-2 border-white bg-rose-500" />
+                  ) : null}
+                </button>
 
                 {isAdmin && (
                   <button
@@ -9177,7 +9174,10 @@ ${shareUrl}`)
           watchlistRefreshing={watchlistRefreshing}
           watchlistLastSyncedAt={watchlistLastSyncedAt}
           onLogout={() => void handleLogout()}
+          onRequestLogin={() => setAuthOpen(true)}
           profile={profile}
+          guestName={guestName}
+          isLoggedIn={!!authUser}
           stats={stats}
           badges={badges}
         />
