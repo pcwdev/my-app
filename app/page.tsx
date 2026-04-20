@@ -2214,7 +2214,7 @@ const CommentCard = React.memo(function CommentCard({
         }`}
       />
       <div className="px-2.5 py-2">
-        <div className="mb-1 flex items-start justify-between gap-1.5">
+        <div className="mb-1 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1">
               <span
@@ -2239,6 +2239,16 @@ const CommentCard = React.memo(function CommentCard({
               ) : null}
             </div>
           </div>
+
+          {!comment.hidden ? (
+            <button
+              onClick={() => onOpenReportComment(comment.id)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+              aria-label="댓글 신고"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
         </div>
 
         <div className="text-[12px] leading-[1.45] tracking-[-0.01em] text-slate-700">
@@ -2280,16 +2290,6 @@ const CommentCard = React.memo(function CommentCard({
                   <span>{item.count}</span>
                 </button>
               ))}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 text-xs">
-              <button
-                onClick={() => onOpenReportComment(comment.id)}
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                aria-label="댓글 신고"
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
             </div>
           </div>
         ) : null}
@@ -3450,20 +3450,6 @@ function CommentModal({
                 </div>
               </div>
             </div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px]">
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-bold text-slate-600">
-                중립 {sideSummary.neutralCount}
-              </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-bold text-slate-600">
-                {guestName} 이름으로 바로 참여 가능
-              </span>
-              {featuredBadge ? (
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-700">
-                  🏆 {featuredBadge}
-                </span>
-              ) : null}
-            </div>
           </div>
 
           <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
@@ -3506,215 +3492,6 @@ function CommentModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-2.5 [webkit-overflow-scrolling:touch]">
-          {bestCommentRow ? (
-            <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
-              <div className="px-2.5 py-2">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
-                      HOT COMMENT
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
-                      <Flame className="h-3.5 w-3.5 text-amber-500" />
-                      지금 가장 반응 큰 댓글
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    반응 {bestCommentRow.reactionTotal}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={bestCommentRow.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: bestCommentRow.comment.author,
-                      authorKey: bestCommentRow.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={bestCommentRow.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:agree`
-                      ],
-                    disagree:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${bestCommentRow.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {battleComment &&
-          battleMeta &&
-          battleComment.comment.id !== bestCommentRow?.comment.id ? (
-            <div className="overflow-hidden rounded-[28px] border border-rose-200 bg-[linear-gradient(180deg,#fff7f7_0%,#ffe9e9_100%)] shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fb7185_0%,#f43f5e_55%,#fda4af_100%)]" />
-              <div className="px-2.5 py-2">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
-                      LIVE BATTLE
-                    </div>
-                    <div
-                      className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${battleMeta.toneClass}`}
-                    >
-                      {battleMeta.label}
-                    </div>
-                    <div className="mt-2 text-[12px] text-slate-600">
-                      {battleMeta.helper}
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-rose-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-rose-700">
-                    충돌 {Math.round(battleComment.battleScore)}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={battleComment.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: battleComment.comment.author,
-                      authorKey: battleComment.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={battleComment.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[`${battleComment.comment.id}:agree`],
-                    disagree:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${battleComment.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {minorityHighlight &&
-          minorityMeta &&
-          minorityHighlight.comment.id !== bestCommentRow?.comment.id &&
-          minorityHighlight.comment.id !== battleComment?.comment.id ? (
-            <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
-              <div className="px-2.5 py-2">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
-                      MINORITY PICK
-                    </div>
-                    <div
-                      className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${minorityMeta.toneClass}`}
-                    >
-                      {minorityMeta.label}
-                    </div>
-                    <div className="mt-2 text-[12px] text-slate-600">
-                      {minorityMeta.helper}
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-fuchsia-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-fuchsia-700">
-                    반응 {minorityHighlight.reactionTotal}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={minorityHighlight.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: minorityHighlight.comment.author,
-                      authorKey: minorityHighlight.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={minorityHighlight.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:agree`
-                      ],
-                    disagree:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${minorityHighlight.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
           {visibleRows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-center shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-bold text-slate-900">
@@ -3801,6 +3578,230 @@ function CommentModal({
               })}
             </div>
           )}
+
+          {bestCommentRow || battleComment || minorityHighlight ? (
+            <div className="mt-2 space-y-2 border-t border-slate-200/70 pt-2">
+              <div>
+                <div className="text-[11px] font-extrabold tracking-[0.08em] text-slate-500">
+                  댓글 하이라이트
+                </div>
+                <div className="text-[12px] text-slate-500">
+                  지금 가장 뜨거운 댓글만 따로 모아봤어
+                </div>
+              </div>
+              {bestCommentRow ? (
+                <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
+                  <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
+                  <div className="px-2.5 py-2">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
+                          HOT COMMENT
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
+                          <Flame className="h-3.5 w-3.5 text-amber-500" />
+                          지금 가장 반응 큰 댓글
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                        반응 {bestCommentRow.reactionTotal}
+                      </div>
+                    </div>
+
+                    <CommentCard
+                      comment={bestCommentRow.comment}
+                      leftLabel={post.leftLabel}
+                      rightLabel={post.rightLabel}
+                      onOpenReportComment={onOpenReportComment}
+                      adminMode={adminMode}
+                      onAdminRestoreComment={onAdminRestoreComment}
+                      onAdminDeleteComment={onAdminDeleteComment}
+                      authorMeta={resolveAuthorMeta(
+                        {
+                          author: bestCommentRow.comment.author,
+                          authorKey: bestCommentRow.comment.authorKey ?? null,
+                        },
+                        authorMetaMap,
+                        guestName,
+                        currentUserLevel,
+                        featuredBadge,
+                        currentActorKey,
+                      )}
+                      reactionSummary={bestCommentRow.reactionSummary}
+                      myReactionMap={{
+                        agree:
+                          !!myCommentReactions[
+                            `${bestCommentRow.comment.id}:agree`
+                          ],
+                        disagree:
+                          !!myCommentReactions[
+                            `${bestCommentRow.comment.id}:disagree`
+                          ],
+                        wow: !!myCommentReactions[
+                          `${bestCommentRow.comment.id}:wow`
+                        ],
+                        relatable:
+                          !!myCommentReactions[
+                            `${bestCommentRow.comment.id}:relatable`
+                          ],
+                        absurd:
+                          !!myCommentReactions[
+                            `${bestCommentRow.comment.id}:absurd`
+                          ],
+                      }}
+                      onReactComment={onReactComment}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {battleComment &&
+              battleMeta &&
+              battleComment.comment.id !== bestCommentRow?.comment.id ? (
+                <div className="overflow-hidden rounded-[28px] border border-rose-200 bg-[linear-gradient(180deg,#fff7f7_0%,#ffe9e9_100%)] shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
+                  <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fb7185_0%,#f43f5e_55%,#fda4af_100%)]" />
+                  <div className="px-2.5 py-2">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
+                          LIVE BATTLE
+                        </div>
+                        <div
+                          className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${battleMeta.toneClass}`}
+                        >
+                          {battleMeta.label}
+                        </div>
+                        <div className="mt-2 text-[12px] text-slate-600">
+                          {battleMeta.helper}
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-full border border-rose-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-rose-700">
+                        충돌 {Math.round(battleComment.battleScore)}
+                      </div>
+                    </div>
+
+                    <CommentCard
+                      comment={battleComment.comment}
+                      leftLabel={post.leftLabel}
+                      rightLabel={post.rightLabel}
+                      onOpenReportComment={onOpenReportComment}
+                      adminMode={adminMode}
+                      onAdminRestoreComment={onAdminRestoreComment}
+                      onAdminDeleteComment={onAdminDeleteComment}
+                      authorMeta={resolveAuthorMeta(
+                        {
+                          author: battleComment.comment.author,
+                          authorKey: battleComment.comment.authorKey ?? null,
+                        },
+                        authorMetaMap,
+                        guestName,
+                        currentUserLevel,
+                        featuredBadge,
+                        currentActorKey,
+                      )}
+                      reactionSummary={battleComment.reactionSummary}
+                      myReactionMap={{
+                        agree:
+                          !!myCommentReactions[
+                            `${battleComment.comment.id}:agree`
+                          ],
+                        disagree:
+                          !!myCommentReactions[
+                            `${battleComment.comment.id}:disagree`
+                          ],
+                        wow: !!myCommentReactions[
+                          `${battleComment.comment.id}:wow`
+                        ],
+                        relatable:
+                          !!myCommentReactions[
+                            `${battleComment.comment.id}:relatable`
+                          ],
+                        absurd:
+                          !!myCommentReactions[
+                            `${battleComment.comment.id}:absurd`
+                          ],
+                      }}
+                      onReactComment={onReactComment}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {minorityHighlight &&
+              minorityMeta &&
+              minorityHighlight.comment.id !== bestCommentRow?.comment.id &&
+              minorityHighlight.comment.id !== battleComment?.comment.id ? (
+                <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
+                  <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
+                  <div className="px-2.5 py-2">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
+                          MINORITY PICK
+                        </div>
+                        <div
+                          className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${minorityMeta.toneClass}`}
+                        >
+                          {minorityMeta.label}
+                        </div>
+                        <div className="mt-2 text-[12px] text-slate-600">
+                          {minorityMeta.helper}
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-full border border-fuchsia-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-fuchsia-700">
+                        반응 {minorityHighlight.reactionTotal}
+                      </div>
+                    </div>
+
+                    <CommentCard
+                      comment={minorityHighlight.comment}
+                      leftLabel={post.leftLabel}
+                      rightLabel={post.rightLabel}
+                      onOpenReportComment={onOpenReportComment}
+                      adminMode={adminMode}
+                      onAdminRestoreComment={onAdminRestoreComment}
+                      onAdminDeleteComment={onAdminDeleteComment}
+                      authorMeta={resolveAuthorMeta(
+                        {
+                          author: minorityHighlight.comment.author,
+                          authorKey:
+                            minorityHighlight.comment.authorKey ?? null,
+                        },
+                        authorMetaMap,
+                        guestName,
+                        currentUserLevel,
+                        featuredBadge,
+                        currentActorKey,
+                      )}
+                      reactionSummary={minorityHighlight.reactionSummary}
+                      myReactionMap={{
+                        agree:
+                          !!myCommentReactions[
+                            `${minorityHighlight.comment.id}:agree`
+                          ],
+                        disagree:
+                          !!myCommentReactions[
+                            `${minorityHighlight.comment.id}:disagree`
+                          ],
+                        wow: !!myCommentReactions[
+                          `${minorityHighlight.comment.id}:wow`
+                        ],
+                        relatable:
+                          !!myCommentReactions[
+                            `${minorityHighlight.comment.id}:relatable`
+                          ],
+                        absurd:
+                          !!myCommentReactions[
+                            `${minorityHighlight.comment.id}:absurd`
+                          ],
+                      }}
+                      onReactComment={onReactComment}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {hasMoreComments && (
             <button
