@@ -3049,7 +3049,9 @@ function CommentModal({
   const [sortType, setSortType] = useState<
     'best' | 'latest' | 'battle' | 'minority'
   >('best')
-  const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
+  const [visibleCount, setVisibleCount] = useState(
+    Math.max(6, INITIAL_COMMENT_BATCH),
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -3088,14 +3090,14 @@ function CommentModal({
   }, [open, post?.id])
 
   useEffect(() => {
-    if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
+    if (open) setVisibleCount(Math.max(6, INITIAL_COMMENT_BATCH))
   }, [open, post?.id, sortType])
 
   useEffect(() => {
     if (!open || !post) return
 
     const exposedCount = Math.min(
-      3,
+      Math.max(6, INITIAL_COMMENT_BATCH),
       (post.comments ?? []).filter((comment) => !comment.hidden || adminMode)
         .length,
     )
@@ -3187,14 +3189,14 @@ function CommentModal({
       const diff = Math.abs(leftCount - rightCount) / Math.max(total, 1)
       if (diff <= 0.12) {
         moodTitle = '🔥 댓글도 거의 반반'
-        moodHelper = '지금 누구 말이 맞는지 댓글에서 바로 갈리는 중'
+        moodHelper = '지금 누구 말이 맞는지 댓글에서도 팽팽하게 갈리는 중'
         moodToneClass = 'border-rose-200 bg-rose-50 text-rose-700'
       } else if (leftCount > rightCount) {
         moodTitle = `${post?.leftLabel ?? '왼쪽'} 쪽 댓글 우세`
         moodHelper =
           diff <= 0.28
             ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 확실히 더 많음'
+            : '현재는 이쪽 의견이 더 많이 보임'
         moodToneClass =
           diff <= 0.28
             ? 'border-sky-200 bg-sky-50 text-sky-700'
@@ -3204,7 +3206,7 @@ function CommentModal({
         moodHelper =
           diff <= 0.28
             ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 확실히 더 많음'
+            : '현재는 이쪽 의견이 더 많이 보임'
         moodToneClass =
           diff <= 0.28
             ? 'border-violet-200 bg-violet-50 text-violet-700'
@@ -3226,35 +3228,6 @@ function CommentModal({
     }
   }, [commentRows, post])
 
-  const battleComment = useMemo(() => {
-    return (
-      [...commentRows].sort((a, b) => {
-        if (b.battleScore !== a.battleScore)
-          return b.battleScore - a.battleScore
-        return b.comment.id - a.comment.id
-      })[0] ?? null
-    )
-  }, [commentRows])
-
-  const bestCommentRow = useMemo(() => {
-    return (
-      [...commentRows].sort((a, b) => {
-        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
-        return b.comment.id - a.comment.id
-      })[0] ?? null
-    )
-  }, [commentRows])
-
-  const minorityComments = useMemo(() => {
-    return [...commentRows]
-      .filter((item) => item.isMinority && item.minorityScore > 0)
-      .sort((a, b) => {
-        if (b.minorityScore !== a.minorityScore)
-          return b.minorityScore - a.minorityScore
-        return b.comment.id - a.comment.id
-      })
-  }, [commentRows])
-
   const sortedRows = useMemo(() => {
     if (sortType === 'latest') {
       return [...commentRows].sort((a, b) => b.comment.id - a.comment.id)
@@ -3264,19 +3237,33 @@ function CommentModal({
       return [...commentRows].sort((a, b) => {
         if (b.battleScore !== a.battleScore)
           return b.battleScore - a.battleScore
+        if (b.reactionTotal !== a.reactionTotal)
+          return b.reactionTotal - a.reactionTotal
         return b.comment.id - a.comment.id
       })
     }
 
     if (sortType === 'minority') {
-      return minorityComments
+      return [...commentRows]
+        .filter((item) => item.isMinority)
+        .sort((a, b) => {
+          if (b.minorityScore !== a.minorityScore)
+            return b.minorityScore - a.minorityScore
+          if (b.reactionTotal !== a.reactionTotal)
+            return b.reactionTotal - a.reactionTotal
+          return b.comment.id - a.comment.id
+        })
     }
 
     return [...commentRows].sort((a, b) => {
-      if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
+      if (b.reactionTotal !== a.reactionTotal)
+        return b.reactionTotal - a.reactionTotal
+      if (b.supportiveReactionTotal !== a.supportiveReactionTotal) {
+        return b.supportiveReactionTotal - a.supportiveReactionTotal
+      }
       return b.comment.id - a.comment.id
     })
-  }, [commentRows, minorityComments, sortType])
+  }, [commentRows, sortType])
 
   if (!open || !post) return null
 
@@ -3315,74 +3302,42 @@ function CommentModal({
     }
   }
 
-  const battleHighlight =
-    battleComment && battleComment.battleScore >= 2 ? battleComment : null
-
-  const battleMeta = battleHighlight
-    ? battleHighlight.battleScore >= 5
-      ? {
-          label: '🔥 지금 붙는 중',
-          helper: '반박 반응이 몰리는 댓글',
-          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-        }
-      : {
-          label: '👀 슬슬 붙는 중',
-          helper: '반박이 슬슬 붙는 댓글',
-          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
-        }
-    : null
-
-  const hotHighlight =
-    bestCommentRow && bestCommentRow.heatScore >= 2 ? bestCommentRow : null
-
-  const minorityHighlight =
-    (minorityComments[0] ?? null) &&
-    (minorityComments[0]?.minorityScore ?? 0) >= 2
-      ? minorityComments[0]
-      : null
-
-  const minorityMeta = minorityHighlight
-    ? {
-        label:
-          minorityHighlight.minorityScore >= 3
-            ? '😳 의외로 반응 붙는 중'
-            : '🤨 의외 반응 포착',
-        helper:
-          minorityHighlight.reactionTotal >= 4
-            ? '다수 의견 반대인데도 반응이 몰리는 댓글'
-            : '아직 크진 않지만 눈에 띄는 댓글',
-        toneClass:
-          minorityHighlight.reactionTotal >= 4
-            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-            : 'border-amber-200 bg-amber-50 text-amber-700',
+  const getRowMeta = (item: (typeof commentRows)[number], index: number) => {
+    if (sortType === 'latest' && index < 2) {
+      return {
+        label: '방금 올라옴',
+        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
       }
-    : null
+    }
 
-  const liveSignalChips = [
-    hotHighlight
-      ? {
-          label: `반응많음 ${Math.round(hotHighlight.heatScore)}`,
-          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
-        }
-      : null,
-    battleHighlight
-      ? {
-          label: `개갈림 ${Math.round(battleHighlight.battleScore)}`,
-          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-        }
-      : null,
-    minorityHighlight
-      ? {
-          label: `의외반응 ${minorityHighlight.reactionTotal}`,
-          toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-        }
-      : null,
-  ].filter(Boolean) as { label: string; toneClass: string }[]
+    if (item.battleScore >= 3 && item.reactionTotal >= 4) {
+      return {
+        label: '공감/반박 갈림',
+        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      }
+    }
+
+    if (item.isMinority && item.minorityScore >= 2) {
+      return {
+        label: '다수와 다름',
+        toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+      }
+    }
+
+    if (item.reactionTotal >= 4 || item.heatScore >= 2) {
+      return {
+        label: '이 댓글 반응 큼',
+        toneClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      }
+    }
+
+    return null
+  }
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
-        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,255,0.94)_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
@@ -3400,17 +3355,17 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="mt-3 rounded-[26px] border border-slate-200/80 bg-white/85 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+          <div className="mt-3 rounded-[26px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
                   >
                     {sideSummary.moodTitle}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-500">
-                    반응 {sideSummary.total}개
+                    댓글 {sideSummary.total}개
                   </span>
                 </div>
                 <div className="mt-2 text-[12px] leading-5 text-slate-600">
@@ -3418,7 +3373,7 @@ function CommentModal({
                 </div>
               </div>
               <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                의심 {sideSummary.doubtCount}
+                반박 많은 댓글 {sideSummary.doubtCount}
               </div>
             </div>
 
@@ -3451,6 +3406,14 @@ function CommentModal({
               </div>
             </div>
 
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-600">
+              <span className="font-bold text-slate-700">표시 뜻</span>
+              <span className="ml-2">
+                이 댓글 반응 큼 = 많이 눌림 · 공감/반박 갈림 = 의견 팽팽 ·
+                다수와 다름 = 주류와 반대
+              </span>
+            </div>
+
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-bold text-slate-600">
                 중립 {sideSummary.neutralCount}
@@ -3468,10 +3431,10 @@ function CommentModal({
 
           <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
             {[
-              ['best', '추천순'],
-              ['battle', '지금 붙는 순'],
+              ['best', '반응순'],
+              ['battle', '갈리는순'],
               ['latest', '최신순'],
-              ['minority', '소수 의견'],
+              ['minority', '다른의견'],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -3490,231 +3453,9 @@ function CommentModal({
               </button>
             ))}
           </div>
-
-          {liveSignalChips.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {liveSignalChips.map((chip) => (
-                <span
-                  key={chip.label}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${chip.toneClass}`}
-                >
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
-          {bestCommentRow ? (
-            <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
-              <div className="p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
-                      반응 많은 댓글
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
-                      <Flame className="h-4 w-4 text-amber-500" />
-                      지금 가장 반응 큰 댓글
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    반응 {bestCommentRow.reactionTotal}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={bestCommentRow.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: bestCommentRow.comment.author,
-                      authorKey: bestCommentRow.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={bestCommentRow.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:agree`
-                      ],
-                    disagree:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${bestCommentRow.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${bestCommentRow.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {battleComment &&
-          battleMeta &&
-          battleComment.comment.id !== bestCommentRow?.comment.id ? (
-            <div className="overflow-hidden rounded-[28px] border border-rose-200 bg-[linear-gradient(180deg,#fff7f7_0%,#ffe9e9_100%)] shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fb7185_0%,#f43f5e_55%,#fda4af_100%)]" />
-              <div className="p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
-                      지금 싸우는 중
-                    </div>
-                    <div
-                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${battleMeta.toneClass}`}
-                    >
-                      {battleMeta.label}
-                    </div>
-                    <div className="mt-2 text-[12px] text-slate-600">
-                      {battleMeta.helper}
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-rose-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-rose-700">
-                    충돌 {Math.round(battleComment.battleScore)}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={battleComment.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: battleComment.comment.author,
-                      authorKey: battleComment.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={battleComment.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[`${battleComment.comment.id}:agree`],
-                    disagree:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${battleComment.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${battleComment.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {minorityHighlight &&
-          minorityMeta &&
-          minorityHighlight.comment.id !== bestCommentRow?.comment.id &&
-          minorityHighlight.comment.id !== battleComment?.comment.id ? (
-            <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
-              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
-              <div className="p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
-                      MINORITY PICK
-                    </div>
-                    <div
-                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${minorityMeta.toneClass}`}
-                    >
-                      {minorityMeta.label}
-                    </div>
-                    <div className="mt-2 text-[12px] text-slate-600">
-                      {minorityMeta.helper}
-                    </div>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-fuchsia-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-fuchsia-700">
-                    반응 {minorityHighlight.reactionTotal}
-                  </div>
-                </div>
-
-                <CommentCard
-                  comment={minorityHighlight.comment}
-                  leftLabel={post.leftLabel}
-                  rightLabel={post.rightLabel}
-                  onOpenReportComment={onOpenReportComment}
-                  adminMode={adminMode}
-                  onAdminRestoreComment={onAdminRestoreComment}
-                  onAdminDeleteComment={onAdminDeleteComment}
-                  authorMeta={resolveAuthorMeta(
-                    {
-                      author: minorityHighlight.comment.author,
-                      authorKey: minorityHighlight.comment.authorKey ?? null,
-                    },
-                    authorMetaMap,
-                    guestName,
-                    currentUserLevel,
-                    featuredBadge,
-                    currentActorKey,
-                  )}
-                  reactionSummary={minorityHighlight.reactionSummary}
-                  myReactionMap={{
-                    agree:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:agree`
-                      ],
-                    disagree:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:disagree`
-                      ],
-                    wow: !!myCommentReactions[
-                      `${minorityHighlight.comment.id}:wow`
-                    ],
-                    relatable:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:relatable`
-                      ],
-                    absurd:
-                      !!myCommentReactions[
-                        `${minorityHighlight.comment.id}:absurd`
-                      ],
-                  }}
-                  onReactComment={onReactComment}
-                />
-              </div>
-            </div>
-          ) : null}
-
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {visibleRows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-center shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-bold text-slate-900">
@@ -3728,35 +3469,10 @@ function CommentModal({
             <div className="space-y-3">
               {visibleRows.map((item, index) => {
                 const comment = item.comment
-                const rowMeta =
-                  sortType === 'battle'
-                    ? item.battleScore >= 5
-                      ? {
-                          label: '🔥 지금 붙는 중',
-                          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-                        }
-                      : null
-                    : sortType === 'minority'
-                      ? {
-                          label: '🤨 소수 의견',
-                          toneClass:
-                            'border-amber-200 bg-amber-50 text-amber-700',
-                        }
-                      : sortType === 'latest' && index < 2
-                        ? {
-                            label: '🆕 방금 올라옴',
-                            toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
-                          }
-                        : item.reactionTotal >= 4
-                          ? {
-                              label: '⚡ 반응 몰림',
-                              toneClass:
-                                'border-indigo-200 bg-indigo-50 text-indigo-700',
-                            }
-                          : null
+                const rowMeta = getRowMeta(item, index)
 
                 return (
-                  <div key={comment.id} className="space-y-2">
+                  <div key={comment.id} className="space-y-1.5">
                     {rowMeta ? (
                       <div
                         className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${rowMeta.toneClass}`}
@@ -3805,13 +3521,14 @@ function CommentModal({
           {hasMoreComments && (
             <button
               onClick={() => {
-                const nextCount = visibleCount + INITIAL_COMMENT_BATCH
+                const nextCount =
+                  visibleCount + Math.max(6, INITIAL_COMMENT_BATCH)
                 setVisibleCount(nextCount)
                 onExposeComments?.(Math.min(nextCount, sortedRows.length))
               }}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+              className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
             >
-              반응 더보기
+              댓글 더보기
             </button>
           )}
         </div>
