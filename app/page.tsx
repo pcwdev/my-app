@@ -3345,12 +3345,12 @@ function CommentModal({
     ? {
         label:
           minorityHighlight.minorityScore >= 3
-            ? '😳 소수 의견 공감 붙는 중'
-            : '🤨 소수 의견 포착',
+            ? '😳 의외로 반응 붙는 중'
+            : '🤨 의외 반응 포착',
         helper:
           minorityHighlight.reactionTotal >= 4
-            ? '주류 반대쪽인데 반응이 몰리는 댓글'
-            : '아직 소수지만 눈여겨볼 만한 댓글',
+            ? '다수 의견 반대인데도 반응이 몰리는 댓글'
+            : '아직 크진 않지만 눈에 띄는 댓글',
         toneClass:
           minorityHighlight.reactionTotal >= 4
             ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
@@ -3361,19 +3361,19 @@ function CommentModal({
   const liveSignalChips = [
     hotHighlight
       ? {
-          label: `HOT ${Math.round(hotHighlight.heatScore)}`,
+          label: `반응많음 ${Math.round(hotHighlight.heatScore)}`,
           toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
         }
       : null,
     battleHighlight
       ? {
-          label: `BATTLE ${Math.round(battleHighlight.battleScore)}`,
+          label: `개갈림 ${Math.round(battleHighlight.battleScore)}`,
           toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
         }
       : null,
     minorityHighlight
       ? {
-          label: `MINORITY ${minorityHighlight.reactionTotal}`,
+          label: `의외반응 ${minorityHighlight.reactionTotal}`,
           toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
         }
       : null,
@@ -3513,7 +3513,7 @@ function CommentModal({
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
-                      HOT COMMENT
+                      반응 많은 댓글
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
                       <Flame className="h-4 w-4 text-amber-500" />
@@ -3581,7 +3581,7 @@ function CommentModal({
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
-                      LIVE BATTLE
+                      지금 싸우는 중
                     </div>
                     <div
                       className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${battleMeta.toneClass}`}
