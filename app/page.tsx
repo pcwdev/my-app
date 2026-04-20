@@ -8938,7 +8938,18 @@ ${shareUrl}`)
                     onClick={() => {
                       requestCurrentPostFocus()
                       runKakaoSafeTransition(() => {
+                        if (
+                          sharedEntryActive ||
+                          shareId ||
+                          sharedPostId != null
+                        ) {
+                          clearShareMode()
+                          endSharedEntryMode()
+                          setSharedPostId(null)
+                          setSharedEntryActive(false)
+                        }
                         setSelectedCategory(category)
+                        setTab('추천')
                         setCurrentIndex(0)
                       })
                       refreshWatchlistSignalsAfterAction(120)
