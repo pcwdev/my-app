@@ -1803,30 +1803,30 @@ const COMMENT_REACTION_META: Record<
   CommentReactionType,
   { label: string; activeClass: string; idleClass: string }
 > = {
-  agree: {
-    label: '맞말',
-    activeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    idleClass: 'border-slate-200 bg-white text-slate-500',
-  },
-  disagree: {
-    label: '억까',
-    activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
-    idleClass: 'border-slate-200 bg-white text-slate-500',
-  },
-  wow: {
-    label: '소름',
-    activeClass: 'border-violet-200 bg-violet-50 text-violet-700',
-    idleClass: 'border-slate-200 bg-white text-slate-500',
-  },
   relatable: {
     label: '공감',
     activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
-  absurd: {
-    label: '어이없음',
-    activeClass: 'border-amber-200 bg-amber-50 text-amber-700',
+  disagree: {
+    label: '반박',
+    activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
+  },
+  agree: {
+    label: '보조',
+    activeClass: 'border-slate-200 bg-slate-50 text-slate-500',
+    idleClass: 'border-slate-200 bg-white text-slate-400',
+  },
+  wow: {
+    label: '보조',
+    activeClass: 'border-slate-200 bg-slate-50 text-slate-500',
+    idleClass: 'border-slate-200 bg-white text-slate-400',
+  },
+  absurd: {
+    label: '보조',
+    activeClass: 'border-slate-200 bg-slate-50 text-slate-500',
+    idleClass: 'border-slate-200 bg-white text-slate-400',
   },
 }
 
@@ -2247,24 +2247,39 @@ const CommentCard = React.memo(function CommentCard({
 
         {!comment.hidden ? (
           <div className="mt-3 space-y-2.5">
-            <div className="flex flex-wrap gap-1.5 text-[11px]">
-              {(
-                Object.keys(COMMENT_REACTION_META) as CommentReactionType[]
-              ).map((reactionType) => {
-                const meta = COMMENT_REACTION_META[reactionType]
-                const count = Number(reactionSummary[reactionType] ?? 0)
-                const active = !!myReactionMap[reactionType]
-                return (
-                  <button
-                    key={reactionType}
-                    onClick={() => onReactComment(comment.id, reactionType)}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-bold transition ${active ? meta.activeClass : meta.idleClass}`}
-                  >
-                    <span>{meta.label}</span>
-                    <span>{count}</span>
-                  </button>
-                )
-              })}
+            <div className="flex flex-wrap gap-2 text-[11px]">
+              {[
+                {
+                  reactionType: 'relatable' as CommentReactionType,
+                  label: '공감',
+                  count:
+                    Number(reactionSummary.relatable ?? 0) +
+                    Number(reactionSummary.agree ?? 0) +
+                    Number(reactionSummary.wow ?? 0),
+                  active: !!myReactionMap.relatable,
+                  activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
+                  idleClass: 'border-slate-200 bg-white text-slate-500',
+                },
+                {
+                  reactionType: 'disagree' as CommentReactionType,
+                  label: '반박',
+                  count:
+                    Number(reactionSummary.disagree ?? 0) +
+                    Number(reactionSummary.absurd ?? 0),
+                  active: !!myReactionMap.disagree,
+                  activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
+                  idleClass: 'border-slate-200 bg-white text-slate-500',
+                },
+              ].map((item) => (
+                <button
+                  key={item.reactionType}
+                  onClick={() => onReactComment(comment.id, item.reactionType)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
+                >
+                  <span>{item.label}</span>
+                  <span>{item.count}</span>
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center justify-end gap-3 text-xs">
@@ -3098,31 +3113,38 @@ function CommentModal({
   }, [post, adminMode])
 
   const commentRows = useMemo(() => {
+    const leftCommentCount = visiblePool.filter(
+      (comment) => comment.side === 'left',
+    ).length
+    const rightCommentCount = visiblePool.filter(
+      (comment) => comment.side === 'right',
+    ).length
+    const majoritySide: Side | null =
+      leftCommentCount === rightCommentCount
+        ? null
+        : leftCommentCount > rightCommentCount
+          ? 'left'
+          : 'right'
+
     return visiblePool.map((comment) => {
       const reactionSummary =
         commentReactionMap[comment.id] ?? EMPTY_COMMENT_REACTION_SUMMARY
-      const reactionTotal =
-        Number(reactionSummary.agree ?? 0) +
-        Number(reactionSummary.disagree ?? 0) +
-        Number(reactionSummary.wow ?? 0) +
-        Number(reactionSummary.relatable ?? 0) +
-        Number(reactionSummary.absurd ?? 0)
 
-      const agreeCount = Number(reactionSummary.agree ?? 0)
-      const disagreeCount = Number(reactionSummary.disagree ?? 0)
-      const wowCount = Number(reactionSummary.wow ?? 0)
-      const relatableCount = Number(reactionSummary.relatable ?? 0)
-      const absurdCount = Number(reactionSummary.absurd ?? 0)
-      const supportiveReactionTotal = agreeCount + relatableCount + wowCount
-      const conflictReactionTotal = disagreeCount + absurdCount
+      const supportiveReactionTotal =
+        Number(reactionSummary.relatable ?? 0) +
+        Number(reactionSummary.agree ?? 0) +
+        Number(reactionSummary.wow ?? 0)
+      const conflictReactionTotal =
+        Number(reactionSummary.disagree ?? 0) +
+        Number(reactionSummary.absurd ?? 0)
+      const reactionTotal = supportiveReactionTotal + conflictReactionTotal
+      const isMinority = !!majoritySide && comment.side !== majoritySide
 
       const heatScore =
-        supportiveReactionTotal >= 2
-          ? agreeCount * 2 + relatableCount * 2 + wowCount * 1
-          : 0
-
-      const battleScore =
-        conflictReactionTotal >= 2 ? disagreeCount * 2 + absurdCount * 2 : 0
+        supportiveReactionTotal >= 2 ? supportiveReactionTotal : 0
+      const battleScore = conflictReactionTotal >= 2 ? conflictReactionTotal : 0
+      const minorityScore =
+        isMinority && supportiveReactionTotal >= 2 ? supportiveReactionTotal : 0
 
       return {
         comment,
@@ -3132,6 +3154,8 @@ function CommentModal({
         conflictReactionTotal,
         heatScore,
         battleScore,
+        minorityScore,
+        isMinority,
       }
     })
   }, [visiblePool, commentReactionMap])
@@ -3222,24 +3246,14 @@ function CommentModal({
   }, [commentRows])
 
   const minorityComments = useMemo(() => {
-    const majoritySide: Side | null =
-      sideSummary.leftCount === sideSummary.rightCount
-        ? null
-        : sideSummary.leftCount > sideSummary.rightCount
-          ? 'left'
-          : 'right'
-
-    if (!majoritySide)
-      return [...commentRows].sort((a, b) => b.comment.id - a.comment.id)
-
     return [...commentRows]
-      .filter((item) => item.comment.side !== majoritySide)
+      .filter((item) => item.isMinority && item.minorityScore > 0)
       .sort((a, b) => {
-        if (b.reactionTotal !== a.reactionTotal)
-          return b.reactionTotal - a.reactionTotal
+        if (b.minorityScore !== a.minorityScore)
+          return b.minorityScore - a.minorityScore
         return b.comment.id - a.comment.id
       })
-  }, [commentRows, sideSummary.leftCount, sideSummary.rightCount])
+  }, [commentRows])
 
   const sortedRows = useMemo(() => {
     if (sortType === 'latest') {
@@ -3302,44 +3316,36 @@ function CommentModal({
   }
 
   const battleHighlight =
-    battleComment &&
-    battleComment.battleScore >= 4 &&
-    battleComment.conflictReactionTotal >= 2
-      ? battleComment
-      : null
+    battleComment && battleComment.battleScore >= 2 ? battleComment : null
 
   const battleMeta = battleHighlight
     ? battleHighlight.battleScore >= 5
       ? {
           label: '🔥 지금 붙는 중',
-          helper: '반박/어이없음 반응이 몰리는 댓글',
+          helper: '반박 반응이 몰리는 댓글',
           toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
         }
       : {
           label: '👀 슬슬 붙는 중',
-          helper: '억까/어이없음 반응이 모이는 댓글',
+          helper: '반박이 슬슬 붙는 댓글',
           toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
         }
     : null
 
   const hotHighlight =
-    bestCommentRow &&
-    bestCommentRow.heatScore >= 3 &&
-    bestCommentRow.supportiveReactionTotal >= 2
-      ? bestCommentRow
-      : null
+    bestCommentRow && bestCommentRow.heatScore >= 2 ? bestCommentRow : null
 
   const minorityHighlight =
     (minorityComments[0] ?? null) &&
-    (minorityComments[0]?.reactionTotal ?? 0) >= 2
+    (minorityComments[0]?.minorityScore ?? 0) >= 2
       ? minorityComments[0]
       : null
 
   const minorityMeta = minorityHighlight
     ? {
         label:
-          minorityHighlight.reactionTotal >= 4
-            ? '😳 소수 의견 급상승'
+          minorityHighlight.minorityScore >= 3
+            ? '😳 소수 의견 공감 붙는 중'
             : '🤨 소수 의견 포착',
         helper:
           minorityHighlight.reactionTotal >= 4
@@ -8213,17 +8219,26 @@ ${shareUrl}`)
     reactionType: CommentReactionType,
   ) => {
     if (!currentActorUnifiedKey) return
+    if (reactionType !== 'relatable' && reactionType !== 'disagree') return
 
     const mapKey = `${commentId}:${reactionType}`
     if (commentReactionInFlightRef.current[mapKey]) return
 
+    const oppositeReactionType: CommentReactionType =
+      reactionType === 'relatable' ? 'disagree' : 'relatable'
+    const oppositeMapKey = `${commentId}:${oppositeReactionType}`
     const alreadyActive = !!myCommentReactions[mapKey]
+    const oppositeActive = !!myCommentReactions[oppositeMapKey]
 
     commentReactionInFlightRef.current[mapKey] = true
+    if (oppositeActive) {
+      commentReactionInFlightRef.current[oppositeMapKey] = true
+    }
 
     setMyCommentReactions((prev) => ({
       ...prev,
       [mapKey]: !alreadyActive,
+      ...(oppositeActive ? { [oppositeMapKey]: false } : {}),
     }))
 
     setCommentReactionMap((prev) => {
@@ -8236,6 +8251,14 @@ ${shareUrl}`)
             0,
             Number(base[reactionType] ?? 0) + (alreadyActive ? -1 : 1),
           ),
+          ...(oppositeActive
+            ? {
+                [oppositeReactionType]: Math.max(
+                  0,
+                  Number(base[oppositeReactionType] ?? 0) - 1,
+                ),
+              }
+            : {}),
         },
       }
     })
@@ -8260,6 +8283,22 @@ ${shareUrl}`)
         return
       }
 
+      if (oppositeActive) {
+        const { error: oppositeDeleteError } = await supabase
+          .from('comment_reactions')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('reactor_key', currentActorUnifiedKey)
+          .eq('reaction_type', oppositeReactionType)
+
+        if (oppositeDeleteError) {
+          console.error('반대 댓글 반응 삭제 실패', oppositeDeleteError)
+          showToast('댓글 반응 반영 실패')
+          void fetchAll(voterKey)
+          return
+        }
+      }
+
       const { error } = await supabase.from('comment_reactions').upsert(
         {
           comment_id: commentId,
@@ -8279,9 +8318,10 @@ ${shareUrl}`)
         return
       }
 
-      showToast('반응 반영')
+      showToast(reactionType === 'relatable' ? '공감 반영' : '반박 반영')
     } finally {
       commentReactionInFlightRef.current[mapKey] = false
+      commentReactionInFlightRef.current[oppositeMapKey] = false
     }
   }
 
