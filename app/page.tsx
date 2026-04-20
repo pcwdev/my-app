@@ -3032,7 +3032,7 @@ function CommentModal({
   post: PostItem | null
   open: boolean
   onClose: () => void
-  onAddComment: (text: string, side: Side) => void
+  onAddComment: (text: string, side: Side) => Promise<void> | void
   onLikeComment: (commentId: number) => void
   likedComments: Record<number, boolean>
   onOpenReportComment: (commentId: number) => void
@@ -3058,6 +3058,7 @@ function CommentModal({
     'best' | 'latest' | 'battle' | 'minority'
   >('best')
   const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
@@ -3302,13 +3303,20 @@ function CommentModal({
 
   const submitComment = async () => {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!trimmed || isSubmitting) return
+
+    setIsSubmitting(true)
 
     try {
       await Promise.resolve(onAddComment(trimmed, commentSide))
       setText('')
+      requestAnimationFrame(() => {
+        inputRef.current?.focus()
+      })
     } catch (error) {
       console.error('댓글 등록 실패', error)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -3726,6 +3734,7 @@ function CommentModal({
                 ref={inputRef}
                 value={text}
                 maxLength={LIMITS.comment}
+                disabled={isSubmitting}
                 onChange={(e) => setText(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -3747,6 +3756,7 @@ function CommentModal({
               <button
                 type="button"
                 onClick={() => void submitComment()}
+                disabled={isSubmitting || !text.trim()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
                 className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-[18px] text-white shadow-[0_14px_26px_rgba(15,23,42,0.12)] ${
@@ -5228,6 +5238,51 @@ export default function MatnyaApp() {
     if (postIds.length === 0 && commentIds.length === 0) return
     void loadActorReactionSelections(postIds, commentIds)
   }, [posts, loadActorReactionSelections])
+
+  const refreshCommentsForPost = useCallback(
+    async (postId: number) => {
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', postId)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false })
+
+      if (commentsError) {
+        console.error('단일 글 comments 새로고침 실패', commentsError)
+        return
+      }
+
+      const nextComments: CommentItem[] = (commentsData ?? []).map(
+        (comment: any) => ({
+          id: Number(comment.id),
+          author: comment.author,
+          authorKey: comment.author_key ?? null,
+          side: comment.side as Side,
+          text: comment.text,
+          likes: Number(comment.likes ?? 0),
+          reportCount: Number(comment.report_count ?? 0),
+          hidden: Boolean(comment.hidden ?? false),
+        }),
+      )
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                comments: nextComments,
+              }
+            : post,
+        ),
+      )
+
+      const commentIds = nextComments.map((comment) => comment.id)
+      await loadReactionAndOutcomeData([postId], commentIds)
+      await loadActorReactionSelections([postId], commentIds)
+    },
+    [loadActorReactionSelections, loadReactionAndOutcomeData],
+  )
 
   const fetchMyActivity = useCallback(async (userId: string) => {
     if (!userId) return
@@ -8464,12 +8519,14 @@ ${shareUrl}`)
   const addComment = async (text: string, side: Side) => {
     if (!currentPost) return
 
+    const targetPostId = currentPost.id
+    const targetPostTitle = currentPost.title
     const authorName = profile?.anonymous_name ?? guestName
 
     const { data: inserted, error } = await supabase
       .from('comments')
       .insert({
-        post_id: currentPost.id,
+        post_id: targetPostId,
         author: authorName,
         side,
         text,
@@ -8497,10 +8554,18 @@ ${shareUrl}`)
     }
 
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === currentPost.id
-          ? { ...p, comments: [newComment, ...p.comments] }
-          : p,
+      prev.map((post) =>
+        post.id === targetPostId
+          ? {
+              ...post,
+              comments: [
+                newComment,
+                ...post.comments.filter(
+                  (comment) => comment.id !== newComment.id,
+                ),
+              ],
+            }
+          : post,
       ),
     )
 
@@ -8509,29 +8574,34 @@ ${shareUrl}`)
         {
           id: newComment.id,
           commentId: newComment.id,
-          postId: currentPost.id,
-          postTitle: currentPost.title,
+          postId: targetPostId,
+          postTitle: targetPostTitle,
           text: newComment.text,
         },
-        ...prev,
+        ...prev.filter((comment) => comment.commentId !== newComment.id),
       ])
     }
 
-    await logPostEvent({
-      postId: currentPost.id,
-      eventType: 'comment',
-      side,
-      refId: newComment.id,
-    })
-    scheduleDiscoveryRefresh()
+    showToast('댓글 등록됨')
 
-    await updateProgress(
-      {
-        points: 3,
-        comments_count: 1,
-      },
-      '🔥 +3 포인트',
-    )
+    await Promise.all([
+      logPostEvent({
+        postId: targetPostId,
+        eventType: 'comment',
+        side,
+        refId: newComment.id,
+      }),
+      updateProgress(
+        {
+          points: 3,
+          comments_count: 1,
+        },
+        '🔥 +3 포인트',
+      ),
+      refreshCommentsForPost(targetPostId),
+    ])
+
+    scheduleDiscoveryRefresh()
     refreshWatchlistSignalsAfterAction(120)
   }
 
