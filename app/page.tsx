@@ -2194,24 +2194,18 @@ const CommentCard = React.memo(function CommentCard({
     : 'border-violet-200 bg-violet-50/90 text-violet-700'
   const resolvedMeta = authorMeta ?? getFallbackAuthorMeta(comment.author)
   const badgeTheme = getBadgeTheme(resolvedMeta.badgeName)
-
-  const agreeCount =
-    Number(reactionSummary.relatable ?? 0) +
-    Number(reactionSummary.agree ?? 0) +
-    Number(reactionSummary.wow ?? 0)
-  const disagreeCount =
-    Number(reactionSummary.disagree ?? 0) + Number(reactionSummary.absurd ?? 0)
+  const levelTheme = getLevelTheme(resolvedMeta.level)
 
   return (
     <div
-      className={`overflow-hidden rounded-[16px] border ${
+      className={`overflow-hidden rounded-[24px] border shadow-[0_14px_30px_rgba(15,23,42,0.06)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
-          : 'border-slate-200/90 bg-white'
+          : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.98)_100%)]'
       }`}
     >
       <div
-        className={`h-[3px] w-full ${
+        className={`h-1 w-full ${
           comment.hidden
             ? 'bg-red-200'
             : isLeft
@@ -2219,77 +2213,89 @@ const CommentCard = React.memo(function CommentCard({
               : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
         }`}
       />
-      <div className="px-3 py-2.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <div className="p-3.5">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 font-bold ${sideBadgeClass}`}
+                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
               >
                 {sideLabel}
               </span>
-              <span className="max-w-[120px] truncate font-semibold text-slate-900">
+              <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
                 {comment.author}
               </span>
-              <span className="text-slate-400">·</span>
-              <span className="font-semibold text-slate-500">
-                Lv.{resolvedMeta.level}
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
+              >
+                {levelTheme.icon} Lv.{resolvedMeta.level}
               </span>
               {resolvedMeta.badgeName ? (
-                <>
-                  <span className="text-slate-300">·</span>
-                  <span
-                    className={`inline-flex rounded-full border px-1.5 py-0.5 font-bold ${badgeTheme.softClass}`}
-                  >
-                    {badgeTheme.icon} {resolvedMeta.badgeName}
-                  </span>
-                </>
+                <span
+                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
+                >
+                  {badgeTheme.icon} {resolvedMeta.badgeName}
+                </span>
               ) : null}
             </div>
           </div>
-
-          <button
-            onClick={() => onOpenReportComment(comment.id)}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-            aria-label="댓글 신고"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
         </div>
 
-        <div className="mt-1.5 text-[13px] leading-5 tracking-[-0.01em] text-slate-700">
+        <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-700">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-            <button
-              onClick={() => onReactComment(comment.id, 'relatable')}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-bold transition ${
-                myReactionMap.relatable
-                  ? 'border-sky-200 bg-sky-50 text-sky-700'
-                  : 'border-slate-200 bg-white text-slate-600'
-              }`}
-            >
-              <span>공감</span>
-              <span>{agreeCount}</span>
-            </button>
-            <button
-              onClick={() => onReactComment(comment.id, 'disagree')}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-bold transition ${
-                myReactionMap.disagree
-                  ? 'border-rose-200 bg-rose-50 text-rose-700'
-                  : 'border-slate-200 bg-white text-slate-600'
-              }`}
-            >
-              <span>반박</span>
-              <span>{disagreeCount}</span>
-            </button>
+          <div className="mt-3 space-y-2.5">
+            <div className="flex flex-wrap gap-2 text-[11px]">
+              {[
+                {
+                  reactionType: 'relatable' as CommentReactionType,
+                  label: '공감',
+                  count:
+                    Number(reactionSummary.relatable ?? 0) +
+                    Number(reactionSummary.agree ?? 0) +
+                    Number(reactionSummary.wow ?? 0),
+                  active: !!myReactionMap.relatable,
+                  activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
+                  idleClass: 'border-slate-200 bg-white text-slate-500',
+                },
+                {
+                  reactionType: 'disagree' as CommentReactionType,
+                  label: '반박',
+                  count:
+                    Number(reactionSummary.disagree ?? 0) +
+                    Number(reactionSummary.absurd ?? 0),
+                  active: !!myReactionMap.disagree,
+                  activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
+                  idleClass: 'border-slate-200 bg-white text-slate-500',
+                },
+              ].map((item) => (
+                <button
+                  key={item.reactionType}
+                  onClick={() => onReactComment(comment.id, item.reactionType)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
+                >
+                  <span>{item.label}</span>
+                  <span>{item.count}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 text-xs">
+              <button
+                onClick={() => onOpenReportComment(comment.id)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                aria-label="댓글 신고"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         ) : null}
 
-        {adminMode && comment.hidden ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+        {adminMode && comment.hidden && (
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
               className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
@@ -2303,7 +2309,7 @@ const CommentCard = React.memo(function CommentCard({
               삭제
             </button>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   )
@@ -3040,13 +3046,12 @@ function CommentModal({
 }) {
   const [text, setText] = useState('')
   const [commentSide, setCommentSide] = useState<Side>('left')
-  const [sortType, setSortType] = useState<
-    'best' | 'latest' | 'battle' | 'minority'
-  >('best')
-  const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
+  const [activeTab, setActiveTab] = useState<Side>('left')
+  const [sortType, setSortType] = useState<'best' | 'battle' | 'latest'>('best')
+  const [visibleCount, setVisibleCount] = useState(12)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pendingScrollId, setPendingScrollId] = useState<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!open || typeof window === 'undefined') return
@@ -3074,7 +3079,7 @@ function CommentModal({
     })
     const timer = window.setTimeout(() => {
       focusInput()
-    }, 160)
+    }, 120)
 
     return () => {
       window.cancelAnimationFrame(rafId)
@@ -3083,14 +3088,16 @@ function CommentModal({
   }, [open, post?.id])
 
   useEffect(() => {
-    if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
-  }, [open, post?.id, sortType])
+    if (!open) return
+    setVisibleCount(12)
+    setPendingScrollId(null)
+  }, [open, post?.id, activeTab, sortType])
 
   useEffect(() => {
     if (!open || !post) return
 
     const exposedCount = Math.min(
-      3,
+      5,
       (post.comments ?? []).filter((comment) => !comment.hidden || adminMode)
         .length,
     )
@@ -3100,6 +3107,22 @@ function CommentModal({
     }
   }, [open, post?.id, adminMode, onExposeComments])
 
+  useEffect(() => {
+    if (!pendingScrollId || typeof window === 'undefined') return
+
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`comment-row-${pendingScrollId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      setPendingScrollId(null)
+    }, 120)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [pendingScrollId, activeTab, sortType])
+
   const visiblePool = useMemo(() => {
     if (!post) return []
     return (post.comments ?? []).filter(
@@ -3108,6 +3131,8 @@ function CommentModal({
   }, [post, adminMode])
 
   const commentRows = useMemo(() => {
+    if (!post) return []
+
     const leftCommentCount = visiblePool.filter(
       (comment) => comment.side === 'left',
     ).length
@@ -3129,22 +3154,13 @@ function CommentModal({
         Number(reactionSummary.relatable ?? 0) +
         Number(reactionSummary.agree ?? 0) +
         Number(reactionSummary.wow ?? 0)
+
       const conflictReactionTotal =
         Number(reactionSummary.disagree ?? 0) +
         Number(reactionSummary.absurd ?? 0)
+
       const reactionTotal = supportiveReactionTotal + conflictReactionTotal
       const isMinority = !!majoritySide && comment.side !== majoritySide
-
-      const heatScore = reactionTotal >= 4 ? reactionTotal : 0
-      const battleGap = Math.abs(
-        supportiveReactionTotal - conflictReactionTotal,
-      )
-      const battleScore =
-        reactionTotal >= 4 &&
-        battleGap <= Math.max(1, Math.floor(reactionTotal * 0.25))
-          ? reactionTotal
-          : 0
-      const minorityScore = isMinority && reactionTotal >= 3 ? reactionTotal : 0
 
       return {
         comment,
@@ -3152,62 +3168,85 @@ function CommentModal({
         reactionTotal,
         supportiveReactionTotal,
         conflictReactionTotal,
-        heatScore,
-        battleScore,
-        minorityScore,
+        heatScore: supportiveReactionTotal,
+        battleScore:
+          reactionTotal >= 4
+            ? Math.max(
+                0,
+                Math.min(supportiveReactionTotal, conflictReactionTotal),
+              ) * 2
+            : 0,
         isMinority,
       }
     })
-  }, [visiblePool, commentReactionMap])
+  }, [post, visiblePool, commentReactionMap])
+
+  const leftRows = useMemo(
+    () => commentRows.filter((item) => item.comment.side === 'left'),
+    [commentRows],
+  )
+
+  const rightRows = useMemo(
+    () => commentRows.filter((item) => item.comment.side === 'right'),
+    [commentRows],
+  )
+
+  const sortRows = useCallback(
+    (rows: typeof commentRows) => {
+      const cloned = [...rows]
+      if (sortType === 'latest') {
+        return cloned.sort((a, b) => b.comment.id - a.comment.id)
+      }
+      if (sortType === 'battle') {
+        return cloned.sort((a, b) => {
+          if (b.battleScore !== a.battleScore)
+            return b.battleScore - a.battleScore
+          if (b.reactionTotal !== a.reactionTotal)
+            return b.reactionTotal - a.reactionTotal
+          return b.comment.id - a.comment.id
+        })
+      }
+      return cloned.sort((a, b) => {
+        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
+        if (b.reactionTotal !== a.reactionTotal)
+          return b.reactionTotal - a.reactionTotal
+        return b.comment.id - a.comment.id
+      })
+    },
+    [sortType],
+  )
+
+  const sortedLeftRows = useMemo(() => sortRows(leftRows), [leftRows, sortRows])
+  const sortedRightRows = useMemo(
+    () => sortRows(rightRows),
+    [rightRows, sortRows],
+  )
+
+  const currentRows = activeTab === 'left' ? sortedLeftRows : sortedRightRows
+  const visibleRows = currentRows.slice(0, visibleCount)
+  const hasMoreComments = currentRows.length > visibleCount
 
   const sideSummary = useMemo(() => {
     const total = commentRows.length
-    const leftCount = commentRows.filter(
-      (item) => item.comment.side === 'left',
-    ).length
-    const rightCount = commentRows.filter(
-      (item) => item.comment.side === 'right',
-    ).length
-    const doubtCount = commentRows.filter(
-      (item) =>
-        Number(item.reactionSummary.disagree ?? 0) +
-          Number(item.reactionSummary.absurd ?? 0) >=
-        3,
-    ).length
-
-    const leftPercent = total > 0 ? Math.round((leftCount / total) * 100) : 0
-    const rightPercent = total > 0 ? Math.round((rightCount / total) * 100) : 0
+    const leftCount = leftRows.length
+    const rightCount = rightRows.length
+    const leftPercent = total > 0 ? Math.round((leftCount / total) * 100) : 50
+    const rightPercent = total > 0 ? Math.round((rightCount / total) * 100) : 50
 
     let moodTitle = '댓글 분위기 아직 조용함'
-    let moodHelper = '첫 반응 몇 개만 붙어도 분위기가 확 달라짐'
     let moodToneClass = 'border-slate-200 bg-slate-50 text-slate-600'
 
     if (total > 0) {
       const diff = Math.abs(leftCount - rightCount) / Math.max(total, 1)
       if (diff <= 0.12) {
         moodTitle = '🔥 지금 개갈림'
-        moodHelper = '댓글에서도 거의 반반으로 갈리는 중'
         moodToneClass = 'border-rose-200 bg-rose-50 text-rose-700'
       } else if (leftCount > rightCount) {
-        moodTitle = `${post?.leftLabel ?? '왼쪽'} 쪽 댓글 우세`
-        moodHelper =
-          diff <= 0.28
-            ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 확실히 더 많음'
-        moodToneClass =
-          diff <= 0.28
-            ? 'border-sky-200 bg-sky-50 text-sky-700'
-            : 'border-blue-200 bg-blue-50 text-blue-700'
+        moodTitle = `${post?.leftLabel ?? '좌'} 쪽 댓글 우세`
+        moodToneClass = 'border-blue-200 bg-blue-50 text-blue-700'
       } else if (rightCount > leftCount) {
-        moodTitle = `${post?.rightLabel ?? '오른쪽'} 쪽 댓글 우세`
-        moodHelper =
-          diff <= 0.28
-            ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 확실히 더 많음'
-        moodToneClass =
-          diff <= 0.28
-            ? 'border-violet-200 bg-violet-50 text-violet-700'
-            : 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
+        moodTitle = `${post?.rightLabel ?? '우'} 쪽 댓글 우세`
+        moodToneClass = 'border-violet-200 bg-violet-50 text-violet-700'
       }
     }
 
@@ -3215,88 +3254,46 @@ function CommentModal({
       total,
       leftCount,
       rightCount,
-      doubtCount,
       leftPercent,
       rightPercent,
       moodTitle,
-      moodHelper,
       moodToneClass,
     }
-  }, [commentRows, post])
-
-  const battleComment = useMemo(() => {
-    return (
-      [...commentRows]
-        .filter((item) => item.battleScore > 0)
-        .sort((a, b) => {
-          if (b.battleScore !== a.battleScore)
-            return b.battleScore - a.battleScore
-          return b.comment.id - a.comment.id
-        })[0] ?? null
-    )
-  }, [commentRows])
+  }, [commentRows, leftRows.length, rightRows.length, post])
 
   const bestCommentRow = useMemo(() => {
     return (
-      [...commentRows]
-        .filter((item) => item.heatScore > 0)
-        .sort((a, b) => {
-          if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
-          return b.comment.id - a.comment.id
-        })[0] ?? null
+      [...commentRows].sort((a, b) => {
+        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
+        if (b.reactionTotal !== a.reactionTotal)
+          return b.reactionTotal - a.reactionTotal
+        return b.comment.id - a.comment.id
+      })[0] ?? null
     )
   }, [commentRows])
 
-  const minorityComments = useMemo(() => {
-    return [...commentRows]
-      .filter((item) => item.isMinority && item.minorityScore > 0)
-      .sort((a, b) => {
-        if (b.minorityScore !== a.minorityScore)
-          return b.minorityScore - a.minorityScore
-        return b.comment.id - a.comment.id
-      })
-  }, [commentRows])
-
-  const sortedRows = useMemo(() => {
-    if (sortType === 'latest') {
-      return [...commentRows].sort((a, b) => b.comment.id - a.comment.id)
-    }
-
-    if (sortType === 'battle') {
-      return [...commentRows].sort((a, b) => {
+  const liveCommentRow = useMemo(() => {
+    return (
+      [...commentRows].sort((a, b) => {
         if (b.battleScore !== a.battleScore)
           return b.battleScore - a.battleScore
+        if (b.reactionTotal !== a.reactionTotal)
+          return b.reactionTotal - a.reactionTotal
         return b.comment.id - a.comment.id
-      })
-    }
+      })[0] ?? null
+    )
+  }, [commentRows])
 
-    if (sortType === 'minority') {
-      return minorityComments
-    }
-
-    return [...commentRows].sort((a, b) => {
-      if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
-      return b.comment.id - a.comment.id
-    })
-  }, [commentRows, minorityComments, sortType])
+  const openHighlightComment = useCallback(
+    (row: (typeof commentRows)[number] | null) => {
+      if (!row) return
+      setActiveTab(row.comment.side)
+      setPendingScrollId(row.comment.id)
+    },
+    [],
+  )
 
   if (!open || !post) return null
-
-  const visibleRows = sortedRows.slice(0, visibleCount)
-  const hasMoreComments = sortedRows.length > visibleCount
-  const selectedIsLeft = commentSide === 'left'
-  const promptPool = selectedIsLeft
-    ? [
-        `${post.leftLabel} 쪽이면 왜 그렇게 봄?`,
-        `${post.leftLabel} 쪽 근거 한 줄로 말해줘`,
-        `너라면 ${post.leftLabel} 쪽이라고 보는 이유는?`,
-      ]
-    : [
-        `${post.rightLabel} 쪽이면 왜 그렇게 봄?`,
-        `${post.rightLabel} 쪽 근거 한 줄로 말해줘`,
-        `너라면 ${post.rightLabel} 쪽이라고 보는 이유는?`,
-      ]
-  const placeholder = promptPool[(post.id + text.length) % promptPool.length]
 
   const submitComment = async () => {
     const trimmed = text.trim()
@@ -3307,6 +3304,7 @@ function CommentModal({
     try {
       await Promise.resolve(onAddComment(trimmed, commentSide))
       setText('')
+      setActiveTab(commentSide)
       requestAnimationFrame(() => {
         inputRef.current?.focus()
       })
@@ -3317,57 +3315,10 @@ function CommentModal({
     }
   }
 
-  const jumpTargets = [
-    bestCommentRow
-      ? {
-          key: 'hot',
-          label: `🔥 반응많음 ${bestCommentRow.reactionTotal}`,
-          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-          commentId: bestCommentRow.comment.id,
-        }
-      : null,
-    battleComment
-      ? {
-          key: 'battle',
-          label: `⚡ 개갈림 ${Math.round(battleComment.battleScore)}`,
-          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
-          commentId: battleComment.comment.id,
-        }
-      : null,
-    minorityComments[0]
-      ? {
-          key: 'minority',
-          label: `😳 너만 틀림 ${minorityComments[0].reactionTotal}`,
-          toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-          commentId: minorityComments[0].comment.id,
-        }
-      : null,
-  ].filter(Boolean) as {
-    key: string
-    label: string
-    toneClass: string
-    commentId: number
-  }[]
-
-  const jumpToComment = (commentId: number) => {
-    const container = scrollAreaRef.current
-    if (!container) return
-    const target = container.querySelector(
-      `[data-comment-row-id="${commentId}"]`,
-    ) as HTMLElement | null
-    if (!target) return
-
-    const targetTop = target.offsetTop - 12
-    container.scrollTo({
-      top: Math.max(0, targetTop),
-      behavior: 'smooth',
-    })
-  }
-
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
-        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-3 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,255,0.94)_100%)] px-3 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
@@ -3379,206 +3330,211 @@ function CommentModal({
             </div>
             <button
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.06)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 shadow-[0_8px_18px_rgba(15,23,42,0.06)]"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="mt-3 rounded-[20px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_6px_18px_rgba(15,23,42,0.04)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
-                  >
-                    {sideSummary.moodTitle}
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    댓글 {sideSummary.total}개
-                  </span>
-                </div>
-                <div className="mt-1.5 text-[12px] leading-5 text-slate-600">
-                  {sideSummary.moodHelper}
-                </div>
-              </div>
-              <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                의심 {sideSummary.doubtCount}
-              </div>
+          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
+              >
+                {sideSummary.moodTitle}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                댓글 {sideSummary.total}개
+              </span>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2">
-                <div className="text-[11px] text-blue-500">
-                  {post.leftLabel}
-                </div>
-                <div className="mt-1 flex items-end justify-between gap-2">
-                  <span className="text-base font-black text-slate-900">
-                    {sideSummary.leftCount}
+              <button
+                onClick={() => setActiveTab('left')}
+                className={`rounded-xl border px-3 py-2 text-left ${
+                  activeTab === 'left'
+                    ? 'border-blue-200 bg-blue-50 shadow-[0_8px_18px_rgba(59,130,246,0.10)]'
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-blue-600">
+                    {post.leftLabel}
                   </span>
-                  <span className="text-[12px] font-bold text-blue-700">
+                  <span className="text-[11px] font-extrabold text-blue-700">
                     {sideSummary.leftPercent}%
                   </span>
                 </div>
-              </div>
-              <div className="rounded-2xl border border-violet-100 bg-violet-50/80 px-3 py-2">
-                <div className="text-[11px] text-violet-500">
-                  {post.rightLabel}
+                <div className="mt-1 text-[18px] font-black text-slate-900">
+                  {sideSummary.leftCount}
                 </div>
-                <div className="mt-1 flex items-end justify-between gap-2">
-                  <span className="text-base font-black text-slate-900">
-                    {sideSummary.rightCount}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('right')}
+                className={`rounded-xl border px-3 py-2 text-left ${
+                  activeTab === 'right'
+                    ? 'border-violet-200 bg-violet-50 shadow-[0_8px_18px_rgba(124,58,237,0.10)]'
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-violet-600">
+                    {post.rightLabel}
                   </span>
-                  <span className="text-[12px] font-bold text-violet-700">
+                  <span className="text-[11px] font-extrabold text-violet-700">
                     {sideSummary.rightPercent}%
                   </span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
-            {[
-              ['best', '반응순'],
-              ['battle', '갈리는순'],
-              ['latest', '최신순'],
-              ['minority', '다른의견'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() =>
-                  setSortType(
-                    value as 'best' | 'latest' | 'battle' | 'minority',
-                  )
-                }
-                className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
-                  sortType === value
-                    ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_8px_18px_rgba(79,124,255,0.18)]'
-                    : 'border border-slate-200 bg-white text-slate-700 shadow-[0_4px_10px_rgba(15,23,42,0.04)]'
-                }`}
-              >
-                {label}
+                <div className="mt-1 text-[18px] font-black text-slate-900">
+                  {sideSummary.rightCount}
+                </div>
               </button>
-            ))}
-          </div>
+            </div>
 
-          {jumpTargets.length > 0 ? (
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-0.5">
-              {jumpTargets.map((chip) => (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => openHighlightComment(bestCommentRow)}
+                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left"
+              >
+                <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.16em] text-amber-600">
+                  <Flame className="h-3.5 w-3.5" />
+                  BEST COMMENT
+                </div>
+                <div className="mt-1 text-[12px] font-bold text-amber-800">
+                  가장 반응 큰 댓글 보기
+                </div>
+              </button>
+
+              <button
+                onClick={() => openHighlightComment(liveCommentRow)}
+                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+              >
+                <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.16em] text-rose-600">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  LIVE BATTLE
+                </div>
+                <div className="mt-1 text-[12px] font-bold text-rose-800">
+                  지금 붙는 댓글 보기
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {[
+                { value: 'best', label: '반응순' },
+                { value: 'battle', label: '갈리는순' },
+                { value: 'latest', label: '최신순' },
+              ].map((item) => (
                 <button
-                  key={chip.key}
-                  onClick={() => jumpToComment(chip.commentId)}
-                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${chip.toneClass}`}
+                  key={item.value}
+                  onClick={() =>
+                    setSortType(item.value as 'best' | 'battle' | 'latest')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${
+                    sortType === item.value
+                      ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.20)]'
+                      : 'border border-slate-200 bg-white text-slate-600'
+                  }`}
                 >
-                  {chip.label}
+                  {item.label}
                 </button>
               ))}
             </div>
-          ) : null}
+          </div>
         </div>
 
-        <div
-          ref={scrollAreaRef}
-          className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5 [webkit-overflow-scrolling:touch]"
-        >
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 [webkit-overflow-scrolling:touch]">
           {visibleRows.length === 0 ? (
-            <div className="rounded-[20px] border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-center shadow-[0_6px_18px_rgba(15,23,42,0.04)]">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/90 px-4 py-6 text-center shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-bold text-slate-900">
-                아직 댓글 분위기가 안 열림
+                {activeTab === 'left' ? post.leftLabel : post.rightLabel} 쪽
+                댓글이 아직 없음
               </div>
               <div className="mt-1 text-[13px] text-slate-500">
-                첫 반응 몇 개만 붙어도 누구 말이 더 맞는지 보이기 시작함
+                첫 댓글이 붙으면 이 탭에서 바로 보임
               </div>
             </div>
           ) : (
             <div className="space-y-1.5">
-              {visibleRows.map((item, index) => {
+              {visibleRows.map((item) => {
                 const comment = item.comment
-                const rowMeta =
-                  sortType === 'battle'
-                    ? item.battleScore > 0
-                      ? {
-                          label: '⚡ 개갈림',
-                          toneClass:
-                            'border-amber-200 bg-amber-50 text-amber-700',
-                        }
-                      : null
-                    : sortType === 'minority'
-                      ? item.minorityScore > 0
-                        ? {
-                            label: '😳 너만 틀림',
-                            toneClass:
-                              'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-                          }
-                        : null
-                      : sortType === 'latest' && index < 2
-                        ? {
-                            label: '🆕 방금 올라옴',
-                            toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
-                          }
-                        : item.heatScore > 0
-                          ? {
-                              label: '🔥 지금 난리남',
-                              toneClass:
-                                'border-rose-200 bg-rose-50 text-rose-700',
-                            }
-                          : null
+                const sideToneClass =
+                  comment.side === 'left'
+                    ? 'border-l-[4px] border-l-blue-400'
+                    : 'border-l-[4px] border-l-violet-400'
 
                 return (
                   <div
                     key={comment.id}
-                    data-comment-row-id={comment.id}
-                    className="space-y-1"
+                    id={`comment-row-${comment.id}`}
+                    className={`rounded-xl bg-white/95 shadow-[0_6px_16px_rgba(15,23,42,0.04)] ${sideToneClass}`}
                   >
-                    {rowMeta ? (
-                      <div
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${rowMeta.toneClass}`}
-                      >
-                        {rowMeta.label}
-                      </div>
-                    ) : null}
+                    <div className="px-2 py-1.5">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                            comment.side === 'left'
+                              ? 'border-blue-200 bg-blue-50 text-blue-700'
+                              : 'border-violet-200 bg-violet-50 text-violet-700'
+                          }`}
+                        >
+                          {comment.side === 'left'
+                            ? post.leftLabel
+                            : post.rightLabel}
+                        </span>
 
-                    <CommentCard
-                      comment={comment}
-                      leftLabel={post.leftLabel}
-                      rightLabel={post.rightLabel}
-                      onOpenReportComment={onOpenReportComment}
-                      adminMode={adminMode}
-                      onAdminRestoreComment={onAdminRestoreComment}
-                      onAdminDeleteComment={onAdminDeleteComment}
-                      authorMeta={resolveAuthorMeta(
-                        {
-                          author: comment.author,
-                          authorKey: comment.authorKey ?? null,
-                        },
-                        authorMetaMap,
-                        guestName,
-                        currentUserLevel,
-                        featuredBadge,
-                        currentActorKey,
-                      )}
-                      reactionSummary={item.reactionSummary}
-                      myReactionMap={{
-                        agree: !!myCommentReactions[`${comment.id}:agree`],
-                        disagree:
-                          !!myCommentReactions[`${comment.id}:disagree`],
-                        wow: !!myCommentReactions[`${comment.id}:wow`],
-                        relatable:
-                          !!myCommentReactions[`${comment.id}:relatable`],
-                        absurd: !!myCommentReactions[`${comment.id}:absurd`],
-                      }}
-                      onReactComment={onReactComment}
-                    />
+                        {item.battleScore >= 2 ? (
+                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                            ⚡ 개갈림
+                          </span>
+                        ) : item.heatScore >= 3 ? (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                            🔥 반응많음
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <CommentCard
+                        comment={comment}
+                        leftLabel={post.leftLabel}
+                        rightLabel={post.rightLabel}
+                        onOpenReportComment={onOpenReportComment}
+                        adminMode={adminMode}
+                        onAdminRestoreComment={onAdminRestoreComment}
+                        onAdminDeleteComment={onAdminDeleteComment}
+                        authorMeta={resolveAuthorMeta(
+                          {
+                            author: comment.author,
+                            authorKey: comment.authorKey ?? null,
+                          },
+                          authorMetaMap,
+                          guestName,
+                          currentUserLevel,
+                          featuredBadge,
+                          currentActorKey,
+                        )}
+                        reactionSummary={item.reactionSummary}
+                        myReactionMap={{
+                          agree: !!myCommentReactions[`${comment.id}:agree`],
+                          disagree:
+                            !!myCommentReactions[`${comment.id}:disagree`],
+                          wow: !!myCommentReactions[`${comment.id}:wow`],
+                          relatable:
+                            !!myCommentReactions[`${comment.id}:relatable`],
+                          absurd: !!myCommentReactions[`${comment.id}:absurd`],
+                        }}
+                        onReactComment={onReactComment}
+                      />
+                    </div>
                   </div>
                 )
               })}
 
               {hasMoreComments ? (
                 <button
-                  onClick={() =>
-                    setVisibleCount((prev) => prev + INITIAL_COMMENT_BATCH)
-                  }
-                  className="mt-1 w-full rounded-[16px] border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
+                  onClick={() => setVisibleCount((prev) => prev + 12)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]"
                 >
                   댓글 더 보기
                 </button>
@@ -3587,51 +3543,59 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(246,248,252,0.96)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-3 shadow-[0_-8px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-t border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-3 py-3 shadow-[0_-8px_20px_rgba(15,23,42,0.04)]">
           <div className="mb-2 flex gap-2">
             <button
               onClick={() => setCommentSide('left')}
-              className={`flex-1 rounded-[16px] px-3 py-2 text-sm font-black transition ${
-                selectedIsLeft
-                  ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
-                  : 'border border-slate-200 bg-white text-slate-700'
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold ${
+                commentSide === 'left'
+                  ? 'bg-blue-600 text-white shadow-[0_10px_20px_rgba(37,99,235,0.22)]'
+                  : 'border border-slate-200 bg-white text-slate-600'
               }`}
             >
               {post.leftLabel}
             </button>
             <button
               onClick={() => setCommentSide('right')}
-              className={`flex-1 rounded-[16px] px-3 py-2 text-sm font-black transition ${
-                !selectedIsLeft
-                  ? 'bg-[linear-gradient(135deg,#9f6bff_0%,#8b5cf6_55%,#b18cff_100%)] text-white shadow-[0_10px_20px_rgba(139,92,246,0.22)]'
-                  : 'border border-slate-200 bg-white text-slate-700'
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold ${
+                commentSide === 'right'
+                  ? 'bg-violet-600 text-white shadow-[0_10px_20px_rgba(124,58,237,0.22)]'
+                  : 'border border-slate-200 bg-white text-slate-600'
               }`}
             >
               {post.rightLabel}
             </button>
           </div>
 
-          <div className="rounded-[18px] border border-slate-200 bg-white p-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
             <textarea
               ref={inputRef}
               value={text}
-              onChange={(e) => setText(e.target.value.slice(0, LIMITS.comment))}
-              placeholder={placeholder}
-              className="h-20 w-full resize-none bg-transparent text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+              onChange={(event) =>
+                setText(event.target.value.slice(0, LIMITS.comment))
+              }
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                  event.preventDefault()
+                  void submitComment()
+                }
+              }}
+              placeholder={`${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 의견 남기기`}
+              className="min-h-[72px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#4f7cff] focus:bg-white"
             />
             <div className="mt-2 flex items-center justify-between gap-3">
               <span
-                className={`text-[11px] font-bold ${getCounterTone(text.length, LIMITS.comment)}`}
+                className={`text-[11px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
               >
                 {text.length}/{LIMITS.comment}
               </span>
               <button
-                onClick={submitComment}
+                onClick={() => void submitComment()}
                 disabled={!text.trim() || isSubmitting}
-                className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] px-4 py-2 text-sm font-black text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)] disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex items-center gap-1 rounded-xl bg-[#4f7cff] px-3 py-2 text-sm font-bold text-white shadow-[0_10px_22px_rgba(79,124,255,0.24)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Send className="h-4 w-4" />
-                {isSubmitting ? '등록 중...' : '댓글 쓰기'}
+                {isSubmitting ? '등록중' : '댓글 쓰기'}
               </button>
             </div>
           </div>
