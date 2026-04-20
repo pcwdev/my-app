@@ -3117,17 +3117,12 @@ function CommentModal({
       const conflictReactionTotal = disagreeCount + absurdCount
 
       const heatScore =
-        reactionTotal >= 3
-          ? agreeCount * 1.45 +
-            relatableCount * 1.1 +
-            wowCount * 1.0 +
-            supportiveReactionTotal * 0.35
+        supportiveReactionTotal >= 2
+          ? agreeCount * 2 + relatableCount * 2 + wowCount * 1
           : 0
 
       const battleScore =
-        reactionTotal >= 3 && conflictReactionTotal >= 2
-          ? disagreeCount * 1.6 + absurdCount * 1.35 + wowCount * 0.25
-          : 0
+        conflictReactionTotal >= 2 ? disagreeCount * 2 + absurdCount * 2 : 0
 
       return {
         comment,
@@ -3308,7 +3303,7 @@ function CommentModal({
 
   const battleHighlight =
     battleComment &&
-    battleComment.battleScore > 0 &&
+    battleComment.battleScore >= 4 &&
     battleComment.conflictReactionTotal >= 2
       ? battleComment
       : null
@@ -3329,9 +3324,8 @@ function CommentModal({
 
   const hotHighlight =
     bestCommentRow &&
-    bestCommentRow.heatScore > 0 &&
-    bestCommentRow.supportiveReactionTotal >= 2 &&
-    bestCommentRow.reactionTotal >= 3
+    bestCommentRow.heatScore >= 3 &&
+    bestCommentRow.supportiveReactionTotal >= 2
       ? bestCommentRow
       : null
 
