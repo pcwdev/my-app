@@ -2198,7 +2198,7 @@ const CommentCard = React.memo(function CommentCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border shadow-sm ${
+      className={`overflow-hidden rounded-[14px] border shadow-sm ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
           : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.98)_100%)]'
@@ -2213,26 +2213,26 @@ const CommentCard = React.memo(function CommentCard({
               : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
         }`}
       />
-      <div className="p-3">
-        <div className="mb-1.5 flex items-start justify-between gap-2">
+      <div className="px-2.5 py-2">
+        <div className="mb-1 flex items-start justify-between gap-1.5">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${sideBadgeClass}`}
+                className={`inline-flex rounded-full border px-1 py-0.5 text-[9px] font-bold ${sideBadgeClass}`}
               >
                 {sideLabel}
               </span>
-              <span className="max-w-[120px] truncate text-[12px] font-semibold text-slate-900">
+              <span className="max-w-[110px] truncate text-[11px] font-semibold text-slate-900">
                 {comment.author}
               </span>
               <span
-                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
+                className={`inline-flex rounded-full border px-1 py-0.5 text-[9px] font-extrabold ${levelTheme.softClass}`}
               >
                 {levelTheme.icon} Lv.{resolvedMeta.level}
               </span>
               {resolvedMeta.badgeName ? (
                 <span
-                  className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
+                  className={`inline-flex rounded-full border px-1 py-0.5 text-[9px] font-bold ${badgeTheme.softClass}`}
                 >
                   {badgeTheme.icon} {resolvedMeta.badgeName}
                 </span>
@@ -2241,13 +2241,13 @@ const CommentCard = React.memo(function CommentCard({
           </div>
         </div>
 
-        <div className="text-[13px] leading-5 tracking-[-0.01em] text-slate-700">
+        <div className="text-[12px] leading-[1.45] tracking-[-0.01em] text-slate-700">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-2 space-y-2">
-            <div className="flex flex-wrap gap-1.5 text-[11px]">
+          <div className="mt-1.5 space-y-1">
+            <div className="flex flex-wrap gap-1 text-[10px]">
               {[
                 {
                   reactionType: 'relatable' as CommentReactionType,
@@ -2274,7 +2274,7 @@ const CommentCard = React.memo(function CommentCard({
                 <button
                   key={item.reactionType}
                   onClick={() => onReactComment(comment.id, item.reactionType)}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
                 >
                   <span>{item.label}</span>
                   <span>{item.count}</span>
@@ -2285,26 +2285,26 @@ const CommentCard = React.memo(function CommentCard({
             <div className="flex items-center justify-end gap-3 text-xs">
               <button
                 onClick={() => onOpenReportComment(comment.id)}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
                 aria-label="댓글 신고"
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
         ) : null}
 
         {adminMode && comment.hidden && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
-              className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
+              className="rounded-full bg-[#4f7cff] px-2.5 py-1 text-[11px] font-bold text-white"
             >
               숨김 해제
             </button>
             <button
               onClick={() => onAdminDeleteComment(comment.id)}
-              className="rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white"
+              className="rounded-full bg-red-500 px-2.5 py-1 text-[11px] font-bold text-white"
             >
               삭제
             </button>
@@ -2531,12 +2531,12 @@ function MyActivityModal({
           <div className="rounded-[28px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1">
                   <div className="truncate text-[15px] font-bold text-slate-900">
                     {profile?.anonymous_name ?? '익명 유저'}
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${levelTheme.chipClass}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${levelTheme.chipClass}`}
                   >
                     <span>{levelTheme.icon}</span>
                     <span>Lv.{levelInfo.level}</span>
@@ -2823,7 +2823,7 @@ function MyActivityModal({
                   onClick={() => onOpenWatchlistItem(item)}
                   className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
                 >
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     <div className="text-xs text-slate-500">
                       {item.category} · {item.ageGroup}
                     </div>
@@ -3405,7 +3405,7 @@ function CommentModal({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${sideSummary.moodToneClass}`}
                   >
                     {sideSummary.moodTitle}
                   </span>
@@ -3451,7 +3451,7 @@ function CommentModal({
               </div>
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+            <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px]">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-bold text-slate-600">
                 중립 {sideSummary.neutralCount}
               </span>
@@ -3509,14 +3509,14 @@ function CommentModal({
           {bestCommentRow ? (
             <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
               <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
-              <div className="p-3">
+              <div className="px-2.5 py-2">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
                       HOT COMMENT
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
-                      <Flame className="h-4 w-4 text-amber-500" />
+                      <Flame className="h-3.5 w-3.5 text-amber-500" />
                       지금 가장 반응 큰 댓글
                     </div>
                   </div>
@@ -3577,14 +3577,14 @@ function CommentModal({
           battleComment.comment.id !== bestCommentRow?.comment.id ? (
             <div className="overflow-hidden rounded-[28px] border border-rose-200 bg-[linear-gradient(180deg,#fff7f7_0%,#ffe9e9_100%)] shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
               <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fb7185_0%,#f43f5e_55%,#fda4af_100%)]" />
-              <div className="p-3">
+              <div className="px-2.5 py-2">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
                       LIVE BATTLE
                     </div>
                     <div
-                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${battleMeta.toneClass}`}
+                      className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${battleMeta.toneClass}`}
                     >
                       {battleMeta.label}
                     </div>
@@ -3648,14 +3648,14 @@ function CommentModal({
           minorityHighlight.comment.id !== battleComment?.comment.id ? (
             <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
               <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
-              <div className="p-3">
+              <div className="px-2.5 py-2">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
                       MINORITY PICK
                     </div>
                     <div
-                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${minorityMeta.toneClass}`}
+                      className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${minorityMeta.toneClass}`}
                     >
                       {minorityMeta.label}
                     </div>
@@ -3725,7 +3725,7 @@ function CommentModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {visibleRows.map((item, index) => {
                 const comment = item.comment
                 const rowMeta =
@@ -3756,10 +3756,10 @@ function CommentModal({
                           : null
 
                 return (
-                  <div key={comment.id} className="space-y-1.5">
+                  <div key={comment.id} className="space-y-1">
                     {rowMeta ? (
                       <div
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${rowMeta.toneClass}`}
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${rowMeta.toneClass}`}
                       >
                         {rowMeta.label}
                       </div>
@@ -3809,7 +3809,7 @@ function CommentModal({
                 setVisibleCount(nextCount)
                 onExposeComments?.(Math.min(nextCount, sortedRows.length))
               }}
-              className="w-full rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm"
+              className="w-full rounded-[14px] border border-slate-200 bg-white px-3 py-2 text-[13px] font-bold text-slate-700 shadow-sm"
             >
               반응 더보기
             </button>
@@ -3890,7 +3890,7 @@ function CommentModal({
                     : 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)]'
                 }`}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -4198,7 +4198,7 @@ function ShareInboxModal({
         </div>
 
         <div className="shrink-0 border-b border-slate-200/70 px-5 py-3">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             <button
               onClick={() => setFilter('new')}
               className={`inline-flex rounded-full border px-3 py-1 text-[12px] font-bold transition ${
@@ -4336,10 +4336,10 @@ function ShareInboxModal({
                   <div
                     className={`h-1.5 w-full ${item.unreadCount > 0 ? 'bg-[linear-gradient(90deg,#22c55e_0%,#4ade80_100%)]' : 'bg-[linear-gradient(90deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
                   />
-                  <div className="p-3">
+                  <div className="px-2.5 py-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
                           <span className="rounded-full border border-[#dbe7ff] bg-[#eef3ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]">
                             {item.totalCount === 0
                               ? '응답 대기중'
@@ -9809,7 +9809,7 @@ ${shareUrl}`)
                       currentTensionMeta ||
                       votes[currentPost.id]) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
                           {currentTensionMeta ? (
                             <div
                               className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
@@ -10445,7 +10445,7 @@ ${shareUrl}`)
             )}
 
             <div className="mt-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.06)]">
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1">
                 <span
                   className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${getLevelTheme(levelInfo.level).chipClass}`}
                 >
@@ -10478,7 +10478,7 @@ ${shareUrl}`)
               <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1">
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="h-3.5 w-3.5" />
                     {currentPost.leftVotes + currentPost.rightVotes}
                   </div>
 
@@ -10489,7 +10489,7 @@ ${shareUrl}`)
                     }}
                     className="flex items-center gap-1"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <MessageCircle className="h-3.5 w-3.5" />
                     {currentPost.comments.length}
                   </button>
                 </div>
