@@ -3334,6 +3334,46 @@ function CommentModal({
         }
     : null
 
+  const minorityHighlight = minorityComments[0] ?? null
+
+  const minorityMeta = minorityHighlight
+    ? {
+        label:
+          minorityHighlight.reactionTotal >= 4
+            ? '😳 소수 의견 급상승'
+            : '🤨 소수 의견 포착',
+        helper:
+          minorityHighlight.reactionTotal >= 4
+            ? '주류 반대쪽인데 반응이 몰리는 댓글'
+            : '아직 소수지만 눈여겨볼 만한 댓글',
+        toneClass:
+          minorityHighlight.reactionTotal >= 4
+            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
+            : 'border-amber-200 bg-amber-50 text-amber-700',
+      }
+    : null
+
+  const liveSignalChips = [
+    bestCommentRow
+      ? {
+          label: `HOT ${Math.max(1, Math.round(bestCommentRow.heatScore))}`,
+          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+        }
+      : null,
+    battleComment
+      ? {
+          label: `BATTLE ${Math.max(1, Math.round(battleComment.battleScore))}`,
+          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+        }
+      : null,
+    minorityHighlight
+      ? {
+          label: `MINORITY ${minorityHighlight.reactionTotal}`,
+          toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+        }
+      : null,
+  ].filter(Boolean) as { label: string; toneClass: string }[]
+
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
@@ -3445,6 +3485,19 @@ function CommentModal({
               </button>
             ))}
           </div>
+
+          {liveSignalChips.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {liveSignalChips.map((chip) => (
+                <span
+                  key={chip.label}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${chip.toneClass}`}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
@@ -3580,6 +3633,81 @@ function CommentModal({
                     absurd:
                       !!myCommentReactions[
                         `${battleComment.comment.id}:absurd`
+                      ],
+                  }}
+                  onReactComment={onReactComment}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {minorityHighlight &&
+          minorityMeta &&
+          minorityHighlight.comment.id !== bestCommentRow?.comment.id &&
+          minorityHighlight.comment.id !== battleComment?.comment.id ? (
+            <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
+              <div className="p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
+                      MINORITY PICK
+                    </div>
+                    <div
+                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${minorityMeta.toneClass}`}
+                    >
+                      {minorityMeta.label}
+                    </div>
+                    <div className="mt-2 text-[12px] text-slate-600">
+                      {minorityMeta.helper}
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-fuchsia-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-fuchsia-700">
+                    반응 {minorityHighlight.reactionTotal}
+                  </div>
+                </div>
+
+                <CommentCard
+                  comment={minorityHighlight.comment}
+                  leftLabel={post.leftLabel}
+                  rightLabel={post.rightLabel}
+                  onLikeComment={onLikeComment}
+                  isLiked={!!likedComments[minorityHighlight.comment.id]}
+                  onOpenReportComment={onOpenReportComment}
+                  adminMode={adminMode}
+                  onAdminRestoreComment={onAdminRestoreComment}
+                  onAdminDeleteComment={onAdminDeleteComment}
+                  authorMeta={resolveAuthorMeta(
+                    {
+                      author: minorityHighlight.comment.author,
+                      authorKey: minorityHighlight.comment.authorKey ?? null,
+                    },
+                    authorMetaMap,
+                    guestName,
+                    currentUserLevel,
+                    featuredBadge,
+                    currentActorKey,
+                  )}
+                  reactionSummary={minorityHighlight.reactionSummary}
+                  myReactionMap={{
+                    agree:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:agree`
+                      ],
+                    disagree:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:disagree`
+                      ],
+                    wow: !!myCommentReactions[
+                      `${minorityHighlight.comment.id}:wow`
+                    ],
+                    relatable:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:relatable`
+                      ],
+                    absurd:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:absurd`
                       ],
                   }}
                   onReactComment={onReactComment}
