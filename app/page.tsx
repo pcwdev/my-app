@@ -3285,12 +3285,25 @@ function CommentModal({
   }, [commentRows])
 
   const openHighlightComment = useCallback(
-    (row: (typeof commentRows)[number] | null) => {
+    (row: (typeof commentRows)[number] | null, mode?: 'best' | 'battle') => {
       if (!row) return
-      setActiveTab(row.comment.side)
+
+      const nextTab = row.comment.side
+      const targetRows = nextTab === 'left' ? sortedLeftRows : sortedRightRows
+      const targetIndex = targetRows.findIndex(
+        (item) => item.comment.id === row.comment.id,
+      )
+
+      if (mode) {
+        setSortType(mode)
+      }
+      setActiveTab(nextTab)
+      if (targetIndex >= 0) {
+        setVisibleCount((prev) => Math.max(prev, targetIndex + 1, 12))
+      }
       setPendingScrollId(row.comment.id)
     },
-    [],
+    [sortedLeftRows, sortedRightRows],
   )
 
   if (!open || !post) return null
@@ -3394,8 +3407,8 @@ function CommentModal({
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
-                onClick={() => openHighlightComment(bestCommentRow)}
-                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left"
+                onClick={() => openHighlightComment(bestCommentRow, 'best')}
+                className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-left"
               >
                 <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.16em] text-amber-600">
                   <Flame className="h-3.5 w-3.5" />
@@ -3407,8 +3420,8 @@ function CommentModal({
               </button>
 
               <button
-                onClick={() => openHighlightComment(liveCommentRow)}
-                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                onClick={() => openHighlightComment(liveCommentRow, 'battle')}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-left"
               >
                 <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.16em] text-rose-600">
                   <MessageCircle className="h-3.5 w-3.5" />
@@ -3544,12 +3557,12 @@ function CommentModal({
         </div>
 
         <div className="shrink-0 border-t border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-3 py-3 shadow-[0_-8px_20px_rgba(15,23,42,0.04)]">
-          <div className="mb-2 flex gap-2">
+          <div className="mb-1.5 flex gap-1.5">
             <button
               onClick={() => setCommentSide('left')}
-              className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold ${
+              className={`flex-1 rounded-lg px-2.5 py-1.5 text-[12px] font-bold ${
                 commentSide === 'left'
-                  ? 'bg-blue-600 text-white shadow-[0_10px_20px_rgba(37,99,235,0.22)]'
+                  ? 'bg-blue-600 text-white shadow-[0_8px_16px_rgba(37,99,235,0.18)]'
                   : 'border border-slate-200 bg-white text-slate-600'
               }`}
             >
@@ -3557,9 +3570,9 @@ function CommentModal({
             </button>
             <button
               onClick={() => setCommentSide('right')}
-              className={`flex-1 rounded-xl px-3 py-2 text-sm font-bold ${
+              className={`flex-1 rounded-lg px-2.5 py-1.5 text-[12px] font-bold ${
                 commentSide === 'right'
-                  ? 'bg-violet-600 text-white shadow-[0_10px_20px_rgba(124,58,237,0.22)]'
+                  ? 'bg-violet-600 text-white shadow-[0_8px_16px_rgba(124,58,237,0.18)]'
                   : 'border border-slate-200 bg-white text-slate-600'
               }`}
             >
@@ -3567,36 +3580,49 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
-            <textarea
-              ref={inputRef}
-              value={text}
-              onChange={(event) =>
-                setText(event.target.value.slice(0, LIMITS.comment))
-              }
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                  event.preventDefault()
-                  void submitComment()
+          <div className="rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)]">
+            <div className="flex items-end gap-1.5">
+              <textarea
+                ref={inputRef}
+                value={text}
+                onChange={(event) =>
+                  setText(event.target.value.slice(0, LIMITS.comment))
                 }
-              }}
-              placeholder={`${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 의견 남기기`}
-              className="min-h-[72px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#4f7cff] focus:bg-white"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span
-                className={`text-[11px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
-              >
-                {text.length}/{LIMITS.comment}
-              </span>
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault()
+                    void submitComment()
+                    return
+                  }
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key === 'Enter'
+                  ) {
+                    event.preventDefault()
+                    void submitComment()
+                  }
+                }}
+                placeholder={`${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 의견`}
+                className="min-h-[44px] max-h-[88px] flex-1 resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[13px] leading-5 text-slate-900 outline-none focus:border-[#4f7cff] focus:bg-white"
+              />
               <button
                 onClick={() => void submitComment()}
                 disabled={!text.trim() || isSubmitting}
-                className="inline-flex items-center gap-1 rounded-xl bg-[#4f7cff] px-3 py-2 text-sm font-bold text-white shadow-[0_10px_22px_rgba(79,124,255,0.24)] disabled:cursor-not-allowed disabled:opacity-45"
+                aria-label={isSubmitting ? '댓글 등록중' : '댓글 등록'}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_10px_22px_rgba(79,124,255,0.24)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Send className="h-4 w-4" />
-                {isSubmitting ? '등록중' : '댓글 쓰기'}
               </button>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 px-0.5">
+              <span
+                className={`text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
+              >
+                {text.length}/{LIMITS.comment}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                Enter 등록 · Shift+Enter 줄바꿈
+              </span>
             </div>
           </div>
         </div>
