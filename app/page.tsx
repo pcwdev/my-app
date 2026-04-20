@@ -3058,7 +3058,7 @@ function CommentModal({
     'best' | 'latest' | 'battle' | 'minority'
   >('best')
   const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     if (!open || typeof window === 'undefined') return
@@ -3300,11 +3300,16 @@ function CommentModal({
       ]
   const placeholder = promptPool[(post.id + text.length) % promptPool.length]
 
-  const submitComment = () => {
+  const submitComment = async () => {
     const trimmed = text.trim()
     if (!trimmed) return
-    onAddComment(trimmed, commentSide)
-    setText('')
+
+    try {
+      await Promise.resolve(onAddComment(trimmed, commentSide))
+      setText('')
+    } catch (error) {
+      console.error('댓글 등록 실패', error)
+    }
   }
 
   const battleMeta = battleComment
@@ -3679,7 +3684,12 @@ function CommentModal({
         </div>
 
         <div className="shrink-0 border-t border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.96)_100%)] px-4 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-          <div className="rounded-[26px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+          <div
+            className="rounded-[26px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)]"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600">
               {selectedIsLeft
                 ? `너라면 왜 ${post.leftLabel} 쪽이라고 보는지 한 줄로 말해줘`
@@ -3688,6 +3698,7 @@ function CommentModal({
 
             <div className="grid grid-cols-2 gap-2">
               <button
+                type="button"
                 onClick={() => setCommentSide('left')}
                 className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
                   commentSide === 'left'
@@ -3698,6 +3709,7 @@ function CommentModal({
                 {post.leftLabel}
               </button>
               <button
+                type="button"
                 onClick={() => setCommentSide('right')}
                 className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
                   commentSide === 'right'
@@ -3709,24 +3721,34 @@ function CommentModal({
               </button>
             </div>
 
-            <div className="mt-2 flex min-w-0 items-center gap-2">
-              <input
+            <div className="mt-2 flex min-w-0 items-end gap-2">
+              <textarea
                 ref={inputRef}
                 value={text}
                 maxLength={LIMITS.comment}
                 onChange={(e) => setText(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.shiftKey &&
+                    !e.nativeEvent.isComposing
+                  ) {
                     e.preventDefault()
-                    submitComment()
+                    void submitComment()
                   }
                 }}
                 placeholder={placeholder}
-                className="h-[48px] min-w-0 flex-1 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 text-[16px] text-slate-900 outline-none placeholder:text-slate-400"
+                className="min-h-[48px] max-h-[120px] min-w-0 flex-1 resize-none rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 py-3 text-[16px] leading-6 text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               <button
-                onClick={submitComment}
+                type="button"
+                onClick={() => void submitComment()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-[18px] text-white shadow-[0_14px_26px_rgba(15,23,42,0.12)] ${
                   selectedIsLeft
                     ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)]'
