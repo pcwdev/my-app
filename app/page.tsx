@@ -3108,23 +3108,33 @@ function CommentModal({
         Number(reactionSummary.relatable ?? 0) +
         Number(reactionSummary.absurd ?? 0)
 
+      const agreeCount = Number(reactionSummary.agree ?? 0)
+      const disagreeCount = Number(reactionSummary.disagree ?? 0)
+      const wowCount = Number(reactionSummary.wow ?? 0)
+      const relatableCount = Number(reactionSummary.relatable ?? 0)
+      const absurdCount = Number(reactionSummary.absurd ?? 0)
+      const supportiveReactionTotal = agreeCount + relatableCount + wowCount
+      const conflictReactionTotal = disagreeCount + absurdCount
+
       const heatScore =
-        Number(reactionSummary.agree ?? 0) * 1.45 +
-        Number(reactionSummary.relatable ?? 0) * 1.1 +
-        Number(reactionSummary.wow ?? 0) * 1.0 +
-        Number(reactionSummary.disagree ?? 0) * 0.4 +
-        reactionTotal * 0.5
+        reactionTotal >= 3
+          ? agreeCount * 1.45 +
+            relatableCount * 1.1 +
+            wowCount * 1.0 +
+            supportiveReactionTotal * 0.35
+          : 0
 
       const battleScore =
-        Number(reactionSummary.disagree ?? 0) * 1.5 +
-        Number(reactionSummary.absurd ?? 0) * 1.1 +
-        Number(reactionSummary.wow ?? 0) * 0.85 +
-        reactionTotal * 0.35
+        reactionTotal >= 3 && conflictReactionTotal >= 2
+          ? disagreeCount * 1.6 + absurdCount * 1.35 + wowCount * 0.25
+          : 0
 
       return {
         comment,
         reactionSummary,
         reactionTotal,
+        supportiveReactionTotal,
+        conflictReactionTotal,
         heatScore,
         battleScore,
       }
@@ -3296,8 +3306,15 @@ function CommentModal({
     }
   }
 
-  const battleMeta = battleComment
-    ? battleComment.battleScore >= 5
+  const battleHighlight =
+    battleComment &&
+    battleComment.battleScore > 0 &&
+    battleComment.conflictReactionTotal >= 2
+      ? battleComment
+      : null
+
+  const battleMeta = battleHighlight
+    ? battleHighlight.battleScore >= 5
       ? {
           label: '🔥 지금 붙는 중',
           helper: '반박/어이없음 반응이 몰리는 댓글',
@@ -3305,10 +3322,18 @@ function CommentModal({
         }
       : {
           label: '👀 슬슬 붙는 중',
-          helper: '반응이 조금씩 쌓이는 댓글',
+          helper: '억까/어이없음 반응이 모이는 댓글',
           toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
         }
     : null
+
+  const hotHighlight =
+    bestCommentRow &&
+    bestCommentRow.heatScore > 0 &&
+    bestCommentRow.supportiveReactionTotal >= 2 &&
+    bestCommentRow.reactionTotal >= 3
+      ? bestCommentRow
+      : null
 
   const minorityHighlight =
     (minorityComments[0] ?? null) &&
@@ -3334,15 +3359,15 @@ function CommentModal({
     : null
 
   const liveSignalChips = [
-    bestCommentRow
+    hotHighlight
       ? {
-          label: `HOT ${Math.max(1, Math.round(bestCommentRow.heatScore))}`,
+          label: `HOT ${Math.round(hotHighlight.heatScore)}`,
           toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
         }
       : null,
-    battleComment
+    battleHighlight
       ? {
-          label: `BATTLE ${Math.max(1, Math.round(battleComment.battleScore))}`,
+          label: `BATTLE ${Math.round(battleHighlight.battleScore)}`,
           toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
         }
       : null,
