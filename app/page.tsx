@@ -2137,7 +2137,7 @@ function AuthOptionalModal({
           기기 바뀌어도 이어서 저장할 수 있음.
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
             onClick={onGoogleLogin}
             className="w-full rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
@@ -2198,7 +2198,7 @@ const CommentCard = React.memo(function CommentCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-[24px] border shadow-[0_14px_30px_rgba(15,23,42,0.06)] ${
+      className={`overflow-hidden rounded-[18px] border shadow-sm ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
           : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.98)_100%)]'
@@ -2213,26 +2213,26 @@ const CommentCard = React.memo(function CommentCard({
               : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
         }`}
       />
-      <div className="p-3.5">
-        <div className="mb-2 flex items-start justify-between gap-3">
+      <div className="p-3">
+        <div className="mb-1.5 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span
-                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${sideBadgeClass}`}
               >
                 {sideLabel}
               </span>
-              <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
+              <span className="max-w-[120px] truncate text-[12px] font-semibold text-slate-900">
                 {comment.author}
               </span>
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
+                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
               >
                 {levelTheme.icon} Lv.{resolvedMeta.level}
               </span>
               {resolvedMeta.badgeName ? (
                 <span
-                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
+                  className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
                 >
                   {badgeTheme.icon} {resolvedMeta.badgeName}
                 </span>
@@ -2241,13 +2241,13 @@ const CommentCard = React.memo(function CommentCard({
           </div>
         </div>
 
-        <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-700">
+        <div className="text-[13px] leading-5 tracking-[-0.01em] text-slate-700">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-3 space-y-2.5">
-            <div className="flex flex-wrap gap-2 text-[11px]">
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
               {[
                 {
                   reactionType: 'relatable' as CommentReactionType,
@@ -2274,7 +2274,7 @@ const CommentCard = React.memo(function CommentCard({
                 <button
                   key={item.reactionType}
                   onClick={() => onReactComment(comment.id, item.reactionType)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
                 >
                   <span>{item.label}</span>
                   <span>{item.count}</span>
@@ -2285,7 +2285,7 @@ const CommentCard = React.memo(function CommentCard({
             <div className="flex items-center justify-end gap-3 text-xs">
               <button
                 onClick={() => onOpenReportComment(comment.id)}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
                 aria-label="댓글 신고"
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -2295,7 +2295,7 @@ const CommentCard = React.memo(function CommentCard({
         ) : null}
 
         {adminMode && comment.hidden && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
               className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
@@ -2531,7 +2531,7 @@ function MyActivityModal({
           <div className="rounded-[28px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <div className="truncate text-[15px] font-bold text-slate-900">
                     {profile?.anonymous_name ?? '익명 유저'}
                   </div>
@@ -2577,7 +2577,7 @@ function MyActivityModal({
               ))}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {topBadges.length === 0 ? (
                 <div className="text-[11px] text-slate-400">
                   아직 획득한 뱃지 없음
@@ -2823,7 +2823,7 @@ function MyActivityModal({
                   onClick={() => onOpenWatchlistItem(item)}
                   className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <div className="text-xs text-slate-500">
                       {item.category} · {item.ageGroup}
                     </div>
@@ -3049,9 +3049,7 @@ function CommentModal({
   const [sortType, setSortType] = useState<
     'best' | 'latest' | 'battle' | 'minority'
   >('best')
-  const [visibleCount, setVisibleCount] = useState(
-    Math.max(6, INITIAL_COMMENT_BATCH),
-  )
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COMMENT_BATCH)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -3090,14 +3088,14 @@ function CommentModal({
   }, [open, post?.id])
 
   useEffect(() => {
-    if (open) setVisibleCount(Math.max(6, INITIAL_COMMENT_BATCH))
+    if (open) setVisibleCount(INITIAL_COMMENT_BATCH)
   }, [open, post?.id, sortType])
 
   useEffect(() => {
     if (!open || !post) return
 
     const exposedCount = Math.min(
-      Math.max(6, INITIAL_COMMENT_BATCH),
+      3,
       (post.comments ?? []).filter((comment) => !comment.hidden || adminMode)
         .length,
     )
@@ -3189,14 +3187,14 @@ function CommentModal({
       const diff = Math.abs(leftCount - rightCount) / Math.max(total, 1)
       if (diff <= 0.12) {
         moodTitle = '🔥 댓글도 거의 반반'
-        moodHelper = '지금 누구 말이 맞는지 댓글에서도 팽팽하게 갈리는 중'
+        moodHelper = '지금 누구 말이 맞는지 댓글에서 바로 갈리는 중'
         moodToneClass = 'border-rose-200 bg-rose-50 text-rose-700'
       } else if (leftCount > rightCount) {
         moodTitle = `${post?.leftLabel ?? '왼쪽'} 쪽 댓글 우세`
         moodHelper =
           diff <= 0.28
             ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 더 많이 보임'
+            : '현재는 이쪽 의견이 확실히 더 많음'
         moodToneClass =
           diff <= 0.28
             ? 'border-sky-200 bg-sky-50 text-sky-700'
@@ -3206,7 +3204,7 @@ function CommentModal({
         moodHelper =
           diff <= 0.28
             ? '우세하긴 한데 아직 뒤집힐 수 있는 분위기'
-            : '현재는 이쪽 의견이 더 많이 보임'
+            : '현재는 이쪽 의견이 확실히 더 많음'
         moodToneClass =
           diff <= 0.28
             ? 'border-violet-200 bg-violet-50 text-violet-700'
@@ -3228,6 +3226,35 @@ function CommentModal({
     }
   }, [commentRows, post])
 
+  const battleComment = useMemo(() => {
+    return (
+      [...commentRows].sort((a, b) => {
+        if (b.battleScore !== a.battleScore)
+          return b.battleScore - a.battleScore
+        return b.comment.id - a.comment.id
+      })[0] ?? null
+    )
+  }, [commentRows])
+
+  const bestCommentRow = useMemo(() => {
+    return (
+      [...commentRows].sort((a, b) => {
+        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
+        return b.comment.id - a.comment.id
+      })[0] ?? null
+    )
+  }, [commentRows])
+
+  const minorityComments = useMemo(() => {
+    return [...commentRows]
+      .filter((item) => item.isMinority && item.minorityScore > 0)
+      .sort((a, b) => {
+        if (b.minorityScore !== a.minorityScore)
+          return b.minorityScore - a.minorityScore
+        return b.comment.id - a.comment.id
+      })
+  }, [commentRows])
+
   const sortedRows = useMemo(() => {
     if (sortType === 'latest') {
       return [...commentRows].sort((a, b) => b.comment.id - a.comment.id)
@@ -3237,33 +3264,19 @@ function CommentModal({
       return [...commentRows].sort((a, b) => {
         if (b.battleScore !== a.battleScore)
           return b.battleScore - a.battleScore
-        if (b.reactionTotal !== a.reactionTotal)
-          return b.reactionTotal - a.reactionTotal
         return b.comment.id - a.comment.id
       })
     }
 
     if (sortType === 'minority') {
-      return [...commentRows]
-        .filter((item) => item.isMinority)
-        .sort((a, b) => {
-          if (b.minorityScore !== a.minorityScore)
-            return b.minorityScore - a.minorityScore
-          if (b.reactionTotal !== a.reactionTotal)
-            return b.reactionTotal - a.reactionTotal
-          return b.comment.id - a.comment.id
-        })
+      return minorityComments
     }
 
     return [...commentRows].sort((a, b) => {
-      if (b.reactionTotal !== a.reactionTotal)
-        return b.reactionTotal - a.reactionTotal
-      if (b.supportiveReactionTotal !== a.supportiveReactionTotal) {
-        return b.supportiveReactionTotal - a.supportiveReactionTotal
-      }
+      if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
       return b.comment.id - a.comment.id
     })
-  }, [commentRows, sortType])
+  }, [commentRows, minorityComments, sortType])
 
   if (!open || !post) return null
 
@@ -3302,42 +3315,74 @@ function CommentModal({
     }
   }
 
-  const getRowMeta = (item: (typeof commentRows)[number], index: number) => {
-    if (sortType === 'latest' && index < 2) {
-      return {
-        label: '방금 올라옴',
-        toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
-      }
-    }
+  const battleHighlight =
+    battleComment && battleComment.battleScore >= 2 ? battleComment : null
 
-    if (item.battleScore >= 3 && item.reactionTotal >= 4) {
-      return {
-        label: '공감/반박 갈림',
-        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
-      }
-    }
+  const battleMeta = battleHighlight
+    ? battleHighlight.battleScore >= 5
+      ? {
+          label: '⚡ 개갈림',
+          helper: '반박 반응이 몰리는 댓글',
+          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+        }
+      : {
+          label: '👀 슬슬 붙는 중',
+          helper: '반박이 슬슬 붙는 댓글',
+          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+        }
+    : null
 
-    if (item.isMinority && item.minorityScore >= 2) {
-      return {
-        label: '다수와 다름',
-        toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-      }
-    }
+  const hotHighlight =
+    bestCommentRow && bestCommentRow.heatScore >= 2 ? bestCommentRow : null
 
-    if (item.reactionTotal >= 4 || item.heatScore >= 2) {
-      return {
-        label: '이 댓글 반응 큼',
-        toneClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-      }
-    }
+  const minorityHighlight =
+    (minorityComments[0] ?? null) &&
+    (minorityComments[0]?.minorityScore ?? 0) >= 2
+      ? minorityComments[0]
+      : null
 
-    return null
-  }
+  const minorityMeta = minorityHighlight
+    ? {
+        label:
+          minorityHighlight.minorityScore >= 3
+            ? '😳 소수 의견 공감 붙는 중'
+            : '🤨 소수 의견 포착',
+        helper:
+          minorityHighlight.reactionTotal >= 4
+            ? '주류 반대쪽인데 반응이 몰리는 댓글'
+            : '아직 소수지만 눈여겨볼 만한 댓글',
+        toneClass:
+          minorityHighlight.reactionTotal >= 4
+            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
+            : 'border-amber-200 bg-amber-50 text-amber-700',
+      }
+    : null
+
+  const liveSignalChips = [
+    hotHighlight
+      ? {
+          label: `HOT ${Math.round(hotHighlight.heatScore)}`,
+          toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+        }
+      : null,
+    battleHighlight
+      ? {
+          label: `BATTLE ${Math.round(battleHighlight.battleScore)}`,
+          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+        }
+      : null,
+    minorityHighlight
+      ? {
+          label: `MINORITY ${minorityHighlight.reactionTotal}`,
+          toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+        }
+      : null,
+  ].filter(Boolean) as { label: string; toneClass: string }[]
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
-        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,255,0.94)_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,255,0.92)_100%)] px-4 py-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
@@ -3355,17 +3400,17 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="mt-3 rounded-[26px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+          <div className="mt-2.5 rounded-[22px] border border-slate-200/80 bg-white/85 p-2.5 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   <span
                     className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
                   >
                     {sideSummary.moodTitle}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-500">
-                    댓글 {sideSummary.total}개
+                    반응 {sideSummary.total}개
                   </span>
                 </div>
                 <div className="mt-2 text-[12px] leading-5 text-slate-600">
@@ -3373,12 +3418,12 @@ function CommentModal({
                 </div>
               </div>
               <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                반박 많은 댓글 {sideSummary.doubtCount}
+                의심 {sideSummary.doubtCount}
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2.5">
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <div className="rounded-[16px] border border-blue-100 bg-blue-50/80 px-2.5 py-2">
                 <div className="text-[11px] text-blue-500">
                   {post.leftLabel}
                 </div>
@@ -3391,7 +3436,7 @@ function CommentModal({
                   </span>
                 </div>
               </div>
-              <div className="rounded-2xl border border-violet-100 bg-violet-50/80 px-3 py-2.5">
+              <div className="rounded-[16px] border border-violet-100 bg-violet-50/80 px-2.5 py-2">
                 <div className="text-[11px] text-violet-500">
                   {post.rightLabel}
                 </div>
@@ -3406,15 +3451,7 @@ function CommentModal({
               </div>
             </div>
 
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-600">
-              <span className="font-bold text-slate-700">표시 뜻</span>
-              <span className="ml-2">
-                이 댓글 반응 큼 = 많이 눌림 · 공감/반박 갈림 = 의견 팽팽 ·
-                다수와 다름 = 주류와 반대
-              </span>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-bold text-slate-600">
                 중립 {sideSummary.neutralCount}
               </span>
@@ -3429,12 +3466,12 @@ function CommentModal({
             </div>
           </div>
 
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
             {[
-              ['best', '반응순'],
-              ['battle', '갈리는순'],
+              ['best', '추천순'],
+              ['battle', '지금 붙는 순'],
               ['latest', '최신순'],
-              ['minority', '다른의견'],
+              ['minority', '소수 의견'],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -3443,7 +3480,7 @@ function CommentModal({
                     value as 'best' | 'latest' | 'battle' | 'minority',
                   )
                 }
-                className={`shrink-0 rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
                   sortType === value
                     ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
                     : 'border border-slate-200 bg-white text-slate-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]'
@@ -3453,9 +3490,231 @@ function CommentModal({
               </button>
             ))}
           </div>
+
+          {liveSignalChips.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {liveSignalChips.map((chip) => (
+                <span
+                  key={chip.label}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${chip.toneClass}`}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-2.5 [webkit-overflow-scrolling:touch]">
+          {bestCommentRow ? (
+            <div className="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,#fffbeb_0%,#fef3c7_100%)] shadow-[0_16px_34px_rgba(245,158,11,0.14)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fbbf24_0%,#f59e0b_55%,#facc15_100%)]" />
+              <div className="p-3">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-amber-600/80">
+                      HOT COMMENT
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-sm font-bold text-amber-700">
+                      <Flame className="h-4 w-4 text-amber-500" />
+                      지금 가장 반응 큰 댓글
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    반응 {bestCommentRow.reactionTotal}
+                  </div>
+                </div>
+
+                <CommentCard
+                  comment={bestCommentRow.comment}
+                  leftLabel={post.leftLabel}
+                  rightLabel={post.rightLabel}
+                  onOpenReportComment={onOpenReportComment}
+                  adminMode={adminMode}
+                  onAdminRestoreComment={onAdminRestoreComment}
+                  onAdminDeleteComment={onAdminDeleteComment}
+                  authorMeta={resolveAuthorMeta(
+                    {
+                      author: bestCommentRow.comment.author,
+                      authorKey: bestCommentRow.comment.authorKey ?? null,
+                    },
+                    authorMetaMap,
+                    guestName,
+                    currentUserLevel,
+                    featuredBadge,
+                    currentActorKey,
+                  )}
+                  reactionSummary={bestCommentRow.reactionSummary}
+                  myReactionMap={{
+                    agree:
+                      !!myCommentReactions[
+                        `${bestCommentRow.comment.id}:agree`
+                      ],
+                    disagree:
+                      !!myCommentReactions[
+                        `${bestCommentRow.comment.id}:disagree`
+                      ],
+                    wow: !!myCommentReactions[
+                      `${bestCommentRow.comment.id}:wow`
+                    ],
+                    relatable:
+                      !!myCommentReactions[
+                        `${bestCommentRow.comment.id}:relatable`
+                      ],
+                    absurd:
+                      !!myCommentReactions[
+                        `${bestCommentRow.comment.id}:absurd`
+                      ],
+                  }}
+                  onReactComment={onReactComment}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {battleComment &&
+          battleMeta &&
+          battleComment.comment.id !== bestCommentRow?.comment.id ? (
+            <div className="overflow-hidden rounded-[28px] border border-rose-200 bg-[linear-gradient(180deg,#fff7f7_0%,#ffe9e9_100%)] shadow-[0_16px_34px_rgba(244,63,94,0.12)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#fb7185_0%,#f43f5e_55%,#fda4af_100%)]" />
+              <div className="p-3">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-rose-500/80">
+                      LIVE BATTLE
+                    </div>
+                    <div
+                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${battleMeta.toneClass}`}
+                    >
+                      {battleMeta.label}
+                    </div>
+                    <div className="mt-2 text-[12px] text-slate-600">
+                      {battleMeta.helper}
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-rose-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-rose-700">
+                    충돌 {Math.round(battleComment.battleScore)}
+                  </div>
+                </div>
+
+                <CommentCard
+                  comment={battleComment.comment}
+                  leftLabel={post.leftLabel}
+                  rightLabel={post.rightLabel}
+                  onOpenReportComment={onOpenReportComment}
+                  adminMode={adminMode}
+                  onAdminRestoreComment={onAdminRestoreComment}
+                  onAdminDeleteComment={onAdminDeleteComment}
+                  authorMeta={resolveAuthorMeta(
+                    {
+                      author: battleComment.comment.author,
+                      authorKey: battleComment.comment.authorKey ?? null,
+                    },
+                    authorMetaMap,
+                    guestName,
+                    currentUserLevel,
+                    featuredBadge,
+                    currentActorKey,
+                  )}
+                  reactionSummary={battleComment.reactionSummary}
+                  myReactionMap={{
+                    agree:
+                      !!myCommentReactions[`${battleComment.comment.id}:agree`],
+                    disagree:
+                      !!myCommentReactions[
+                        `${battleComment.comment.id}:disagree`
+                      ],
+                    wow: !!myCommentReactions[
+                      `${battleComment.comment.id}:wow`
+                    ],
+                    relatable:
+                      !!myCommentReactions[
+                        `${battleComment.comment.id}:relatable`
+                      ],
+                    absurd:
+                      !!myCommentReactions[
+                        `${battleComment.comment.id}:absurd`
+                      ],
+                  }}
+                  onReactComment={onReactComment}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {minorityHighlight &&
+          minorityMeta &&
+          minorityHighlight.comment.id !== bestCommentRow?.comment.id &&
+          minorityHighlight.comment.id !== battleComment?.comment.id ? (
+            <div className="overflow-hidden rounded-[28px] border border-fuchsia-200 bg-[linear-gradient(180deg,#fff8fe_0%,#fae8ff_100%)] shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
+              <div className="h-1.5 w-full bg-[linear-gradient(90deg,#e879f9_0%,#d946ef_55%,#f0abfc_100%)]" />
+              <div className="p-3">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-extrabold tracking-[0.18em] text-fuchsia-500/80">
+                      MINORITY PICK
+                    </div>
+                    <div
+                      className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${minorityMeta.toneClass}`}
+                    >
+                      {minorityMeta.label}
+                    </div>
+                    <div className="mt-2 text-[12px] text-slate-600">
+                      {minorityMeta.helper}
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-fuchsia-200 bg-white/85 px-2.5 py-1 text-xs font-bold text-fuchsia-700">
+                    반응 {minorityHighlight.reactionTotal}
+                  </div>
+                </div>
+
+                <CommentCard
+                  comment={minorityHighlight.comment}
+                  leftLabel={post.leftLabel}
+                  rightLabel={post.rightLabel}
+                  onOpenReportComment={onOpenReportComment}
+                  adminMode={adminMode}
+                  onAdminRestoreComment={onAdminRestoreComment}
+                  onAdminDeleteComment={onAdminDeleteComment}
+                  authorMeta={resolveAuthorMeta(
+                    {
+                      author: minorityHighlight.comment.author,
+                      authorKey: minorityHighlight.comment.authorKey ?? null,
+                    },
+                    authorMetaMap,
+                    guestName,
+                    currentUserLevel,
+                    featuredBadge,
+                    currentActorKey,
+                  )}
+                  reactionSummary={minorityHighlight.reactionSummary}
+                  myReactionMap={{
+                    agree:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:agree`
+                      ],
+                    disagree:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:disagree`
+                      ],
+                    wow: !!myCommentReactions[
+                      `${minorityHighlight.comment.id}:wow`
+                    ],
+                    relatable:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:relatable`
+                      ],
+                    absurd:
+                      !!myCommentReactions[
+                        `${minorityHighlight.comment.id}:absurd`
+                      ],
+                  }}
+                  onReactComment={onReactComment}
+                />
+              </div>
+            </div>
+          ) : null}
+
           {visibleRows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-center shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-bold text-slate-900">
@@ -3466,10 +3725,35 @@ function CommentModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {visibleRows.map((item, index) => {
                 const comment = item.comment
-                const rowMeta = getRowMeta(item, index)
+                const rowMeta =
+                  sortType === 'battle'
+                    ? item.battleScore >= 5
+                      ? {
+                          label: '⚡ 개갈림',
+                          toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+                        }
+                      : null
+                    : sortType === 'minority'
+                      ? {
+                          label: '😳 너만 틀림',
+                          toneClass:
+                            'border-amber-200 bg-amber-50 text-amber-700',
+                        }
+                      : sortType === 'latest' && index < 2
+                        ? {
+                            label: '🆕 방금 올라옴',
+                            toneClass: 'border-sky-200 bg-sky-50 text-sky-700',
+                          }
+                        : item.reactionTotal >= 4
+                          ? {
+                              label: '🔥 지금 난리남',
+                              toneClass:
+                                'border-indigo-200 bg-indigo-50 text-indigo-700',
+                            }
+                          : null
 
                 return (
                   <div key={comment.id} className="space-y-1.5">
@@ -3521,26 +3805,25 @@ function CommentModal({
           {hasMoreComments && (
             <button
               onClick={() => {
-                const nextCount =
-                  visibleCount + Math.max(6, INITIAL_COMMENT_BATCH)
+                const nextCount = visibleCount + INITIAL_COMMENT_BATCH
                 setVisibleCount(nextCount)
                 onExposeComments?.(Math.min(nextCount, sortedRows.length))
               }}
-              className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+              className="w-full rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm"
             >
-              댓글 더보기
+              반응 더보기
             </button>
           )}
         </div>
 
         <div className="shrink-0 border-t border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.96)_100%)] px-4 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div
-            className="rounded-[26px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)]"
+            className="rounded-[20px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
-            <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600">
+            <div className="mb-1.5 rounded-[16px] border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
               {selectedIsLeft
                 ? `너라면 왜 ${post.leftLabel} 쪽이라고 보는지 한 줄로 말해줘`
                 : `너라면 왜 ${post.rightLabel} 쪽이라고 보는지 한 줄로 말해줘`}
@@ -3550,7 +3833,7 @@ function CommentModal({
               <button
                 type="button"
                 onClick={() => setCommentSide('left')}
-                className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
+                className={`rounded-[14px] px-3 py-2 text-[13px] font-bold transition ${
                   commentSide === 'left'
                     ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_20px_rgba(79,124,255,0.22)]'
                     : 'border border-slate-200 bg-slate-50 text-slate-700'
@@ -3561,7 +3844,7 @@ function CommentModal({
               <button
                 type="button"
                 onClick={() => setCommentSide('right')}
-                className={`rounded-[18px] px-4 py-2.5 text-sm font-bold transition ${
+                className={`rounded-[14px] px-3 py-2 text-[13px] font-bold transition ${
                   commentSide === 'right'
                     ? 'bg-[linear-gradient(135deg,#8b5cf6_0%,#7c3aed_55%,#a78bfa_100%)] text-white shadow-[0_10px_20px_rgba(124,58,237,0.20)]'
                     : 'border border-slate-200 bg-slate-50 text-slate-700'
@@ -3915,7 +4198,7 @@ function ShareInboxModal({
         </div>
 
         <div className="shrink-0 border-b border-slate-200/70 px-5 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setFilter('new')}
               className={`inline-flex rounded-full border px-3 py-1 text-[12px] font-bold transition ${
@@ -4053,10 +4336,10 @@ function ShareInboxModal({
                   <div
                     className={`h-1.5 w-full ${item.unreadCount > 0 ? 'bg-[linear-gradient(90deg,#22c55e_0%,#4ade80_100%)]' : 'bg-[linear-gradient(90deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
                   />
-                  <div className="p-4">
+                  <div className="p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="rounded-full border border-[#dbe7ff] bg-[#eef3ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]">
                             {item.totalCount === 0
                               ? '응답 대기중'
@@ -4108,7 +4391,7 @@ function ShareInboxModal({
                           {item.overallTotalCount}명 참여
                         </div>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
                         <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
                           <div className="text-[11px] text-slate-400">
                             {item.leftLabel ?? '왼쪽'}
@@ -4173,7 +4456,7 @@ function ShareInboxModal({
                           {tensionMeta.label}
                         </div>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
                         <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
                           <div className="text-[11px] text-slate-400">
                             {item.leftLabel ?? '왼쪽'}
@@ -4215,7 +4498,7 @@ function ShareInboxModal({
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
                       <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
                         <div className="text-[11px] text-slate-400">
                           내 선택
@@ -4258,7 +4541,7 @@ function ShareInboxModal({
                       보면 더 재밌음 · {ownerInsight.helper}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
                       <button
                         onClick={() => onOpenItem(item)}
                         className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_22px_rgba(79,124,255,0.16)]"
@@ -9356,7 +9639,7 @@ ${shareUrl}`)
                   ? '관리자 확인 전까지 숨김 처리됩니다.'
                   : currentPost.content}
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {isSharedVisitor && (
                   <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                     {votes[currentPost.id]
@@ -9526,7 +9809,7 @@ ${shareUrl}`)
                       currentTensionMeta ||
                       votes[currentPost.id]) && (
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {currentTensionMeta ? (
                             <div
                               className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
@@ -9705,7 +9988,7 @@ ${shareUrl}`)
                       <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
                         QUICK REACTION
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {(Object.keys(POST_REACTION_META) as PostReactionType[])
                           .filter((reactionType) => reactionType !== 'curious')
                           .map((reactionType) => {
@@ -9961,7 +10244,7 @@ ${shareUrl}`)
                                   명 참여
                                 </div>
                               </div>
-                              <div className="mt-3 grid grid-cols-2 gap-2">
+                              <div className="mt-2 grid grid-cols-2 gap-1.5">
                                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
                                   <div className="text-[11px] text-slate-400">
                                     전체 {currentPost.leftLabel}
@@ -10008,7 +10291,7 @@ ${shareUrl}`)
                                   {shareTensionMeta.label}
                                 </div>
                               </div>
-                              <div className="mt-3 grid grid-cols-2 gap-2">
+                              <div className="mt-2 grid grid-cols-2 gap-1.5">
                                 <div
                                   className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
                                 >
@@ -10062,7 +10345,7 @@ ${shareUrl}`)
                               </div>
                             </div>
 
-                            <div className="mt-3 grid grid-cols-2 gap-2">
+                            <div className="mt-2 grid grid-cols-2 gap-1.5">
                               <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                                 <div className="text-[11px] text-slate-400">
                                   내 선택
@@ -10125,7 +10408,7 @@ ${shareUrl}`)
                               </button>
                             ) : null}
 
-                            <div className="mt-3 grid grid-cols-2 gap-2">
+                            <div className="mt-2 grid grid-cols-2 gap-1.5">
                               {isSharedOwnerViewingPost ? (
                                 <button
                                   onClick={() =>
@@ -10162,7 +10445,7 @@ ${shareUrl}`)
             )}
 
             <div className="mt-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.06)]">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span
                   className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${getLevelTheme(levelInfo.level).chipClass}`}
                 >
