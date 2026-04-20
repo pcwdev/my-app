@@ -5,7 +5,6 @@ import {
   BarChart3,
   Flag,
   Flame,
-  Heart,
   MessageCircle,
   MoreHorizontal,
   Plus,
@@ -2162,8 +2161,6 @@ const CommentCard = React.memo(function CommentCard({
   comment,
   leftLabel,
   rightLabel,
-  onLikeComment,
-  isLiked,
   onOpenReportComment,
   adminMode,
   onAdminRestoreComment,
@@ -2176,8 +2173,6 @@ const CommentCard = React.memo(function CommentCard({
   comment: CommentItem
   leftLabel: string
   rightLabel: string
-  onLikeComment: (commentId: number) => void | Promise<void>
-  isLiked: boolean
   onOpenReportComment: (commentId: number) => void
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
@@ -2272,21 +2267,7 @@ const CommentCard = React.memo(function CommentCard({
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <button
-                onClick={() => onLikeComment(comment.id)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
-                  isLiked
-                    ? 'border-rose-200 bg-rose-50 text-rose-600'
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Heart
-                  className={`h-3.5 w-3.5 ${isLiked ? 'fill-[#ef4444]' : ''}`}
-                />
-                <span>{comment.likes}</span>
-              </button>
-
+            <div className="flex items-center justify-end gap-3 text-xs">
               <button
                 onClick={() => onOpenReportComment(comment.id)}
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
@@ -3013,8 +2994,6 @@ function CommentModal({
   open,
   onClose,
   onAddComment,
-  onLikeComment,
-  likedComments,
   onOpenReportComment,
   adminMode,
   onAdminRestoreComment,
@@ -3033,8 +3012,6 @@ function CommentModal({
   open: boolean
   onClose: () => void
   onAddComment: (text: string, side: Side) => Promise<void> | void
-  onLikeComment: (commentId: number) => void
-  likedComments: Record<number, boolean>
   onOpenReportComment: (commentId: number) => void
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
@@ -3132,12 +3109,11 @@ function CommentModal({
         Number(reactionSummary.absurd ?? 0)
 
       const heatScore =
-        Number(comment.likes ?? 0) * 1.15 +
-        Number(reactionSummary.agree ?? 0) * 1.25 +
-        Number(reactionSummary.wow ?? 0) * 1.05 +
-        Number(reactionSummary.relatable ?? 0) * 0.95 +
-        Number(reactionSummary.disagree ?? 0) * 0.7 +
-        reactionTotal * 0.45
+        Number(reactionSummary.agree ?? 0) * 1.45 +
+        Number(reactionSummary.relatable ?? 0) * 1.1 +
+        Number(reactionSummary.wow ?? 0) * 1.0 +
+        Number(reactionSummary.disagree ?? 0) * 0.4 +
+        reactionTotal * 0.5
 
       const battleScore =
         Number(reactionSummary.disagree ?? 0) * 1.5 +
@@ -3235,7 +3211,7 @@ function CommentModal({
     return (
       [...commentRows].sort((a, b) => {
         if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
-        return b.comment.likes - a.comment.likes
+        return b.comment.id - a.comment.id
       })[0] ?? null
     )
   }, [commentRows])
@@ -3279,7 +3255,7 @@ function CommentModal({
 
     return [...commentRows].sort((a, b) => {
       if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore
-      return b.comment.likes - a.comment.likes
+      return b.comment.id - a.comment.id
     })
   }, [commentRows, minorityComments, sortType])
 
@@ -3334,7 +3310,11 @@ function CommentModal({
         }
     : null
 
-  const minorityHighlight = minorityComments[0] ?? null
+  const minorityHighlight =
+    (minorityComments[0] ?? null) &&
+    (minorityComments[0]?.reactionTotal ?? 0) >= 2
+      ? minorityComments[0]
+      : null
 
   const minorityMeta = minorityHighlight
     ? {
@@ -3524,8 +3504,6 @@ function CommentModal({
                   comment={bestCommentRow.comment}
                   leftLabel={post.leftLabel}
                   rightLabel={post.rightLabel}
-                  onLikeComment={onLikeComment}
-                  isLiked={!!likedComments[bestCommentRow.comment.id]}
                   onOpenReportComment={onOpenReportComment}
                   adminMode={adminMode}
                   onAdminRestoreComment={onAdminRestoreComment}
@@ -3598,8 +3576,6 @@ function CommentModal({
                   comment={battleComment.comment}
                   leftLabel={post.leftLabel}
                   rightLabel={post.rightLabel}
-                  onLikeComment={onLikeComment}
-                  isLiked={!!likedComments[battleComment.comment.id]}
                   onOpenReportComment={onOpenReportComment}
                   adminMode={adminMode}
                   onAdminRestoreComment={onAdminRestoreComment}
@@ -3671,8 +3647,6 @@ function CommentModal({
                   comment={minorityHighlight.comment}
                   leftLabel={post.leftLabel}
                   rightLabel={post.rightLabel}
-                  onLikeComment={onLikeComment}
-                  isLiked={!!likedComments[minorityHighlight.comment.id]}
                   onOpenReportComment={onOpenReportComment}
                   adminMode={adminMode}
                   onAdminRestoreComment={onAdminRestoreComment}
@@ -3770,8 +3744,6 @@ function CommentModal({
                       comment={comment}
                       leftLabel={post.leftLabel}
                       rightLabel={post.rightLabel}
-                      onLikeComment={onLikeComment}
-                      isLiked={!!likedComments[comment.id]}
                       onOpenReportComment={onOpenReportComment}
                       adminMode={adminMode}
                       onAdminRestoreComment={onAdminRestoreComment}
@@ -4582,9 +4554,6 @@ export default function MatnyaApp() {
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
   const [votes, setVotes] = useState<Record<number, VoteSide>>({})
-  const [likedComments, setLikedComments] = useState<Record<number, boolean>>(
-    {},
-  )
   const [reportedPosts, setReportedPosts] = useState<Record<number, boolean>>(
     {},
   )
@@ -8733,63 +8702,6 @@ ${shareUrl}`)
     refreshWatchlistSignalsAfterAction(120)
   }
 
-  const likeComment = async (commentId: number): Promise<void> => {
-    if (!currentPost) return
-
-    const targetComment = currentPost.comments.find((c) => c.id === commentId)
-    if (!targetComment) return
-
-    const alreadyLiked = !!likedComments[commentId]
-    const nextLikes = alreadyLiked
-      ? Math.max(0, targetComment.likes - 1)
-      : targetComment.likes + 1
-
-    setLikedComments((prev) => ({
-      ...prev,
-      [commentId]: !alreadyLiked,
-    }))
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === currentPost.id
-          ? {
-              ...p,
-              comments: p.comments.map((c) =>
-                c.id === commentId ? { ...c, likes: nextLikes } : c,
-              ),
-            }
-          : p,
-      ),
-    )
-
-    const { error } = await supabase
-      .from('comments')
-      .update({ likes: nextLikes })
-      .eq('id', commentId)
-
-    if (error) {
-      console.error('댓글 공감 업데이트 실패', error)
-      showToast('공감 반영 실패')
-      void fetchAll(voterKey)
-      return
-    }
-
-    showToast(alreadyLiked ? '공감 취소' : '공감 반영')
-
-    if (
-      !alreadyLiked &&
-      targetComment.author === (profile?.anonymous_name ?? guestName)
-    ) {
-      await updateProgress(
-        {
-          points: 2,
-          likes_received: 1,
-        },
-        '🔥 공감 받아 +2 포인트',
-      )
-    }
-  }
-
   const openReportPost = () => {
     if (!currentPost) return
     if (reportedPosts[currentPost.id]) {
@@ -10567,8 +10479,6 @@ ${shareUrl}`)
             requestLightweightMetaRefresh()
           }}
           onAddComment={(text, side) => void addComment(text, side)}
-          onLikeComment={(commentId) => void likeComment(commentId)}
-          likedComments={likedComments}
           onOpenReportComment={openReportComment}
           adminMode={adminMode}
           onAdminRestoreComment={(commentId) =>
