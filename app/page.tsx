@@ -3651,74 +3651,66 @@ function CommentModal({
           ) : null}
 
           <div className="mx-auto max-w-md rounded-[28px] border border-white/80 bg-white/88 p-2 shadow-[0_16px_36px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
-            <div className="mb-2 inline-flex rounded-full border border-slate-200 bg-slate-100/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+            <div className="mb-2 grid grid-cols-2 gap-2 rounded-[28px] bg-[#eef2ff]/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
               <button
                 onClick={() => setCommentSide('left')}
-                className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
+                className={`h-11 rounded-[22px] px-4 text-sm font-extrabold transition ${
                   commentSide === 'left'
-                    ? 'bg-white text-blue-700 shadow-[0_6px_16px_rgba(37,99,235,0.14)]'
-                    : 'text-slate-500'
+                    ? 'border border-blue-200 bg-white text-blue-700 shadow-[0_10px_24px_rgba(59,130,246,0.15)]'
+                    : 'border border-transparent bg-transparent text-slate-600'
                 }`}
               >
                 {post.leftLabel}
               </button>
               <button
                 onClick={() => setCommentSide('right')}
-                className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${
+                className={`h-11 rounded-[22px] px-4 text-sm font-extrabold transition ${
                   commentSide === 'right'
-                    ? 'bg-white text-violet-700 shadow-[0_6px_16px_rgba(124,58,237,0.14)]'
-                    : 'text-slate-500'
+                    ? 'border border-violet-200 bg-white text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.15)]'
+                    : 'border border-transparent bg-transparent text-slate-600'
                 }`}
               >
                 {post.rightLabel}
               </button>
             </div>
 
-            <div className="flex items-end gap-2 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9)_0%,rgba(255,255,255,0.98)_100%)] px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              <textarea
-                ref={inputRef}
-                value={text}
-                onChange={(event) =>
-                  setText(event.target.value.slice(0, LIMITS.comment))
-                }
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault()
-                    void submitComment()
-                    return
+            <div className="flex items-center gap-2 rounded-[26px] border border-slate-200/80 bg-white px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <div className="relative flex-1">
+                <textarea
+                  ref={inputRef}
+                  rows={1}
+                  value={text}
+                  onChange={(event) =>
+                    setText(event.target.value.slice(0, LIMITS.comment))
                   }
-                  if (
-                    (event.metaKey || event.ctrlKey) &&
-                    event.key === 'Enter'
-                  ) {
-                    event.preventDefault()
-                    void submitComment()
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                      void submitComment()
+                      return
+                    }
+                  }}
+                  placeholder={
+                    replyTarget
+                      ? `${replyTarget.author}에게 반박 남기기`
+                      : `${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 한마디`
                   }
-                }}
-                placeholder={
-                  replyTarget
-                    ? `${replyTarget.author}에게 반박 남기기`
-                    : `${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 한마디`
-                }
-                className="min-h-[38px] max-h-[76px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
-              />
+                  className="h-[42px] w-full resize-none bg-transparent pl-3 pr-14 pt-[10px] text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+                />
+                <span
+                  className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
+                >
+                  {text.length}/{LIMITS.comment}
+                </span>
+              </div>
               <button
                 onClick={() => void submitComment()}
                 disabled={!text.trim() || isSubmitting}
-                aria-label={isSubmitting ? '댓글 등록중' : '댓글 등록'}
-                className="mb-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.28)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                aria-label="댓글 전송"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
               >
-                <Send className="h-[18px] w-[18px]" />
+                <Send className="h-[17px] w-[17px]" />
               </button>
-            </div>
-
-            <div className="mt-1.5 flex items-center justify-between gap-2 px-1.5">
-              <span
-                className={`text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
-              >
-                {text.length}/{LIMITS.comment}
-              </span>
-              <span className="text-[10px] text-slate-400">Enter 등록</span>
             </div>
           </div>
         </div>
