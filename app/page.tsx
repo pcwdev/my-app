@@ -2198,14 +2198,14 @@ const CommentCard = React.memo(function CommentCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-[24px] border shadow-[0_14px_30px_rgba(15,23,42,0.06)] ${
+      className={`overflow-hidden rounded-[18px] border shadow-[0_8px_20px_rgba(15,23,42,0.05)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
-          : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.98)_100%)]'
+          : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.96)_100%)]'
       }`}
     >
       <div
-        className={`h-1 w-full ${
+        className={`h-[3px] w-full ${
           comment.hidden
             ? 'bg-red-200'
             : isLeft
@@ -2213,89 +2213,89 @@ const CommentCard = React.memo(function CommentCard({
               : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
         }`}
       />
-      <div className="p-3.5">
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+      <div className="p-2.5">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span
-                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideBadgeClass}`}
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${sideBadgeClass}`}
               >
                 {sideLabel}
               </span>
-              <span className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
+              <span className="max-w-[110px] truncate text-[12px] font-semibold text-slate-900">
                 {comment.author}
               </span>
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${levelTheme.softClass}`}
+                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-extrabold ${levelTheme.softClass}`}
               >
                 {levelTheme.icon} Lv.{resolvedMeta.level}
               </span>
               {resolvedMeta.badgeName ? (
                 <span
-                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${badgeTheme.softClass}`}
+                  className={`inline-flex max-w-[120px] truncate rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${badgeTheme.softClass}`}
                 >
                   {badgeTheme.icon} {resolvedMeta.badgeName}
                 </span>
               ) : null}
             </div>
           </div>
+
+          {!comment.hidden ? (
+            <button
+              onClick={() => onOpenReportComment(comment.id)}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+              aria-label="댓글 신고"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
-        <div className="text-[14px] leading-6 tracking-[-0.01em] text-slate-700">
+        <div className="text-[13px] leading-5 tracking-[-0.01em] text-slate-700 line-clamp-2">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-3 space-y-2.5">
-            <div className="flex flex-wrap gap-2 text-[11px]">
-              {[
-                {
-                  reactionType: 'relatable' as CommentReactionType,
-                  label: '공감',
-                  count:
-                    Number(reactionSummary.relatable ?? 0) +
-                    Number(reactionSummary.agree ?? 0) +
-                    Number(reactionSummary.wow ?? 0),
-                  active: !!myReactionMap.relatable,
-                  activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
-                  idleClass: 'border-slate-200 bg-white text-slate-500',
-                },
-                {
-                  reactionType: 'disagree' as CommentReactionType,
-                  label: '반박',
-                  count:
-                    Number(reactionSummary.disagree ?? 0) +
-                    Number(reactionSummary.absurd ?? 0),
-                  active: !!myReactionMap.disagree,
-                  activeClass: 'border-rose-200 bg-rose-50 text-rose-700',
-                  idleClass: 'border-slate-200 bg-white text-slate-500',
-                },
-              ].map((item) => (
-                <button
-                  key={item.reactionType}
-                  onClick={() => onReactComment(comment.id, item.reactionType)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
-                >
-                  <span>{item.label}</span>
-                  <span>{item.count}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 text-xs">
+          <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+            {[
+              {
+                reactionType: 'relatable' as CommentReactionType,
+                label: '공감',
+                count:
+                  Number(reactionSummary.relatable ?? 0) +
+                  Number(reactionSummary.agree ?? 0) +
+                  Number(reactionSummary.wow ?? 0),
+                active: !!myReactionMap.relatable,
+                activeClass:
+                  'border-sky-200 bg-sky-50 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.12)]',
+                idleClass: 'border-slate-200 bg-white/90 text-slate-500',
+              },
+              {
+                reactionType: 'disagree' as CommentReactionType,
+                label: '반박',
+                count:
+                  Number(reactionSummary.disagree ?? 0) +
+                  Number(reactionSummary.absurd ?? 0),
+                active: !!myReactionMap.disagree,
+                activeClass:
+                  'border-rose-200 bg-rose-50 text-rose-700 shadow-[0_6px_14px_rgba(244,63,94,0.12)]',
+                idleClass: 'border-slate-200 bg-white/90 text-slate-500',
+              },
+            ].map((item) => (
               <button
-                onClick={() => onOpenReportComment(comment.id)}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                aria-label="댓글 신고"
+                key={item.reactionType}
+                onClick={() => onReactComment(comment.id, item.reactionType)}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <span>{item.label}</span>
+                <span>{item.count}</span>
               </button>
-            </div>
+            ))}
           </div>
         ) : null}
 
         {adminMode && comment.hidden && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               onClick={() => onAdminRestoreComment(comment.id)}
               className="rounded-full bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-white"
@@ -3528,9 +3528,9 @@ function CommentModal({
                   <div
                     key={comment.id}
                     id={`comment-row-${comment.id}`}
-                    className={`rounded-[20px] ${sideToneClass}`}
+                    className={`rounded-[18px] ${sideToneClass}`}
                   >
-                    <div className="px-2 py-1.5">
+                    <div className="px-1.5 py-1.5">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
@@ -3628,9 +3628,9 @@ function CommentModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(248,250,255,0.84)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-t border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(246,249,255,0.9)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           {replyTarget ? (
-            <div className="mb-2 flex items-center justify-between gap-2 rounded-2xl border border-rose-200/80 bg-rose-50/85 px-3 py-2 text-[11px] shadow-[0_8px_20px_rgba(244,63,94,0.08)]">
+            <div className="mb-2 flex items-center justify-between gap-2 rounded-[18px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-3 py-2 text-[11px] shadow-[0_8px_20px_rgba(244,63,94,0.08)]">
               <div className="min-w-0">
                 <div className="font-black text-rose-700">반박 작성중</div>
                 <div className="truncate font-semibold text-rose-600/90">
@@ -3650,32 +3650,32 @@ function CommentModal({
             </div>
           ) : null}
 
-          <div className="mx-auto max-w-md rounded-[28px] border border-white/80 bg-white/88 p-2 shadow-[0_16px_36px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
-            <div className="mb-2 grid grid-cols-2 gap-2 rounded-[28px] bg-[#eef2ff]/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+          <div className="mx-auto max-w-md rounded-[26px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-2 shadow-[0_16px_36px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
+            <div className="mb-2 grid grid-cols-2 gap-1.5 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#f8faff_0%,#eef3ff_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
               <button
                 onClick={() => setCommentSide('left')}
-                className={`h-11 rounded-[22px] px-4 text-sm font-extrabold transition ${
+                className={`h-10 rounded-[18px] px-4 text-sm font-black tracking-[-0.01em] transition ${
                   commentSide === 'left'
-                    ? 'border border-blue-200 bg-white text-blue-700 shadow-[0_10px_24px_rgba(59,130,246,0.15)]'
-                    : 'border border-transparent bg-transparent text-slate-600'
+                    ? 'border border-blue-200/90 bg-[linear-gradient(135deg,#ffffff_0%,#eff6ff_100%)] text-blue-700 shadow-[0_10px_22px_rgba(59,130,246,0.14)]'
+                    : 'border border-transparent bg-transparent text-slate-500'
                 }`}
               >
                 {post.leftLabel}
               </button>
               <button
                 onClick={() => setCommentSide('right')}
-                className={`h-11 rounded-[22px] px-4 text-sm font-extrabold transition ${
+                className={`h-10 rounded-[18px] px-4 text-sm font-black tracking-[-0.01em] transition ${
                   commentSide === 'right'
-                    ? 'border border-violet-200 bg-white text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.15)]'
-                    : 'border border-transparent bg-transparent text-slate-600'
+                    ? 'border border-violet-200/90 bg-[linear-gradient(135deg,#ffffff_0%,#f5f3ff_100%)] text-violet-700 shadow-[0_10px_22px_rgba(124,58,237,0.14)]'
+                    : 'border border-transparent bg-transparent text-slate-500'
                 }`}
               >
                 {post.rightLabel}
               </button>
             </div>
 
-            <div className="flex items-center gap-2 rounded-[26px] border border-slate-200/80 bg-white px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              <div className="relative flex-1">
+            <div className="flex items-center gap-2 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <div className="relative flex-1 overflow-hidden rounded-[18px] border border-slate-200/70 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">
                 <textarea
                   ref={inputRef}
                   rows={1}
@@ -3695,7 +3695,7 @@ function CommentModal({
                       ? `${replyTarget.author}에게 반박 남기기`
                       : `${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 한마디`
                   }
-                  className="h-[42px] w-full resize-none bg-transparent pl-3 pr-14 pt-[10px] text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+                  className="h-[40px] w-full resize-none bg-transparent pl-3 pr-14 pt-[9px] text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <span
                   className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
@@ -3705,9 +3705,9 @@ function CommentModal({
               </div>
               <button
                 onClick={() => void submitComment()}
-                disabled={!text.trim() || isSubmitting}
                 aria-label="댓글 전송"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                aria-disabled={!text.trim() || isSubmitting}
+                className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-[0.98] ${text.trim() && !isSubmitting ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]' : 'border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fb_100%)] text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]'}`}
               >
                 <Send className="h-[17px] w-[17px]" />
               </button>
