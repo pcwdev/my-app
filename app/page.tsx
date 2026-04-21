@@ -3057,6 +3057,7 @@ function CommentModal({
     side: Side
   } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!open || typeof window === 'undefined') return
@@ -3239,33 +3240,14 @@ function CommentModal({
     const leftPercent = total > 0 ? Math.round((leftCount / total) * 100) : 50
     const rightPercent = total > 0 ? Math.round((rightCount / total) * 100) : 50
 
-    let moodTitle = '댓글 분위기 아직 조용함'
-    let moodToneClass = 'border-slate-200 bg-slate-50 text-slate-600'
-
-    if (total > 0) {
-      const diff = Math.abs(leftCount - rightCount) / Math.max(total, 1)
-      if (diff <= 0.12) {
-        moodTitle = '🔥 지금 개갈림'
-        moodToneClass = 'border-rose-200 bg-rose-50 text-rose-700'
-      } else if (leftCount > rightCount) {
-        moodTitle = `${post?.leftLabel ?? '좌'} 쪽 댓글 우세`
-        moodToneClass = 'border-blue-200 bg-blue-50 text-blue-700'
-      } else if (rightCount > leftCount) {
-        moodTitle = `${post?.rightLabel ?? '우'} 쪽 댓글 우세`
-        moodToneClass = 'border-violet-200 bg-violet-50 text-violet-700'
-      }
-    }
-
     return {
       total,
       leftCount,
       rightCount,
       leftPercent,
       rightPercent,
-      moodTitle,
-      moodToneClass,
     }
-  }, [commentRows, leftRows.length, rightRows.length, post])
+  }, [commentRows.length, leftRows.length, rightRows.length])
 
   const bestCommentRow = useMemo(() => {
     return (
@@ -3290,6 +3272,14 @@ function CommentModal({
     )
   }, [commentRows])
 
+  const scrollCommentListToTop = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    window.requestAnimationFrame(() => {
+      scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }, [])
+
   const openHighlightComment = useCallback(
     (row: (typeof commentRows)[number] | null, mode?: 'best' | 'battle') => {
       if (!row) return
@@ -3307,9 +3297,18 @@ function CommentModal({
       if (targetIndex >= 0) {
         setVisibleCount((prev) => Math.max(prev, targetIndex + 1, 12))
       }
+      scrollCommentListToTop()
       setPendingScrollId(row.comment.id)
     },
-    [sortedLeftRows, sortedRightRows],
+    [scrollCommentListToTop, sortedLeftRows, sortedRightRows],
+  )
+
+  const handleSortChange = useCallback(
+    (nextSortType: 'best' | 'battle' | 'latest') => {
+      setSortType(nextSortType)
+      scrollCommentListToTop()
+    },
+    [scrollCommentListToTop],
   )
 
   if (!open || !post) return null
@@ -3386,57 +3385,56 @@ function CommentModal({
           </div>
 
           <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${sideSummary.moodToneClass}`}
-              >
-                {sideSummary.moodTitle}
-              </span>
-              <span className="text-[11px] font-semibold text-slate-500">
-                댓글 {sideSummary.total}개
-              </span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setActiveTab('left')}
-                className={`rounded-xl border px-3 py-2 text-left ${
+                className={`rounded-[18px] border px-3 py-2 text-left transition ${
                   activeTab === 'left'
                     ? 'border-blue-200 bg-blue-50 shadow-[0_8px_18px_rgba(59,130,246,0.10)]'
                     : 'border-slate-200 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold text-blue-600">
+                  <span className="text-[12px] font-black text-blue-600">
                     {post.leftLabel}
                   </span>
-                  <span className="text-[11px] font-extrabold text-blue-700">
+                  <span className="text-[15px] font-black tracking-[-0.02em] text-blue-700">
                     {sideSummary.leftPercent}%
                   </span>
                 </div>
-                <div className="mt-1 text-[18px] font-black text-slate-900">
-                  {sideSummary.leftCount}
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-100/80">
+                  <div
+                    className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                    style={{
+                      width: `${Math.max(sideSummary.leftPercent, sideSummary.leftCount > 0 ? 10 : 0)}%`,
+                    }}
+                  />
                 </div>
               </button>
 
               <button
                 onClick={() => setActiveTab('right')}
-                className={`rounded-xl border px-3 py-2 text-left ${
+                className={`rounded-[18px] border px-3 py-2 text-left transition ${
                   activeTab === 'right'
                     ? 'border-violet-200 bg-violet-50 shadow-[0_8px_18px_rgba(124,58,237,0.10)]'
                     : 'border-slate-200 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold text-violet-600">
+                  <span className="text-[12px] font-black text-violet-600">
                     {post.rightLabel}
                   </span>
-                  <span className="text-[11px] font-extrabold text-violet-700">
+                  <span className="text-[15px] font-black tracking-[-0.02em] text-violet-700">
                     {sideSummary.rightPercent}%
                   </span>
                 </div>
-                <div className="mt-1 text-[18px] font-black text-slate-900">
-                  {sideSummary.rightCount}
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100/80">
+                  <div
+                    className="h-full rounded-full bg-violet-500 transition-all duration-500"
+                    style={{
+                      width: `${Math.max(sideSummary.rightPercent, sideSummary.rightCount > 0 ? 10 : 0)}%`,
+                    }}
+                  />
                 </div>
               </button>
             </div>
@@ -3451,10 +3449,10 @@ function CommentModal({
                   BEST COMMENT
                 </div>
                 <div className="mt-1 text-[12px] font-black text-amber-950">
-                  가장 반응 큰 댓글 보기
+                  가장 반응 많은 댓글
                 </div>
                 <div className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                  골드 하이라이트로 바로 점프
+                  골드 댓글로 바로 이동
                 </div>
               </button>
 
@@ -3467,10 +3465,10 @@ function CommentModal({
                   LIVE BATTLE
                 </div>
                 <div className="mt-1 text-[12px] font-black text-rose-950">
-                  지금 붙는 댓글 보기
+                  지금 싸우는 댓글
                 </div>
                 <div className="mt-1 text-[11px] font-semibold text-rose-700/90">
-                  레드 배틀 댓글로 바로 이동
+                  레드 댓글로 바로 이동
                 </div>
               </button>
             </div>
@@ -3484,7 +3482,7 @@ function CommentModal({
                 <button
                   key={item.value}
                   onClick={() =>
-                    setSortType(item.value as 'best' | 'battle' | 'latest')
+                    handleSortChange(item.value as 'best' | 'battle' | 'latest')
                   }
                   className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${
                     sortType === item.value
@@ -3499,7 +3497,10 @@ function CommentModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 [webkit-overflow-scrolling:touch]">
+        <div
+          ref={scrollAreaRef}
+          className="min-h-0 flex-1 overflow-y-auto px-2 py-2 [webkit-overflow-scrolling:touch]"
+        >
           {visibleRows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/90 px-4 py-6 text-center shadow-[0_8px_22px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-bold text-slate-900">
