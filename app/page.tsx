@@ -3388,7 +3388,7 @@ function CommentModal({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setActiveTab('left')}
-                className={`rounded-[18px] border px-3 py-2 text-left transition ${
+                className={`rounded-[16px] border px-3 py-1.5 text-left transition ${
                   activeTab === 'left'
                     ? 'border-blue-200 bg-blue-50 shadow-[0_8px_18px_rgba(59,130,246,0.10)]'
                     : 'border-slate-200 bg-white'
@@ -3402,7 +3402,7 @@ function CommentModal({
                     {sideSummary.leftPercent}%
                   </span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-100/80">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-blue-100/80">
                   <div
                     className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
                     style={{
@@ -3414,7 +3414,7 @@ function CommentModal({
 
               <button
                 onClick={() => setActiveTab('right')}
-                className={`rounded-[18px] border px-3 py-2 text-left transition ${
+                className={`rounded-[16px] border px-3 py-1.5 text-left transition ${
                   activeTab === 'right'
                     ? 'border-violet-200 bg-violet-50 shadow-[0_8px_18px_rgba(124,58,237,0.10)]'
                     : 'border-slate-200 bg-white'
@@ -3428,7 +3428,7 @@ function CommentModal({
                     {sideSummary.rightPercent}%
                   </span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-violet-100/80">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-violet-100/80">
                   <div
                     className="h-full rounded-full bg-violet-500 transition-all duration-500"
                     style={{
@@ -3439,45 +3439,39 @@ function CommentModal({
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 onClick={() => openHighlightComment(bestCommentRow, 'best')}
-                className="rounded-[18px] border border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.98)_0%,rgba(254,243,199,0.98)_45%,rgba(252,211,77,0.22)_100%)] px-3 py-2.5 text-left shadow-[0_12px_24px_rgba(245,158,11,0.16)]"
+                className="rounded-[16px] border border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.98)_0%,rgba(254,243,199,0.98)_60%,rgba(252,211,77,0.16)_100%)] px-3 py-2 text-left shadow-[0_10px_20px_rgba(245,158,11,0.12)]"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.16em] text-amber-700">
+                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-amber-700">
                   <Flame className="h-3.5 w-3.5" />
                   BEST COMMENT
                 </div>
-                <div className="mt-1 text-[12px] font-black text-amber-950">
+                <div className="mt-0.5 text-[12px] font-black text-amber-950">
                   가장 반응 많은 댓글
-                </div>
-                <div className="mt-1 text-[11px] font-semibold text-amber-700/90">
-                  골드 댓글로 바로 이동
                 </div>
               </button>
 
               <button
                 onClick={() => openHighlightComment(liveCommentRow, 'battle')}
-                className="rounded-[18px] border border-rose-300 bg-[linear-gradient(135deg,rgba(255,241,242,0.98)_0%,rgba(255,228,230,0.98)_0%,rgba(254,205,211,0.98)_45%,rgba(251,113,133,0.18)_100%)] px-3 py-2.5 text-left shadow-[0_12px_24px_rgba(244,63,94,0.16)]"
+                className="rounded-[16px] border border-rose-300 bg-[linear-gradient(135deg,rgba(255,241,242,0.98)_0%,rgba(254,205,211,0.98)_60%,rgba(251,113,133,0.14)_100%)] px-3 py-2 text-left shadow-[0_10px_20px_rgba(244,63,94,0.12)]"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.16em] text-rose-700">
+                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-rose-700">
                   <MessageCircle className="h-3.5 w-3.5" />
                   LIVE BATTLE
                 </div>
-                <div className="mt-1 text-[12px] font-black text-rose-950">
+                <div className="mt-0.5 text-[12px] font-black text-rose-950">
                   지금 싸우는 댓글
-                </div>
-                <div className="mt-1 text-[11px] font-semibold text-rose-700/90">
-                  레드 댓글로 바로 이동
                 </div>
               </button>
             </div>
 
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {[
-                { value: 'best', label: '반응순' },
-                { value: 'battle', label: '갈리는순' },
-                { value: 'latest', label: '최신순' },
+                { value: 'best', label: '인기 댓글' },
+                { value: 'battle', label: '싸우는 댓글' },
+                { value: 'latest', label: '최신 댓글' },
               ].map((item) => (
                 <button
                   key={item.value}
@@ -3534,18 +3528,6 @@ function CommentModal({
                     <div className="px-1.5 py-1.5">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                              comment.side === 'left'
-                                ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                : 'border-violet-200 bg-violet-50 text-violet-700'
-                            }`}
-                          >
-                            {comment.side === 'left'
-                              ? post.leftLabel
-                              : post.rightLabel}
-                          </span>
-
                           {isBestComment ? (
                             <span className="rounded-full border border-amber-300 bg-[linear-gradient(135deg,#fff8dc_0%,#fde68a_100%)] px-2 py-0.5 text-[10px] font-black text-amber-900 shadow-[0_8px_16px_rgba(245,158,11,0.18)]">
                               🏆 최고의 댓글
