@@ -3496,11 +3496,10 @@ function CommentModal({
       setRecentBattleCommentId(commentId)
       setCommentSide(side)
 
-      console.log('[matnya] setReplyTarget', nextReplyTarget)
-
-      if (!text.trim()) {
-        setText('')
-      }
+      console.log('[matnya] setReplyTarget:locked', {
+        nextReplyTarget,
+        previousReplyTarget: replyTargetRef.current,
+      })
 
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
@@ -3508,17 +3507,26 @@ function CommentModal({
         }, 2600)
       }
 
-      if (!wasActive) {
-        await Promise.resolve(onReactComment(commentId, reactionType))
+      if (!text.trim()) {
+        setText('')
       }
 
-      const pulseKey = `${commentId}:${reactionType}`
-      setReactionPulseKey(pulseKey)
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => {
-          setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
-        }, 520)
+      Promise.resolve(onReactComment(commentId, reactionType)).catch(
+        (error) => {
+          console.error('반박 리액션 저장 실패', error)
+        },
+      )
+
+      if (!wasActive) {
+        const pulseKey = `${commentId}:${reactionType}`
+        setReactionPulseKey(pulseKey)
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => {
+            setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
+          }, 520)
+        }
       }
+
       return
     }
 
@@ -3539,26 +3547,21 @@ function CommentModal({
     const trimmed = text.trim()
     if (!trimmed || isSubmitting) return
 
+    const submitReplyTarget = replyTargetRef.current ?? replyTarget ?? null
+    const resolvedReplyToCommentId = submitReplyTarget?.commentId ?? null
+
     setIsSubmitting(true)
 
     try {
-      const liveReplyTarget = replyTargetRef.current ?? replyTarget ?? null
-      const resolvedReplyToCommentId =
-        liveReplyTarget &&
-        (post.comments ?? []).some(
-          (comment) => Number(comment.id) === Number(liveReplyTarget.commentId),
-        )
-          ? Number(liveReplyTarget.commentId)
-          : null
-
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
         replyTarget,
         replyTargetRef: replyTargetRef.current,
-        liveReplyTarget,
+        submitReplyTarget,
         resolvedReplyToCommentId,
       })
+
       await Promise.resolve(
         onAddComment(trimmed, commentSide, resolvedReplyToCommentId),
       )
@@ -3877,7 +3880,6 @@ function CommentModal({
               <button
                 onClick={() => {
                   setReplyTarget(null)
-                  replyTargetRef.current = null
                   setCommentSide(activeTab)
                 }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
@@ -8904,6 +8906,13 @@ ${shareUrl}`)
     }
 
     console.log('[matnya] addComment:payload', commentInsertPayload)
+    console.log('[matnya] addComment:reply-columns-check', {
+      replyToCommentId,
+      reply_to_comment_id: commentInsertPayload.reply_to_comment_id,
+      parent_comment_id: commentInsertPayload.parent_comment_id,
+      replyToCommentIdType:
+        replyToCommentId == null ? 'nullish' : typeof replyToCommentId,
+    })
 
     const { data: inserted, error } = await supabase
       .from('comments')
