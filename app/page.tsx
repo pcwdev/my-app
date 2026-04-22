@@ -3143,21 +3143,82 @@ function CommentModal({
   } | null>(null)
   const unlockingKeyboardRef = useRef(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const replyStorageKey = useMemo(
+    () => (post?.id ? `matnya_reply_target_draft:${post.id}` : null),
+    [post?.id],
+  )
+
+  const persistReplyTarget = useCallback(
+    (
+      nextReplyTarget: {
+        commentId: number
+        author: string
+        side: Side
+      } | null,
+    ) => {
+      replyTargetRef.current = nextReplyTarget
+      setReplyTarget(nextReplyTarget)
+
+      if (typeof window === 'undefined' || !replyStorageKey) return
+
+      try {
+        if (nextReplyTarget) {
+          window.sessionStorage.setItem(
+            replyStorageKey,
+            JSON.stringify(nextReplyTarget),
+          )
+        } else {
+          window.sessionStorage.removeItem(replyStorageKey)
+        }
+      } catch {}
+    },
+    [replyStorageKey],
+  )
+
+  const restoreReplyTarget = useCallback(() => {
+    if (typeof window === 'undefined' || !replyStorageKey) return null
+
+    try {
+      const raw = window.sessionStorage.getItem(replyStorageKey)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as {
+        commentId?: number
+        author?: string
+        side?: Side
+      }
+      if (
+        typeof parsed?.commentId !== 'number' ||
+        !parsed?.author ||
+        (parsed?.side !== 'left' && parsed?.side !== 'right')
+      ) {
+        return null
+      }
+      return {
+        commentId: parsed.commentId,
+        author: parsed.author,
+        side: parsed.side,
+      }
+    } catch {
+      return null
+    }
+  }, [replyStorageKey])
 
   useEffect(() => {
     if (!open) return
     setVisibleCount(12)
     setPendingScrollId(null)
-    setReplyTarget(null)
     setReactionPulseKey(null)
     setRecentBattleCommentId(null)
     setPendingOwnCommentMatch(null)
     setHighlightCommentId(null)
     setLastSubmittedCommentId(null)
     setSuppressAutoKeyboard(true)
-    replyTargetRef.current = null
     unlockingKeyboardRef.current = false
-  }, [open, post?.id])
+
+    const restoredReplyTarget = restoreReplyTarget()
+    replyTargetRef.current = restoredReplyTarget
+    setReplyTarget(restoredReplyTarget)
+  }, [open, post?.id, restoreReplyTarget])
 
   const unlockCommentInput = useCallback(() => {
     if (!suppressAutoKeyboard || unlockingKeyboardRef.current) return
@@ -3489,31 +3550,26 @@ function CommentModal({
     const wasActive = !!myCommentReactions[reactionKey]
 
     if (reactionType === 'disagree') {
-      const nextReplyTarget = { commentId, author, side }
+      const lockedReplyTarget = { commentId, author, side }
 
-      replyTargetRef.current = nextReplyTarget
-      setReplyTarget(nextReplyTarget)
+      persistReplyTarget(lockedReplyTarget)
       setRecentBattleCommentId(commentId)
-      setCommentSide(side)
-
-      console.log('[matnya] setReplyTarget:locked', {
-        nextReplyTarget,
-        previousReplyTarget: replyTargetRef.current,
-      })
-
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
           setRecentBattleCommentId((prev) => (prev === commentId ? null : prev))
         }, 2600)
       }
 
+      setCommentSide(side)
+      console.log('[matnya] setReplyTarget:locked', lockedReplyTarget)
+      console.log('[matnya] disagree-click-raw', { commentId, author, side })
       if (!text.trim()) {
         setText('')
       }
 
       Promise.resolve(onReactComment(commentId, reactionType)).catch(
         (error) => {
-          console.error('반박 리액션 저장 실패', error)
+          console.error('comment reaction 실패', error)
         },
       )
 
@@ -3526,7 +3582,6 @@ function CommentModal({
           }, 520)
         }
       }
-
       return
     }
 
@@ -3547,12 +3602,14 @@ function CommentModal({
     const trimmed = text.trim()
     if (!trimmed || isSubmitting) return
 
-    const submitReplyTarget = replyTargetRef.current ?? replyTarget ?? null
-    const resolvedReplyToCommentId = submitReplyTarget?.commentId ?? null
-
     setIsSubmitting(true)
 
     try {
+      const storageReplyTarget = restoreReplyTarget()
+      const submitReplyTarget =
+        replyTargetRef.current ?? replyTarget ?? storageReplyTarget ?? null
+      const resolvedReplyToCommentId = submitReplyTarget?.commentId ?? null
+
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
@@ -3561,7 +3618,6 @@ function CommentModal({
         submitReplyTarget,
         resolvedReplyToCommentId,
       })
-
       await Promise.resolve(
         onAddComment(trimmed, commentSide, resolvedReplyToCommentId),
       )
@@ -3571,8 +3627,7 @@ function CommentModal({
         author: guestName,
       })
       setText('')
-      setReplyTarget(null)
-      replyTargetRef.current = null
+      persistReplyTarget(null)
     } catch (error) {
       console.error('댓글 등록 실패', error)
     } finally {
@@ -3879,7 +3934,7 @@ function CommentModal({
               </div>
               <button
                 onClick={() => {
-                  setReplyTarget(null)
+                  persistReplyTarget(null)
                   setCommentSide(activeTab)
                 }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
@@ -8906,13 +8961,6 @@ ${shareUrl}`)
     }
 
     console.log('[matnya] addComment:payload', commentInsertPayload)
-    console.log('[matnya] addComment:reply-columns-check', {
-      replyToCommentId,
-      reply_to_comment_id: commentInsertPayload.reply_to_comment_id,
-      parent_comment_id: commentInsertPayload.parent_comment_id,
-      replyToCommentIdType:
-        replyToCommentId == null ? 'nullish' : typeof replyToCommentId,
-    })
 
     const { data: inserted, error } = await supabase
       .from('comments')
@@ -8927,6 +8975,13 @@ ${shareUrl}`)
     }
 
     console.log('[matnya] addComment:inserted', inserted)
+    console.log('[matnya] addComment:reply-columns-check', {
+      replyToCommentId: replyToCommentId ?? null,
+      reply_to_comment_id: inserted.reply_to_comment_id ?? null,
+      parent_comment_id: inserted.parent_comment_id ?? null,
+      replyToCommentIdType:
+        replyToCommentId == null ? 'nullish' : typeof replyToCommentId,
+    })
 
     const newComment: CommentItem = {
       id: Number(inserted.id),
