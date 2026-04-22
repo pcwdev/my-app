@@ -3101,6 +3101,11 @@ function CommentModal({
   }, [open, post?.id])
 
   useEffect(() => {
+    if (!open) return
+    setCommentSide(activeTab)
+  }, [activeTab, open])
+
+  useEffect(() => {
     if (!open || !post) return
 
     const exposedCount = Math.min(
@@ -3624,7 +3629,10 @@ function CommentModal({
                 </div>
               </div>
               <button
-                onClick={() => setReplyTarget(null)}
+                onClick={() => {
+                  setReplyTarget(null)
+                  setCommentSide(activeTab)
+                }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
                 aria-label="반박 모드 닫기"
               >
@@ -3676,9 +3684,9 @@ function CommentModal({
                   placeholder={
                     replyTarget
                       ? `${replyTarget.author}에게 반박 남기기`
-                      : `${commentSide === 'left' ? post.leftLabel : post.rightLabel} 쪽 한마디`
+                      : '너의 의견은?'
                   }
-                  className="h-[40px] w-full resize-none bg-transparent pl-3 pr-14 pt-[9px] text-[14px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+                  className="h-[40px] w-full resize-none bg-transparent pl-3 pr-14 pt-[9px] text-base leading-5 text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <span
                   className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
