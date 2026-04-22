@@ -3501,14 +3501,15 @@ function CommentModal({
     }
 
     if (reactionType === 'disagree') {
-      if (wasActive) {
-        setReplyTarget((prev) => {
-          const next = prev?.commentId === commentId ? null : prev
-          if (prev?.commentId === commentId) {
-            replyTargetRef.current = null
-          }
-          return next
-        })
+      const nextReplyTarget = { commentId, author, side }
+
+      if (
+        wasActive &&
+        replyTargetRef.current?.commentId === commentId &&
+        replyTarget?.commentId === commentId
+      ) {
+        setReplyTarget(null)
+        replyTargetRef.current = null
         if (recentBattleCommentId === commentId) {
           setRecentBattleCommentId(null)
         }
@@ -3523,13 +3524,11 @@ function CommentModal({
       }
 
       setCommentSide(side)
-      const nextReplyTarget = { commentId, author, side }
+      setActiveTab(side)
       console.log('[matnya] setReplyTarget', nextReplyTarget)
       replyTargetRef.current = nextReplyTarget
       setReplyTarget(nextReplyTarget)
-      if (!text.trim()) {
-        setText('')
-      }
+      return
     }
   }
 
@@ -3539,10 +3538,10 @@ function CommentModal({
 
     setIsSubmitting(true)
 
-    const lockedReplyTarget = replyTargetRef.current ?? replyTarget
-    const resolvedReplyToCommentId = lockedReplyTarget?.commentId ?? null
-
     try {
+      const resolvedReplyToCommentId =
+        replyTargetRef.current?.commentId ?? replyTarget?.commentId ?? null
+
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
@@ -3868,7 +3867,6 @@ function CommentModal({
               <button
                 onClick={() => {
                   setReplyTarget(null)
-                  replyTargetRef.current = null
                   setCommentSide(activeTab)
                 }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
