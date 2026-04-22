@@ -3489,32 +3489,37 @@ function CommentModal({
     const wasActive = !!myCommentReactions[reactionKey]
 
     if (reactionType === 'disagree') {
-      const nextReplyTarget =
-        replyTargetRef.current?.commentId === commentId
-          ? null
-          : { commentId, author, side }
+      const nextReplyTarget = { commentId, author, side }
 
       replyTargetRef.current = nextReplyTarget
       setReplyTarget(nextReplyTarget)
+      setRecentBattleCommentId(commentId)
+      setCommentSide(side)
 
-      if (nextReplyTarget) {
-        setRecentBattleCommentId(commentId)
-        if (typeof window !== 'undefined') {
-          window.setTimeout(() => {
-            setRecentBattleCommentId((prev) =>
-              prev === commentId ? null : prev,
-            )
-          }, 2600)
-        }
+      console.log('[matnya] setReplyTarget', nextReplyTarget)
 
-        setCommentSide(side)
-        console.log('[matnya] setReplyTarget', nextReplyTarget)
-        if (!text.trim()) {
-          setText('')
-        }
-      } else if (recentBattleCommentId === commentId) {
-        setRecentBattleCommentId(null)
+      if (!text.trim()) {
+        setText('')
       }
+
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          setRecentBattleCommentId((prev) => (prev === commentId ? null : prev))
+        }, 2600)
+      }
+
+      if (!wasActive) {
+        await Promise.resolve(onReactComment(commentId, reactionType))
+      }
+
+      const pulseKey = `${commentId}:${reactionType}`
+      setReactionPulseKey(pulseKey)
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
+        }, 520)
+      }
+      return
     }
 
     await Promise.resolve(onReactComment(commentId, reactionType))
@@ -3537,14 +3542,21 @@ function CommentModal({
     setIsSubmitting(true)
 
     try {
+      const liveReplyTarget = replyTargetRef.current ?? replyTarget ?? null
       const resolvedReplyToCommentId =
-        replyTargetRef.current?.commentId ?? replyTarget?.commentId ?? null
+        liveReplyTarget &&
+        (post.comments ?? []).some(
+          (comment) => Number(comment.id) === Number(liveReplyTarget.commentId),
+        )
+          ? Number(liveReplyTarget.commentId)
+          : null
 
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
         replyTarget,
         replyTargetRef: replyTargetRef.current,
+        liveReplyTarget,
         resolvedReplyToCommentId,
       })
       await Promise.resolve(
@@ -3865,6 +3877,7 @@ function CommentModal({
               <button
                 onClick={() => {
                   setReplyTarget(null)
+                  replyTargetRef.current = null
                   setCommentSide(activeTab)
                 }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
