@@ -3079,6 +3079,14 @@ function CommentModal({
   const [recentBattleCommentId, setRecentBattleCommentId] = useState<
     number | null
   >(null)
+  const [pendingOwnCommentMatch, setPendingOwnCommentMatch] = useState<{
+    text: string
+    side: Side
+    author: string
+  } | null>(null)
+  const [highlightCommentId, setHighlightCommentId] = useState<number | null>(
+    null,
+  )
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -3123,6 +3131,8 @@ function CommentModal({
     setReplyTarget(null)
     setReactionPulseKey(null)
     setRecentBattleCommentId(null)
+    setPendingOwnCommentMatch(null)
+    setHighlightCommentId(null)
   }, [open, post?.id])
 
   useEffect(() => {
@@ -3333,6 +3343,38 @@ function CommentModal({
     })
   }, [])
 
+  useEffect(() => {
+    if (!open || !post || !pendingOwnCommentMatch) return
+
+    const targetComment = [...(post.comments ?? [])]
+      .filter(
+        (comment) =>
+          !comment.hidden &&
+          comment.side === pendingOwnCommentMatch.side &&
+          comment.author === pendingOwnCommentMatch.author &&
+          comment.text.trim() === pendingOwnCommentMatch.text.trim(),
+      )
+      .sort((a, b) => b.id - a.id)[0]
+
+    if (!targetComment) return
+
+    setActiveTab(pendingOwnCommentMatch.side)
+    setSortType('latest')
+    setVisibleCount((prev) => Math.max(prev, 12))
+    scrollCommentListToTop()
+    setPendingScrollId(targetComment.id)
+    setHighlightCommentId(targetComment.id)
+    setPendingOwnCommentMatch(null)
+
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        setHighlightCommentId((prev) =>
+          prev === targetComment.id ? null : prev,
+        )
+      }, 1800)
+    }
+  }, [open, post, pendingOwnCommentMatch, scrollCommentListToTop])
+
   const openHighlightComment = useCallback(
     (row: (typeof commentRows)[number] | null, mode?: 'best' | 'battle') => {
       if (!row) return
@@ -3431,9 +3473,13 @@ function CommentModal({
 
     try {
       await Promise.resolve(onAddComment(trimmed, commentSide))
+      setPendingOwnCommentMatch({
+        text: trimmed,
+        side: commentSide,
+        author: guestName,
+      })
       setText('')
       setReplyTarget(null)
-      setActiveTab(commentSide)
       requestAnimationFrame(() => {
         inputRef.current?.focus()
       })
@@ -3610,7 +3656,11 @@ function CommentModal({
                   <div
                     key={comment.id}
                     id={`comment-row-${comment.id}`}
-                    className={`rounded-[18px] ${sideToneClass}`}
+                    className={`rounded-[18px] transition-all duration-500 ${sideToneClass} ${
+                      highlightCommentId === comment.id
+                        ? 'ring-2 ring-[#4f7cff]/35 shadow-[0_0_0_1px_rgba(79,124,255,0.10),0_18px_34px_rgba(79,124,255,0.18)]'
+                        : ''
+                    }`}
                   >
                     <div className="px-1.5 py-1.5">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -3736,6 +3786,9 @@ function CommentModal({
           ) : null}
 
           <div className="mx-auto max-w-md rounded-[26px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-2 shadow-[0_16px_36px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
+            <div className="mb-1.5 text-[10px] font-semibold text-slate-400">
+              아래 선택은 작성 진영만 바뀌고 위 댓글 분위기는 그대로 유지됨
+            </div>
             <div className="mb-2 grid grid-cols-2 gap-1.5 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#f8faff_0%,#eef3ff_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
               <button
                 onClick={() => setCommentSide('left')}
