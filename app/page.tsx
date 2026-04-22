@@ -3090,6 +3090,7 @@ function CommentModal({
   const [lastSubmittedCommentId, setLastSubmittedCommentId] = useState<
     number | null
   >(null)
+  const [suppressAutoKeyboard, setSuppressAutoKeyboard] = useState(true)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -3103,7 +3104,24 @@ function CommentModal({
     setPendingOwnCommentMatch(null)
     setHighlightCommentId(null)
     setLastSubmittedCommentId(null)
+    setSuppressAutoKeyboard(true)
   }, [open, post?.id])
+
+  const unlockCommentInput = useCallback(() => {
+    if (!suppressAutoKeyboard) return
+    setSuppressAutoKeyboard(false)
+
+    if (typeof window === 'undefined') return
+    window.requestAnimationFrame(() => {
+      const target = inputRef.current
+      if (!target) return
+      try {
+        target.focus({ preventScroll: true })
+      } catch {
+        target.focus()
+      }
+    })
+  }, [suppressAutoKeyboard])
 
   useEffect(() => {
     if (!open) return
@@ -3793,7 +3811,15 @@ function CommentModal({
                 <textarea
                   ref={inputRef}
                   rows={1}
+                  readOnly={suppressAutoKeyboard}
                   value={text}
+                  onTouchStart={unlockCommentInput}
+                  onPointerDown={unlockCommentInput}
+                  onFocus={() => {
+                    if (suppressAutoKeyboard) {
+                      unlockCommentInput()
+                    }
+                  }}
                   onChange={(event) =>
                     setText(event.target.value.slice(0, LIMITS.comment))
                   }
@@ -3809,7 +3835,8 @@ function CommentModal({
                       ? `${replyTarget.author}한테 한마디 더 얹기`
                       : '너의 의견은?'
                   }
-                  className="h-[38px] w-full resize-none bg-transparent pl-3 pr-12 pt-[8px] text-[15px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+                  style={{ fontSize: 16, lineHeight: '20px' }}
+                  className="h-[38px] w-full resize-none bg-transparent pl-3 pr-12 pt-[8px] text-base leading-5 text-slate-900 outline-none placeholder:text-slate-400 [text-size-adjust:100%] [-webkit-text-size-adjust:100%]"
                 />
                 <span
                   className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
