@@ -3119,6 +3119,11 @@ function CommentModal({
     author: string
     side: Side
   } | null>(null)
+  const replyTargetRef = useRef<{
+    commentId: number
+    author: string
+    side: Side
+  } | null>(null)
   const [reactionPulseKey, setReactionPulseKey] = useState<string | null>(null)
   const [recentBattleCommentId, setRecentBattleCommentId] = useState<
     number | null
@@ -3140,10 +3145,15 @@ function CommentModal({
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    replyTargetRef.current = replyTarget
+  }, [replyTarget])
+
+  useEffect(() => {
     if (!open) return
     setVisibleCount(12)
     setPendingScrollId(null)
     setReplyTarget(null)
+    replyTargetRef.current = null
     setReactionPulseKey(null)
     setRecentBattleCommentId(null)
     setPendingOwnCommentMatch(null)
@@ -3497,6 +3507,9 @@ function CommentModal({
     if (reactionType === 'disagree') {
       if (wasActive) {
         setReplyTarget((prev) => (prev?.commentId === commentId ? null : prev))
+        if (replyTargetRef.current?.commentId === commentId) {
+          replyTargetRef.current = null
+        }
         if (recentBattleCommentId === commentId) {
           setRecentBattleCommentId(null)
         }
@@ -3510,8 +3523,9 @@ function CommentModal({
         }, 2600)
       }
 
-      setCommentSide(side)
+      setCommentSide(side === 'left' ? 'right' : 'left')
       console.log('[matnya] setReplyTarget', { commentId, author, side })
+      replyTargetRef.current = { commentId, author, side }
       setReplyTarget({ commentId, author, side })
       if (!text.trim()) {
         setText('')
@@ -3526,14 +3540,18 @@ function CommentModal({
     setIsSubmitting(true)
 
     try {
+      const resolvedReplyTarget = replyTargetRef.current ?? replyTarget
+      const resolvedReplyToCommentId = resolvedReplyTarget?.commentId ?? null
+
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
         replyTarget,
-        resolvedReplyToCommentId: replyTarget?.commentId ?? null,
+        replyTargetRef: replyTargetRef.current,
+        resolvedReplyToCommentId,
       })
       await Promise.resolve(
-        onAddComment(trimmed, commentSide, replyTarget?.commentId ?? null),
+        onAddComment(trimmed, commentSide, resolvedReplyToCommentId),
       )
       setPendingOwnCommentMatch({
         text: trimmed,
@@ -3542,6 +3560,7 @@ function CommentModal({
       })
       setText('')
       setReplyTarget(null)
+      replyTargetRef.current = null
     } catch (error) {
       console.error('댓글 등록 실패', error)
     } finally {
