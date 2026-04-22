@@ -3145,10 +3145,6 @@ function CommentModal({
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    replyTargetRef.current = replyTarget
-  }, [replyTarget])
-
-  useEffect(() => {
     if (!open) return
     setVisibleCount(12)
     setPendingScrollId(null)
@@ -3506,10 +3502,13 @@ function CommentModal({
 
     if (reactionType === 'disagree') {
       if (wasActive) {
-        setReplyTarget((prev) => (prev?.commentId === commentId ? null : prev))
-        if (replyTargetRef.current?.commentId === commentId) {
-          replyTargetRef.current = null
-        }
+        setReplyTarget((prev) => {
+          const next = prev?.commentId === commentId ? null : prev
+          if (prev?.commentId === commentId) {
+            replyTargetRef.current = null
+          }
+          return next
+        })
         if (recentBattleCommentId === commentId) {
           setRecentBattleCommentId(null)
         }
@@ -3523,10 +3522,11 @@ function CommentModal({
         }, 2600)
       }
 
-      setCommentSide(side === 'left' ? 'right' : 'left')
-      console.log('[matnya] setReplyTarget', { commentId, author, side })
-      replyTargetRef.current = { commentId, author, side }
-      setReplyTarget({ commentId, author, side })
+      setCommentSide(side)
+      const nextReplyTarget = { commentId, author, side }
+      console.log('[matnya] setReplyTarget', nextReplyTarget)
+      replyTargetRef.current = nextReplyTarget
+      setReplyTarget(nextReplyTarget)
       if (!text.trim()) {
         setText('')
       }
@@ -3539,10 +3539,10 @@ function CommentModal({
 
     setIsSubmitting(true)
 
-    try {
-      const resolvedReplyTarget = replyTargetRef.current ?? replyTarget
-      const resolvedReplyToCommentId = resolvedReplyTarget?.commentId ?? null
+    const lockedReplyTarget = replyTargetRef.current ?? replyTarget
+    const resolvedReplyToCommentId = lockedReplyTarget?.commentId ?? null
 
+    try {
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
@@ -3868,6 +3868,7 @@ function CommentModal({
               <button
                 onClick={() => {
                   setReplyTarget(null)
+                  replyTargetRef.current = null
                   setCommentSide(activeTab)
                 }}
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
