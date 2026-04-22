@@ -3324,9 +3324,17 @@ function CommentModal({
     side: Side,
     author: string,
   ) => {
+    const reactionKey = `${commentId}:${reactionType}`
+    const wasActive = !!myCommentReactions[reactionKey]
+
     await Promise.resolve(onReactComment(commentId, reactionType))
 
     if (reactionType === 'disagree') {
+      if (wasActive) {
+        setReplyTarget((prev) => (prev?.commentId === commentId ? null : prev))
+        return
+      }
+
       setCommentSide(side)
       setActiveTab(side)
       setReplyTarget({ commentId, author, side })
@@ -3620,9 +3628,10 @@ function CommentModal({
           {replyTarget ? (
             <div className="mb-2 flex items-center justify-between gap-2 rounded-[18px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-3 py-2 text-[11px] shadow-[0_8px_20px_rgba(244,63,94,0.08)]">
               <div className="min-w-0">
-                <div className="font-black text-rose-700">반박 작성중</div>
+                <div className="truncate font-black text-rose-700">
+                  {replyTarget.author}에게 반박함
+                </div>
                 <div className="truncate font-semibold text-rose-600/90">
-                  {replyTarget.author} ·{' '}
                   {replyTarget.side === 'left'
                     ? post.leftLabel
                     : post.rightLabel}
