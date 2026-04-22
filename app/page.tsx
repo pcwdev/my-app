@@ -175,6 +175,7 @@ type MyPostItem = {
   ageGroup: string
   hasNewComments?: boolean
   newCommentsCount?: number
+  totalCommentsCount?: number
 }
 
 type MyCommentItem = {
@@ -185,6 +186,7 @@ type MyCommentItem = {
   text: string
   hasNewReplies?: boolean
   newRepliesCount?: number
+  totalRepliesCount?: number
 }
 
 type UserActivityReadRow = {
@@ -2836,6 +2838,10 @@ function MyActivityModal({
                   <div className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
                     새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
+                ) : (item.totalCommentsCount ?? 0) > 0 ? (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                    댓글 {item.totalCommentsCount ?? 0}개
+                  </div>
                 ) : null}
                 <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
               </button>
@@ -2854,7 +2860,11 @@ function MyActivityModal({
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    🔥 반박 {item.newRepliesCount ?? 1}개
+                    🔥 새 반박 {item.newRepliesCount ?? 1}개
+                  </div>
+                ) : (item.totalRepliesCount ?? 0) > 0 ? (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                    반박 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : null}
                 <div className="mt-2 text-xs text-slate-400">
@@ -5434,6 +5444,9 @@ export default function MatnyaApp() {
   const fetchMyActivity = useCallback(async (actorKey: string) => {
     if (!actorKey) return
 
+    console.groupCollapsed('[matnya] fetchMyActivity')
+    console.log('actorKey', actorKey)
+
     const [myPostsRes, myCommentsRes] = await Promise.all([
       supabase
         .from('posts')
@@ -5457,6 +5470,7 @@ export default function MatnyaApp() {
     if (myCommentsRes.error) {
       console.error('내 댓글 불러오기 실패', myCommentsRes.error)
       setMyComments([])
+      console.groupEnd()
       return
     }
 
@@ -5500,7 +5514,7 @@ export default function MatnyaApp() {
       commentIds.length > 0
         ? supabase
             .from('comments')
-            .select('id, reply_to_comment_id, author_key, created_at')
+            .select('id, reply_to_comment_id, author_key, author, created_at')
             .in('reply_to_comment_id', commentIds)
             .neq('status', 'deleted')
         : Promise.resolve({ data: [], error: null } as any),
@@ -5532,6 +5546,7 @@ export default function MatnyaApp() {
       )
     })
 
+    const totalCommentCountMap = new Map<number, number>()
     const newCommentCountMap = new Map<number, number>()
     ;(postCommentsRes.data ?? []).forEach((row: any) => {
       const postId = Number(row.post_id)
@@ -5539,6 +5554,12 @@ export default function MatnyaApp() {
       const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
       const seenTime = seenAt ? new Date(seenAt).getTime() : 0
       const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+      if (isOtherUser) {
+        totalCommentCountMap.set(
+          postId,
+          Number(totalCommentCountMap.get(postId) ?? 0) + 1,
+        )
+      }
       if (!isOtherUser || createdAt <= seenTime) return
       newCommentCountMap.set(
         postId,
@@ -5546,6 +5567,7 @@ export default function MatnyaApp() {
       )
     })
 
+    const totalReplyCountMap = new Map<number, number>()
     const newReplyCountMap = new Map<number, number>()
     ;(replyCommentsRes.data ?? []).forEach((row: any) => {
       const commentId = Number(row.reply_to_comment_id)
@@ -5553,6 +5575,10 @@ export default function MatnyaApp() {
       const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
       const seenTime = seenAt ? new Date(seenAt).getTime() : 0
       const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+      totalReplyCountMap.set(
+        commentId,
+        Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
+      )
       if (!isOtherUser || createdAt <= seenTime) return
       newReplyCountMap.set(
         commentId,
@@ -5560,27 +5586,34 @@ export default function MatnyaApp() {
       )
     })
 
-    setMyPosts(
-      myPostsData.map((post: any) => ({
-        id: Number(post.id),
-        postId: Number(post.id),
-        title: post.title,
-        category: post.category,
-        ageGroup: post.age_group,
-        hasNewComments:
-          Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
-        newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
-      })),
-    )
+    const nextMyPosts = myPostsData.map((post: any) => ({
+      id: Number(post.id),
+      postId: Number(post.id),
+      title: post.title,
+      category: post.category,
+      ageGroup: post.age_group,
+      hasNewComments: Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
+      newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
+      totalCommentsCount: Number(
+        totalCommentCountMap.get(Number(post.id)) ?? 0,
+      ),
+    }))
 
-    setMyComments(
-      commentRows.map((comment) => ({
-        ...comment,
-        postTitle: postTitleMap.get(comment.postId) ?? '원글',
-        hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
-        newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
-      })),
-    )
+    const nextMyComments = commentRows.map((comment) => ({
+      ...comment,
+      postTitle: postTitleMap.get(comment.postId) ?? '원글',
+      hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
+      newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
+      totalRepliesCount: Number(totalReplyCountMap.get(comment.commentId) ?? 0),
+    }))
+
+    console.log('myPosts', nextMyPosts)
+    console.log('myComments', nextMyComments)
+    console.log('replyCommentsRaw', replyCommentsRes.data ?? [])
+    console.groupEnd()
+
+    setMyPosts(nextMyPosts)
+    setMyComments(nextMyComments)
   }, [])
 
   const fetchDeletedItems = useCallback(async () => {
@@ -8262,6 +8295,12 @@ ${shareUrl}`)
     async (targetType: 'post' | 'comment', targetId: number) => {
       if (!currentRawActorKey || !targetId) return
 
+      console.log('[matnya] markActivitySeen', {
+        targetType,
+        targetId,
+        actorKey: currentRawActorKey,
+      })
+
       const { error } = await supabase.from('user_activity_reads').upsert(
         {
           actor_key: currentRawActorKey,
@@ -8829,6 +8868,8 @@ ${shareUrl}`)
       showToast('댓글 등록 실패')
       return
     }
+
+    console.log('[matnya] addComment:inserted', inserted)
 
     const newComment: CommentItem = {
       id: Number(inserted.id),
