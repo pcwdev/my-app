@@ -5389,13 +5389,13 @@ export default function MatnyaApp() {
     [loadActorReactionSelections, loadReactionAndOutcomeData],
   )
 
-  const fetchMyActivity = useCallback(async (userId: string) => {
-    if (!userId) return
+  const fetchMyActivity = useCallback(async (actorKey: string) => {
+    if (!actorKey) return
 
     const { data: myPostsData, error: myPostsError } = await supabase
       .from('posts')
       .select('id, title, category, age_group')
-      .eq('author_key', userId)
+      .eq('author_key', actorKey)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -5416,7 +5416,7 @@ export default function MatnyaApp() {
     const { data: myCommentsData, error: myCommentsError } = await supabase
       .from('comments')
       .select('id, post_id, text')
-      .eq('author_key', userId)
+      .eq('author_key', actorKey)
       .neq('status', 'deleted')
       .order('created_at', { ascending: false })
 
@@ -6073,13 +6073,13 @@ export default function MatnyaApp() {
   }, [])
 
   useEffect(() => {
-    if (authUser?.id) {
-      void fetchMyActivity(authUser.id)
+    if (currentActorKey) {
+      void fetchMyActivity(currentActorKey)
     } else {
       setMyPosts([])
       setMyComments([])
     }
-  }, [authUser?.id, fetchMyActivity])
+  }, [currentActorKey, fetchMyActivity])
 
   useEffect(() => {
     void fetchWatchlist(currentActorUnifiedKey)
