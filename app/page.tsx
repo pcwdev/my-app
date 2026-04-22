@@ -10677,7 +10677,9 @@ ${shareUrl}`)
             setCommentOpen(false)
             requestLightweightMetaRefresh()
           }}
-          onAddComment={(text, side) => void addComment(text, side)}
+          onAddComment={(text, side, replyToCommentId) =>
+            void addComment(text, side, replyToCommentId ?? null)
+          }
           onOpenReportComment={openReportComment}
           adminMode={adminMode}
           onAdminRestoreComment={(commentId) =>
