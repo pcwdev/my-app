@@ -3092,6 +3092,7 @@ function CommentModal({
   >(null)
   const [suppressAutoKeyboard, setSuppressAutoKeyboard] = useState(true)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const unlockingKeyboardRef = useRef(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -3105,22 +3106,48 @@ function CommentModal({
     setHighlightCommentId(null)
     setLastSubmittedCommentId(null)
     setSuppressAutoKeyboard(true)
+    unlockingKeyboardRef.current = false
   }, [open, post?.id])
 
   const unlockCommentInput = useCallback(() => {
-    if (!suppressAutoKeyboard) return
+    if (!suppressAutoKeyboard || unlockingKeyboardRef.current) return
+    unlockingKeyboardRef.current = true
     setSuppressAutoKeyboard(false)
 
     if (typeof window === 'undefined') return
-    window.requestAnimationFrame(() => {
-      const target = inputRef.current
-      if (!target) return
-      try {
-        target.focus({ preventScroll: true })
-      } catch {
-        target.focus()
+
+    const target = inputRef.current
+    if (!target) {
+      unlockingKeyboardRef.current = false
+      return
+    }
+
+    try {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    } catch {}
+
+    window.setTimeout(() => {
+      const liveTarget = inputRef.current
+      if (!liveTarget) {
+        unlockingKeyboardRef.current = false
+        return
       }
-    })
+
+      try {
+        liveTarget.focus({ preventScroll: true })
+      } catch {
+        liveTarget.focus()
+      }
+
+      try {
+        const valueLength = liveTarget.value?.length ?? 0
+        liveTarget.setSelectionRange(valueLength, valueLength)
+      } catch {}
+
+      window.setTimeout(() => {
+        unlockingKeyboardRef.current = false
+      }, 120)
+    }, 220)
   }, [suppressAutoKeyboard])
 
   useEffect(() => {
