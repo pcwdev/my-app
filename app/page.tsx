@@ -3119,11 +3119,6 @@ function CommentModal({
     author: string
     side: Side
   } | null>(null)
-  const replyTargetRef = useRef<{
-    commentId: number
-    author: string
-    side: Side
-  } | null>(null)
   const [reactionPulseKey, setReactionPulseKey] = useState<string | null>(null)
   const [recentBattleCommentId, setRecentBattleCommentId] = useState<
     number | null
@@ -3141,6 +3136,11 @@ function CommentModal({
   >(null)
   const [suppressAutoKeyboard, setSuppressAutoKeyboard] = useState(true)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const replyTargetRef = useRef<{
+    commentId: number
+    author: string
+    side: Side
+  } | null>(null)
   const unlockingKeyboardRef = useRef(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -3149,13 +3149,13 @@ function CommentModal({
     setVisibleCount(12)
     setPendingScrollId(null)
     setReplyTarget(null)
-    replyTargetRef.current = null
     setReactionPulseKey(null)
     setRecentBattleCommentId(null)
     setPendingOwnCommentMatch(null)
     setHighlightCommentId(null)
     setLastSubmittedCommentId(null)
     setSuppressAutoKeyboard(true)
+    replyTargetRef.current = null
     unlockingKeyboardRef.current = false
   }, [open, post?.id])
 
@@ -3488,6 +3488,35 @@ function CommentModal({
     const reactionKey = `${commentId}:${reactionType}`
     const wasActive = !!myCommentReactions[reactionKey]
 
+    if (reactionType === 'disagree') {
+      const nextReplyTarget =
+        replyTargetRef.current?.commentId === commentId
+          ? null
+          : { commentId, author, side }
+
+      replyTargetRef.current = nextReplyTarget
+      setReplyTarget(nextReplyTarget)
+
+      if (nextReplyTarget) {
+        setRecentBattleCommentId(commentId)
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => {
+            setRecentBattleCommentId((prev) =>
+              prev === commentId ? null : prev,
+            )
+          }, 2600)
+        }
+
+        setCommentSide(side)
+        console.log('[matnya] setReplyTarget', nextReplyTarget)
+        if (!text.trim()) {
+          setText('')
+        }
+      } else if (recentBattleCommentId === commentId) {
+        setRecentBattleCommentId(null)
+      }
+    }
+
     await Promise.resolve(onReactComment(commentId, reactionType))
 
     if (!wasActive) {
@@ -3498,37 +3527,6 @@ function CommentModal({
           setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
         }, 520)
       }
-    }
-
-    if (reactionType === 'disagree') {
-      const nextReplyTarget = { commentId, author, side }
-
-      if (
-        wasActive &&
-        replyTargetRef.current?.commentId === commentId &&
-        replyTarget?.commentId === commentId
-      ) {
-        setReplyTarget(null)
-        replyTargetRef.current = null
-        if (recentBattleCommentId === commentId) {
-          setRecentBattleCommentId(null)
-        }
-        return
-      }
-
-      setRecentBattleCommentId(commentId)
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => {
-          setRecentBattleCommentId((prev) => (prev === commentId ? null : prev))
-        }, 2600)
-      }
-
-      setCommentSide(side)
-      setActiveTab(side)
-      console.log('[matnya] setReplyTarget', nextReplyTarget)
-      replyTargetRef.current = nextReplyTarget
-      setReplyTarget(nextReplyTarget)
-      return
     }
   }
 
