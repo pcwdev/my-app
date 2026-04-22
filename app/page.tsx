@@ -2137,7 +2137,7 @@ function AuthOptionalModal({
           기기 바뀌어도 이어서 저장할 수 있음.
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
             onClick={onGoogleLogin}
             className="w-full rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
@@ -2202,14 +2202,14 @@ const CommentCard = React.memo(function CommentCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border shadow-[0_8px_20px_rgba(15,23,42,0.05)] ${
+      className={`overflow-hidden rounded-[16px] border shadow-[0_6px_16px_rgba(15,23,42,0.045)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
           : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.96)_100%)]'
       }`}
     >
       <div
-        className={`h-[3px] w-full ${
+        className={`h-[2px] w-full ${
           comment.hidden
             ? 'bg-red-200'
             : isLeft
@@ -2217,16 +2217,16 @@ const CommentCard = React.memo(function CommentCard({
               : 'bg-[linear-gradient(90deg,#8b5cf6_0%,#a78bfa_100%)]'
         }`}
       />
-      <div className="p-2.5">
-        <div className="mb-2 flex items-start justify-between gap-2">
+      <div className="p-2">
+        <div className="mb-1.5 flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               <span
                 className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${sideBadgeClass}`}
               >
                 {sideLabel}
               </span>
-              <span className="max-w-[110px] truncate text-[12px] font-semibold text-slate-900">
+              <span className="max-w-[96px] truncate text-[11px] font-semibold text-slate-900">
                 {comment.author}
               </span>
               <span
@@ -2236,7 +2236,7 @@ const CommentCard = React.memo(function CommentCard({
               </span>
               {resolvedMeta.badgeName ? (
                 <span
-                  className={`inline-flex max-w-[120px] truncate rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${badgeTheme.softClass}`}
+                  className={`inline-flex max-w-[110px] truncate rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${badgeTheme.softClass}`}
                 >
                   {badgeTheme.icon} {resolvedMeta.badgeName}
                 </span>
@@ -2247,7 +2247,7 @@ const CommentCard = React.memo(function CommentCard({
           {!comment.hidden ? (
             <button
               onClick={() => onOpenReportComment(comment.id)}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+              className="inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
               aria-label="댓글 신고"
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -2255,19 +2255,19 @@ const CommentCard = React.memo(function CommentCard({
           ) : null}
         </div>
 
-        <div className="text-[13px] leading-5 tracking-[-0.01em] text-slate-700 line-clamp-2">
+        <div className="text-[12.5px] leading-[1.4] tracking-[-0.01em] text-slate-700 line-clamp-2">
           {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-2">
+          <div className="mt-1.5">
             {liveBattleFocus ? (
-              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black tracking-[0.02em] text-rose-600">
+              <div className="mb-1.5 flex items-center gap-1 text-[10px] font-black tracking-[0.02em] text-rose-600">
                 <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
                 지금 서로 물고 늘어지는 중
               </div>
             ) : null}
-            <div className="flex items-center gap-1.5 text-[11px]">
+            <div className="flex items-center gap-1 text-[11px]">
               {[
                 {
                   reactionType: 'relatable' as CommentReactionType,
@@ -2300,7 +2300,7 @@ const CommentCard = React.memo(function CommentCard({
                     onClick={() =>
                       onReactComment(comment.id, item.reactionType)
                     }
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-bold transition duration-200 ${item.active ? item.activeClass : item.idleClass} ${isPulse ? 'scale-[1.08] shadow-[0_10px_20px_rgba(15,23,42,0.12)]' : 'scale-100'}`}
+                    className={`inline-flex h-8 items-center gap-1 rounded-full border px-3 font-bold transition duration-200 ${item.active ? item.activeClass : item.idleClass} ${isPulse ? 'scale-[1.08] shadow-[0_10px_20px_rgba(15,23,42,0.12)]' : 'scale-100'}`}
                   >
                     <span>{item.label}</span>
                     <span className={isPulse ? 'animate-pulse' : ''}>
@@ -3087,6 +3087,9 @@ function CommentModal({
   const [highlightCommentId, setHighlightCommentId] = useState<number | null>(
     null,
   )
+  const [lastSubmittedCommentId, setLastSubmittedCommentId] = useState<
+    number | null
+  >(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -3133,6 +3136,7 @@ function CommentModal({
     setRecentBattleCommentId(null)
     setPendingOwnCommentMatch(null)
     setHighlightCommentId(null)
+    setLastSubmittedCommentId(null)
   }, [open, post?.id])
 
   useEffect(() => {
@@ -3335,6 +3339,41 @@ function CommentModal({
     return '서로 물고 늘어지기 시작한 댓글'
   }, [liveCommentRow, recentBattleCommentId])
 
+  const getCommentDramaMeta = useCallback(
+    (item: (typeof commentRows)[number]) => {
+      const hasReplyHeat =
+        item.conflictReactionTotal >= 2 || item.battleScore >= 2
+      const isRecentReply = recentBattleCommentId === item.comment.id
+
+      if (isRecentReply) {
+        return {
+          badge: '🔥 방금 반박 붙음',
+          helper: '조금 전 반박이 들어와서 지금 바로 붙는 중',
+        }
+      }
+
+      if (hasReplyHeat) {
+        return {
+          badge: '⚡ 반박 붙음',
+          helper:
+            item.conflictReactionTotal >= 3
+              ? '반박이 계속 꽂히는 중'
+              : '한 번 붙기 시작해서 다시 볼 맛 나는 댓글',
+        }
+      }
+
+      if (item.heatScore >= 3) {
+        return {
+          badge: '🔥 다들 물고 있음',
+          helper: '공감이 몰려서 사람들이 계속 읽는 댓글',
+        }
+      }
+
+      return null
+    },
+    [recentBattleCommentId],
+  )
+
   const scrollCommentListToTop = useCallback(() => {
     if (typeof window === 'undefined') return
 
@@ -3364,6 +3403,7 @@ function CommentModal({
     scrollCommentListToTop()
     setPendingScrollId(targetComment.id)
     setHighlightCommentId(targetComment.id)
+    setLastSubmittedCommentId(targetComment.id)
     setPendingOwnCommentMatch(null)
 
     if (typeof window !== 'undefined') {
@@ -3371,7 +3411,12 @@ function CommentModal({
         setHighlightCommentId((prev) =>
           prev === targetComment.id ? null : prev,
         )
-      }, 1800)
+      }, 3000)
+      window.setTimeout(() => {
+        setLastSubmittedCommentId((prev) =>
+          prev === targetComment.id ? null : prev,
+        )
+      }, 3600)
     }
   }, [open, post, pendingOwnCommentMatch, scrollCommentListToTop])
 
@@ -3491,15 +3536,15 @@ function CommentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-md">
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/35 backdrop-blur-sm">
       <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#f9fbff_0%,#f4f7fc_100%)] text-slate-900">
-        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,255,0.94)_100%)] px-3 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <div className="shrink-0 border-b border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,255,0.94)_100%)] px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#4f7cff]">
                 comments
               </div>
-              <div className="mt-1 text-[19px] font-extrabold tracking-tight text-slate-950">
+              <div className="mt-0.5 text-[17px] font-extrabold tracking-tight text-slate-950">
                 댓글 분위기 보기
               </div>
             </div>
@@ -3511,11 +3556,11 @@ function CommentModal({
             </button>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="mt-2 rounded-[18px] border border-slate-200/80 bg-white/90 p-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.05)]">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => setActiveTab('left')}
-                className={`rounded-[16px] border px-3 py-1.5 text-left transition ${
+                className={`rounded-[14px] border px-2.5 py-1.5 text-left transition ${
                   activeTab === 'left'
                     ? 'border-blue-200 bg-blue-50 shadow-[0_8px_18px_rgba(59,130,246,0.10)]'
                     : 'border-slate-200 bg-white'
@@ -3525,11 +3570,11 @@ function CommentModal({
                   <span className="text-[12px] font-black text-blue-600">
                     {post.leftLabel}
                   </span>
-                  <span className="text-[15px] font-black tracking-[-0.02em] text-blue-700">
+                  <span className="text-[14px] font-black tracking-[-0.02em] text-blue-700">
                     {sideSummary.leftPercent}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-blue-100/80">
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-blue-100/80">
                   <div
                     className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
                     style={{
@@ -3541,7 +3586,7 @@ function CommentModal({
 
               <button
                 onClick={() => setActiveTab('right')}
-                className={`rounded-[16px] border px-3 py-1.5 text-left transition ${
+                className={`rounded-[14px] border px-2.5 py-1.5 text-left transition ${
                   activeTab === 'right'
                     ? 'border-violet-200 bg-violet-50 shadow-[0_8px_18px_rgba(124,58,237,0.10)]'
                     : 'border-slate-200 bg-white'
@@ -3551,11 +3596,11 @@ function CommentModal({
                   <span className="text-[12px] font-black text-violet-600">
                     {post.rightLabel}
                   </span>
-                  <span className="text-[15px] font-black tracking-[-0.02em] text-violet-700">
+                  <span className="text-[14px] font-black tracking-[-0.02em] text-violet-700">
                     {sideSummary.rightPercent}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-violet-100/80">
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-violet-100/80">
                   <div
                     className="h-full rounded-full bg-violet-500 transition-all duration-500"
                     style={{
@@ -3571,7 +3616,7 @@ function CommentModal({
                 onClick={() => openHighlightComment(bestCommentRow, 'best')}
                 className="rounded-[18px] border border-amber-300/90 bg-[linear-gradient(135deg,rgba(255,251,235,0.99)_0%,rgba(254,243,199,0.98)_48%,rgba(255,255,255,0.98)_100%)] px-3 py-2.5 text-left shadow-[0_14px_28px_rgba(245,158,11,0.16)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_32px_rgba(245,158,11,0.18)]"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-amber-700">
+                <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.14em] text-amber-700">
                   <Flame className="h-3.5 w-3.5" />
                   BEST COMMENT
                 </div>
@@ -3587,7 +3632,7 @@ function CommentModal({
                 onClick={() => openHighlightComment(liveCommentRow, 'battle')}
                 className="rounded-[18px] border border-rose-300/90 bg-[linear-gradient(135deg,rgba(255,241,242,0.99)_0%,rgba(254,205,211,0.98)_48%,rgba(255,255,255,0.98)_100%)] px-3 py-2.5 text-left shadow-[0_14px_28px_rgba(244,63,94,0.16)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_32px_rgba(244,63,94,0.18)]"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-rose-700">
+                <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.14em] text-rose-700">
                   <MessageCircle className="h-3.5 w-3.5" />
                   LIVE BATTLE
                 </div>
@@ -3646,6 +3691,8 @@ function CommentModal({
                 const isLiveBattle =
                   liveCommentRow?.comment.id === comment.id &&
                   item.battleScore >= 2
+                const isLastSubmitted = lastSubmittedCommentId === comment.id
+                const dramaMeta = getCommentDramaMeta(item)
                 const sideToneClass = isBestComment
                   ? 'border border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.96)_0%,rgba(254,243,199,0.92)_45%,rgba(255,255,255,0.98)_100%)] shadow-[0_14px_28px_rgba(245,158,11,0.14)]'
                   : isLiveBattle
@@ -3659,12 +3706,14 @@ function CommentModal({
                     className={`rounded-[18px] transition-all duration-500 ${sideToneClass} ${
                       highlightCommentId === comment.id
                         ? 'ring-2 ring-[#4f7cff]/35 shadow-[0_0_0_1px_rgba(79,124,255,0.10),0_18px_34px_rgba(79,124,255,0.18)]'
-                        : ''
+                        : isLastSubmitted
+                          ? 'ring-1 ring-[#4f7cff]/20 shadow-[0_0_0_1px_rgba(79,124,255,0.06),0_12px_28px_rgba(79,124,255,0.10)]'
+                          : ''
                     }`}
                   >
                     <div className="px-1.5 py-1.5">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
                           {isBestComment ? (
                             <span className="rounded-full border border-amber-300 bg-[linear-gradient(135deg,#fff8dc_0%,#fde68a_100%)] px-2 py-0.5 text-[10px] font-black text-amber-900 shadow-[0_8px_16px_rgba(245,158,11,0.18)]">
                               🏆 최고의 댓글
@@ -3675,13 +3724,15 @@ function CommentModal({
                             <span className="rounded-full border border-rose-300 bg-[linear-gradient(135deg,#fff1f2_0%,#fda4af_100%)] px-2 py-0.5 text-[10px] font-black text-rose-900 shadow-[0_8px_16px_rgba(244,63,94,0.16)]">
                               🔥 지금 싸우는 중
                             </span>
-                          ) : item.battleScore >= 2 ? (
+                          ) : dramaMeta ? (
                             <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
-                              ⚡ 반박 붙는 중
+                              {dramaMeta.badge}
                             </span>
-                          ) : item.heatScore >= 3 ? (
-                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                              🔥 다들 물고 있음
+                          ) : null}
+
+                          {isLastSubmitted ? (
+                            <span className="rounded-full border border-[#cfe0ff] bg-[#eef4ff] px-2 py-0.5 text-[10px] font-black text-[#4f7cff]">
+                              방금 작성한 댓글
                             </span>
                           ) : null}
 
@@ -3692,6 +3743,24 @@ function CommentModal({
                           ) : null}
                         </div>
                       </div>
+
+                      {isLiveBattle || dramaMeta || isLastSubmitted ? (
+                        <div
+                          className={`mb-1 rounded-[14px] px-2 py-1 text-[11px] font-semibold ${
+                            isLiveBattle
+                              ? 'bg-rose-50 text-rose-700'
+                              : isLastSubmitted
+                                ? 'bg-[#eef4ff] text-[#4f7cff]'
+                                : 'bg-slate-50 text-slate-600'
+                          }`}
+                        >
+                          {isLastSubmitted
+                            ? '내가 방금 쓴 댓글 · 지금 바로 반응 붙는지 보기 좋음'
+                            : isLiveBattle
+                              ? liveBattleHelperText
+                              : dramaMeta?.helper}
+                        </div>
+                      ) : null}
 
                       <CommentCard
                         comment={comment}
@@ -3761,10 +3830,10 @@ function CommentModal({
 
         <div className="shrink-0 border-t border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(246,249,255,0.9)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           {replyTarget ? (
-            <div className="mb-2 flex items-center justify-between gap-2 rounded-[18px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-3 py-2 text-[11px] shadow-[0_8px_20px_rgba(244,63,94,0.08)]">
+            <div className="mb-1.5 flex items-center justify-between gap-2 rounded-[16px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-2.5 py-1.5 text-[11px] shadow-[0_6px_16px_rgba(244,63,94,0.08)]">
               <div className="min-w-0">
                 <div className="truncate font-black text-rose-700">
-                  🔥 {replyTarget.author}에게 반박 중
+                  🔥 {replyTarget.author}에게 반박함
                 </div>
                 <div className="truncate font-semibold text-rose-600/90">
                   {replyTarget.side === 'left'
@@ -3785,14 +3854,14 @@ function CommentModal({
             </div>
           ) : null}
 
-          <div className="mx-auto max-w-md rounded-[26px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-2 shadow-[0_16px_36px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
-            <div className="mb-1.5 text-[10px] font-semibold text-slate-400">
-              아래 선택은 작성 진영만 바뀌고 위 댓글 분위기는 그대로 유지됨
+          <div className="mx-auto max-w-md rounded-[22px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-1.5 shadow-[0_12px_26px_rgba(15,23,42,0.09)] backdrop-blur-2xl">
+            <div className="mb-1 text-[10px] font-semibold text-slate-400">
+              등록 후에만 내 댓글 쪽으로 바로 보여줌
             </div>
-            <div className="mb-2 grid grid-cols-2 gap-1.5 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#f8faff_0%,#eef3ff_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+            <div className="mb-2 grid grid-cols-2 gap-1 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#f8faff_0%,#eef3ff_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
               <button
                 onClick={() => setCommentSide('left')}
-                className={`h-10 rounded-[18px] px-4 text-sm font-black tracking-[-0.01em] transition ${
+                className={`h-9 rounded-[14px] px-3 text-[13px] font-black tracking-[-0.01em] transition ${
                   commentSide === 'left'
                     ? 'border border-blue-200/90 bg-[linear-gradient(135deg,#ffffff_0%,#eff6ff_100%)] text-blue-700 shadow-[0_10px_22px_rgba(59,130,246,0.14)]'
                     : 'border border-transparent bg-transparent text-slate-500'
@@ -3802,7 +3871,7 @@ function CommentModal({
               </button>
               <button
                 onClick={() => setCommentSide('right')}
-                className={`h-10 rounded-[18px] px-4 text-sm font-black tracking-[-0.01em] transition ${
+                className={`h-9 rounded-[14px] px-3 text-[13px] font-black tracking-[-0.01em] transition ${
                   commentSide === 'right'
                     ? 'border border-violet-200/90 bg-[linear-gradient(135deg,#ffffff_0%,#f5f3ff_100%)] text-violet-700 shadow-[0_10px_22px_rgba(124,58,237,0.14)]'
                     : 'border border-transparent bg-transparent text-slate-500'
@@ -3812,8 +3881,8 @@ function CommentModal({
               </button>
             </div>
 
-            <div className="flex items-center gap-2 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
-              <div className="relative flex-1 overflow-hidden rounded-[18px] border border-slate-200/70 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">
+            <div className="flex items-center gap-1.5 rounded-[18px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
+              <div className="relative flex-1 overflow-hidden rounded-[14px] border border-slate-200/70 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">
                 <textarea
                   ref={inputRef}
                   rows={1}
@@ -3833,7 +3902,7 @@ function CommentModal({
                       ? `${replyTarget.author}한테 한마디 더 얹기`
                       : '너의 의견은?'
                   }
-                  className="h-[40px] w-full resize-none bg-transparent pl-3 pr-14 pt-[9px] text-base leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+                  className="h-[38px] w-full resize-none bg-transparent pl-3 pr-12 pt-[8px] text-[15px] leading-5 text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <span
                   className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${getCounterTone(text.length, LIMITS.comment)}`}
@@ -3845,7 +3914,7 @@ function CommentModal({
                 onClick={() => void submitComment()}
                 aria-label="댓글 전송"
                 aria-disabled={!text.trim() || isSubmitting}
-                className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-[0.98] ${text.trim() && !isSubmitting ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]' : 'border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fb_100%)] text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]'}`}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-[0.98] ${text.trim() && !isSubmitting ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]' : 'border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fb_100%)] text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]'}`}
               >
                 <Send className="h-[17px] w-[17px]" />
               </button>
@@ -9340,7 +9409,7 @@ ${shareUrl}`)
                 {!authUser ? (
                   <button
                     onClick={openWatchlistActivity}
-                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
                       {getLevelTheme(levelInfo.level).icon}
@@ -9357,7 +9426,7 @@ ${shareUrl}`)
                 ) : (
                   <button
                     onClick={openWatchlistActivity}
-                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
                     <span className="text-xs">
                       {getLevelTheme(levelInfo.level).icon}
@@ -9460,7 +9529,7 @@ ${shareUrl}`)
           {activeLiveTickerItem ? (
             <div className="mb-3 overflow-hidden rounded-[18px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_28px_rgba(79,124,255,0.12)]">
               <div className="flex items-center gap-2 px-3 py-2.5">
-                <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
+                <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-80" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
@@ -9497,7 +9566,7 @@ ${shareUrl}`)
                   onClick={handleLiveTickerOpen}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                  <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-slate-600">
                     <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
                       {activeLiveTickerItem.category}
                     </span>
@@ -9507,7 +9576,7 @@ ${shareUrl}`)
                   </div>
                 </button>
 
-                <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1">
                   {liveTickerItems.map((item, index) => {
                     const active = index === liveTickerIndex
                     return (
@@ -10079,7 +10148,7 @@ ${shareUrl}`)
                       )}
 
                     {shouldRenderKakaoHeavyBlocks && !isViewingSharedPost ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <button
                           onClick={() => void shareCurrentPost()}
                           className="rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
@@ -10150,7 +10219,7 @@ ${shareUrl}`)
                                       : `친구 응답 ${shareResponseTotal}개 도착. 결과 보면 어디로 기우는지 바로 보임.`}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 gap-1.5">
                               <button
                                 onClick={() => setShowOwnerShareResults(true)}
                                 className={`rounded-[18px] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.16)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
@@ -10251,7 +10320,7 @@ ${shareUrl}`)
                                   <div className="text-[11px] text-slate-400">
                                     친구들 {currentPost.leftLabel}
                                   </div>
-                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                  <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
                                     <span>{shareStats.left}명</span>
                                     {sharePulse &&
                                     shareStats.left > 0 &&
@@ -10276,7 +10345,7 @@ ${shareUrl}`)
                                   <div className="text-[11px] text-slate-400">
                                     친구들 {currentPost.rightLabel}
                                   </div>
-                                  <div className="mt-1 flex items-center justify-center gap-1.5 text-lg font-black text-slate-900">
+                                  <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
                                     <span>{shareStats.right}명</span>
                                     {sharePulse &&
                                     shareStats.right > 0 &&
