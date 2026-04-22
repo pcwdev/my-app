@@ -2169,6 +2169,8 @@ const CommentCard = React.memo(function CommentCard({
   reactionSummary = EMPTY_COMMENT_REACTION_SUMMARY,
   myReactionMap = {},
   onReactComment,
+  pulseReactionType = null,
+  liveBattleFocus = false,
 }: {
   comment: CommentItem
   leftLabel: string
@@ -2184,6 +2186,8 @@ const CommentCard = React.memo(function CommentCard({
     commentId: number,
     reactionType: CommentReactionType,
   ) => void | Promise<void>
+  pulseReactionType?: CommentReactionType | null
+  liveBattleFocus?: boolean
 }) {
   if (comment.hidden && !adminMode) return null
 
@@ -2256,41 +2260,56 @@ const CommentCard = React.memo(function CommentCard({
         </div>
 
         {!comment.hidden ? (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px]">
-            {[
-              {
-                reactionType: 'relatable' as CommentReactionType,
-                label: '공감',
-                count:
-                  Number(reactionSummary.relatable ?? 0) +
-                  Number(reactionSummary.agree ?? 0) +
-                  Number(reactionSummary.wow ?? 0),
-                active: !!myReactionMap.relatable,
-                activeClass:
-                  'border-sky-200 bg-sky-50 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.12)]',
-                idleClass: 'border-slate-200 bg-white/90 text-slate-500',
-              },
-              {
-                reactionType: 'disagree' as CommentReactionType,
-                label: '반박',
-                count:
-                  Number(reactionSummary.disagree ?? 0) +
-                  Number(reactionSummary.absurd ?? 0),
-                active: !!myReactionMap.disagree,
-                activeClass:
-                  'border-rose-200 bg-rose-50 text-rose-700 shadow-[0_6px_14px_rgba(244,63,94,0.12)]',
-                idleClass: 'border-slate-200 bg-white/90 text-slate-500',
-              },
-            ].map((item) => (
-              <button
-                key={item.reactionType}
-                onClick={() => onReactComment(comment.id, item.reactionType)}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-bold transition ${item.active ? item.activeClass : item.idleClass}`}
-              >
-                <span>{item.label}</span>
-                <span>{item.count}</span>
-              </button>
-            ))}
+          <div className="mt-2">
+            {liveBattleFocus ? (
+              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black tracking-[0.02em] text-rose-600">
+                <span className="inline-flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                지금 서로 물고 늘어지는 중
+              </div>
+            ) : null}
+            <div className="flex items-center gap-1.5 text-[11px]">
+              {[
+                {
+                  reactionType: 'relatable' as CommentReactionType,
+                  label: '공감',
+                  count:
+                    Number(reactionSummary.relatable ?? 0) +
+                    Number(reactionSummary.agree ?? 0) +
+                    Number(reactionSummary.wow ?? 0),
+                  active: !!myReactionMap.relatable,
+                  activeClass:
+                    'border-sky-200 bg-sky-50 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.12)]',
+                  idleClass: 'border-slate-200 bg-white/90 text-slate-500',
+                },
+                {
+                  reactionType: 'disagree' as CommentReactionType,
+                  label: '반박',
+                  count:
+                    Number(reactionSummary.disagree ?? 0) +
+                    Number(reactionSummary.absurd ?? 0),
+                  active: !!myReactionMap.disagree,
+                  activeClass:
+                    'border-rose-200 bg-rose-50 text-rose-700 shadow-[0_6px_14px_rgba(244,63,94,0.12)]',
+                  idleClass: 'border-slate-200 bg-white/90 text-slate-500',
+                },
+              ].map((item) => {
+                const isPulse = pulseReactionType === item.reactionType
+                return (
+                  <button
+                    key={item.reactionType}
+                    onClick={() =>
+                      onReactComment(comment.id, item.reactionType)
+                    }
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-bold transition duration-200 ${item.active ? item.activeClass : item.idleClass} ${isPulse ? 'scale-[1.08] shadow-[0_10px_20px_rgba(15,23,42,0.12)]' : 'scale-100'}`}
+                  >
+                    <span>{item.label}</span>
+                    <span className={isPulse ? 'animate-pulse' : ''}>
+                      {item.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 
@@ -3056,6 +3075,10 @@ function CommentModal({
     author: string
     side: Side
   } | null>(null)
+  const [reactionPulseKey, setReactionPulseKey] = useState<string | null>(null)
+  const [recentBattleCommentId, setRecentBattleCommentId] = useState<
+    number | null
+  >(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -3098,6 +3121,8 @@ function CommentModal({
     setVisibleCount(12)
     setPendingScrollId(null)
     setReplyTarget(null)
+    setReactionPulseKey(null)
+    setRecentBattleCommentId(null)
   }, [open, post?.id])
 
   useEffect(() => {
@@ -3182,11 +3207,14 @@ function CommentModal({
         conflictReactionTotal,
         heatScore: supportiveReactionTotal,
         battleScore:
-          reactionTotal >= 4
+          reactionTotal >= 3
             ? Math.max(
                 0,
                 Math.min(supportiveReactionTotal, conflictReactionTotal),
-              ) * 2
+              ) *
+                2 +
+              conflictReactionTotal * 2 +
+              (reactionTotal >= 6 ? 2 : 0)
             : 0,
         isMinority,
       }
@@ -3277,6 +3305,26 @@ function CommentModal({
     )
   }, [commentRows])
 
+  const liveBattleHelperText = useMemo(() => {
+    if (!liveCommentRow || liveCommentRow.battleScore < 2) {
+      return '아직 제대로 붙은 댓글은 없음'
+    }
+
+    if (recentBattleCommentId === liveCommentRow.comment.id) {
+      return '방금 반박 들어옴 · 지금 전투감 제일 강함'
+    }
+
+    if (liveCommentRow.conflictReactionTotal >= 3) {
+      return '반박이 계속 꽂히는 중'
+    }
+
+    if (liveCommentRow.reactionTotal >= 6) {
+      return '사람들이 계속 달려드는 댓글'
+    }
+
+    return '서로 물고 늘어지기 시작한 댓글'
+  }, [liveCommentRow, recentBattleCommentId])
+
   const scrollCommentListToTop = useCallback(() => {
     if (typeof window === 'undefined') return
 
@@ -3329,10 +3377,30 @@ function CommentModal({
 
     await Promise.resolve(onReactComment(commentId, reactionType))
 
+    if (!wasActive) {
+      const pulseKey = `${commentId}:${reactionType}`
+      setReactionPulseKey(pulseKey)
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
+        }, 520)
+      }
+    }
+
     if (reactionType === 'disagree') {
       if (wasActive) {
         setReplyTarget((prev) => (prev?.commentId === commentId ? null : prev))
+        if (recentBattleCommentId === commentId) {
+          setRecentBattleCommentId(null)
+        }
         return
+      }
+
+      setRecentBattleCommentId(commentId)
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          setRecentBattleCommentId((prev) => (prev === commentId ? null : prev))
+        }, 2600)
       }
 
       setCommentSide(side)
@@ -3455,7 +3523,7 @@ function CommentModal({
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 onClick={() => openHighlightComment(bestCommentRow, 'best')}
-                className="rounded-[16px] border border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.98)_0%,rgba(254,243,199,0.98)_60%,rgba(252,211,77,0.16)_100%)] px-3 py-2 text-left shadow-[0_10px_20px_rgba(245,158,11,0.12)]"
+                className="rounded-[18px] border border-amber-300/90 bg-[linear-gradient(135deg,rgba(255,251,235,0.99)_0%,rgba(254,243,199,0.98)_48%,rgba(255,255,255,0.98)_100%)] px-3 py-2.5 text-left shadow-[0_14px_28px_rgba(245,158,11,0.16)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_32px_rgba(245,158,11,0.18)]"
               >
                 <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-amber-700">
                   <Flame className="h-3.5 w-3.5" />
@@ -3464,11 +3532,14 @@ function CommentModal({
                 <div className="mt-0.5 text-[12px] font-black text-amber-950">
                   가장 반응 많은 댓글
                 </div>
+                <div className="mt-1 text-[11px] font-semibold text-amber-700/90">
+                  사람들이 제일 신경 쓰는 한마디
+                </div>
               </button>
 
               <button
                 onClick={() => openHighlightComment(liveCommentRow, 'battle')}
-                className="rounded-[16px] border border-rose-300 bg-[linear-gradient(135deg,rgba(255,241,242,0.98)_0%,rgba(254,205,211,0.98)_60%,rgba(251,113,133,0.14)_100%)] px-3 py-2 text-left shadow-[0_10px_20px_rgba(244,63,94,0.12)]"
+                className="rounded-[18px] border border-rose-300/90 bg-[linear-gradient(135deg,rgba(255,241,242,0.99)_0%,rgba(254,205,211,0.98)_48%,rgba(255,255,255,0.98)_100%)] px-3 py-2.5 text-left shadow-[0_14px_28px_rgba(244,63,94,0.16)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_32px_rgba(244,63,94,0.18)]"
               >
                 <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-[0.14em] text-rose-700">
                   <MessageCircle className="h-3.5 w-3.5" />
@@ -3476,6 +3547,9 @@ function CommentModal({
                 </div>
                 <div className="mt-0.5 text-[12px] font-black text-rose-950">
                   지금 싸우는 댓글
+                </div>
+                <div className="mt-1 text-[11px] font-semibold text-rose-700/90">
+                  {liveBattleHelperText}
                 </div>
               </button>
             </div>
@@ -3549,15 +3623,15 @@ function CommentModal({
 
                           {isLiveBattle ? (
                             <span className="rounded-full border border-rose-300 bg-[linear-gradient(135deg,#fff1f2_0%,#fda4af_100%)] px-2 py-0.5 text-[10px] font-black text-rose-900 shadow-[0_8px_16px_rgba(244,63,94,0.16)]">
-                              🔥 라이브 배틀
+                              🔥 지금 싸우는 중
                             </span>
                           ) : item.battleScore >= 2 ? (
                             <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
-                              ⚡ 개갈림
+                              ⚡ 반박 붙는 중
                             </span>
                           ) : item.heatScore >= 3 ? (
                             <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                              🔥 반응많음
+                              🔥 다들 물고 있음
                             </span>
                           ) : null}
 
@@ -3606,6 +3680,17 @@ function CommentModal({
                             comment.author,
                           )
                         }
+                        pulseReactionType={
+                          reactionPulseKey === `${comment.id}:relatable`
+                            ? 'relatable'
+                            : reactionPulseKey === `${comment.id}:disagree`
+                              ? 'disagree'
+                              : null
+                        }
+                        liveBattleFocus={
+                          recentBattleCommentId === comment.id ||
+                          (isLiveBattle && item.battleScore >= 2)
+                        }
                       />
                     </div>
                   </div>
@@ -3629,7 +3714,7 @@ function CommentModal({
             <div className="mb-2 flex items-center justify-between gap-2 rounded-[18px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-3 py-2 text-[11px] shadow-[0_8px_20px_rgba(244,63,94,0.08)]">
               <div className="min-w-0">
                 <div className="truncate font-black text-rose-700">
-                  {replyTarget.author}에게 반박함
+                  🔥 {replyTarget.author}에게 반박 중
                 </div>
                 <div className="truncate font-semibold text-rose-600/90">
                   {replyTarget.side === 'left'
@@ -3692,7 +3777,7 @@ function CommentModal({
                   }}
                   placeholder={
                     replyTarget
-                      ? `${replyTarget.author}에게 반박 남기기`
+                      ? `${replyTarget.author}한테 한마디 더 얹기`
                       : '너의 의견은?'
                   }
                   className="h-[40px] w-full resize-none bg-transparent pl-3 pr-14 pt-[9px] text-base leading-5 text-slate-900 outline-none placeholder:text-slate-400"
