@@ -3094,40 +3094,6 @@ function CommentModal({
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (!open || typeof window === 'undefined') return
-
-    const focusInput = () => {
-      const target = inputRef.current
-      if (!target) return
-
-      try {
-        target.focus({ preventScroll: true })
-      } catch {
-        target.focus()
-      }
-
-      try {
-        const length = target.value?.length ?? 0
-        target.setSelectionRange(length, length)
-      } catch {
-        // noop
-      }
-    }
-
-    const rafId = window.requestAnimationFrame(() => {
-      focusInput()
-    })
-    const timer = window.setTimeout(() => {
-      focusInput()
-    }, 120)
-
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      window.clearTimeout(timer)
-    }
-  }, [open, post?.id])
-
-  useEffect(() => {
     if (!open) return
     setVisibleCount(12)
     setPendingScrollId(null)
@@ -3339,41 +3305,6 @@ function CommentModal({
     return '서로 물고 늘어지기 시작한 댓글'
   }, [liveCommentRow, recentBattleCommentId])
 
-  const getCommentDramaMeta = useCallback(
-    (item: (typeof commentRows)[number]) => {
-      const hasReplyHeat =
-        item.conflictReactionTotal >= 2 || item.battleScore >= 2
-      const isRecentReply = recentBattleCommentId === item.comment.id
-
-      if (isRecentReply) {
-        return {
-          badge: '🔥 방금 반박 붙음',
-          helper: '조금 전 반박이 들어와서 지금 바로 붙는 중',
-        }
-      }
-
-      if (hasReplyHeat) {
-        return {
-          badge: '⚡ 반박 붙음',
-          helper:
-            item.conflictReactionTotal >= 3
-              ? '반박이 계속 꽂히는 중'
-              : '한 번 붙기 시작해서 다시 볼 맛 나는 댓글',
-        }
-      }
-
-      if (item.heatScore >= 3) {
-        return {
-          badge: '🔥 다들 물고 있음',
-          helper: '공감이 몰려서 사람들이 계속 읽는 댓글',
-        }
-      }
-
-      return null
-    },
-    [recentBattleCommentId],
-  )
-
   const scrollCommentListToTop = useCallback(() => {
     if (typeof window === 'undefined') return
 
@@ -3491,21 +3422,9 @@ function CommentModal({
       }
 
       setCommentSide(side)
-      setActiveTab(side)
       setReplyTarget({ commentId, author, side })
       if (!text.trim()) {
         setText('')
-      }
-      if (typeof window !== 'undefined') {
-        window.requestAnimationFrame(() => {
-          const target = inputRef.current
-          if (!target) return
-          try {
-            target.focus({ preventScroll: true })
-          } catch {
-            target.focus()
-          }
-        })
       }
     }
   }
@@ -3525,9 +3444,6 @@ function CommentModal({
       })
       setText('')
       setReplyTarget(null)
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-      })
     } catch (error) {
       console.error('댓글 등록 실패', error)
     } finally {
@@ -3692,7 +3608,6 @@ function CommentModal({
                   liveCommentRow?.comment.id === comment.id &&
                   item.battleScore >= 2
                 const isLastSubmitted = lastSubmittedCommentId === comment.id
-                const dramaMeta = getCommentDramaMeta(item)
                 const sideToneClass = isBestComment
                   ? 'border border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.96)_0%,rgba(254,243,199,0.92)_45%,rgba(255,255,255,0.98)_100%)] shadow-[0_14px_28px_rgba(245,158,11,0.14)]'
                   : isLiveBattle
@@ -3724,10 +3639,6 @@ function CommentModal({
                             <span className="rounded-full border border-rose-300 bg-[linear-gradient(135deg,#fff1f2_0%,#fda4af_100%)] px-2 py-0.5 text-[10px] font-black text-rose-900 shadow-[0_8px_16px_rgba(244,63,94,0.16)]">
                               🔥 지금 싸우는 중
                             </span>
-                          ) : dramaMeta ? (
-                            <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
-                              {dramaMeta.badge}
-                            </span>
                           ) : null}
 
                           {isLastSubmitted ? (
@@ -3744,21 +3655,17 @@ function CommentModal({
                         </div>
                       </div>
 
-                      {isLiveBattle || dramaMeta || isLastSubmitted ? (
+                      {isLiveBattle || isLastSubmitted ? (
                         <div
                           className={`mb-1 rounded-[14px] px-2 py-1 text-[11px] font-semibold ${
                             isLiveBattle
                               ? 'bg-rose-50 text-rose-700'
-                              : isLastSubmitted
-                                ? 'bg-[#eef4ff] text-[#4f7cff]'
-                                : 'bg-slate-50 text-slate-600'
+                              : 'bg-[#eef4ff] text-[#4f7cff]'
                           }`}
                         >
                           {isLastSubmitted
                             ? '내가 방금 쓴 댓글 · 지금 바로 반응 붙는지 보기 좋음'
-                            : isLiveBattle
-                              ? liveBattleHelperText
-                              : dramaMeta?.helper}
+                            : liveBattleHelperText}
                         </div>
                       ) : null}
 
