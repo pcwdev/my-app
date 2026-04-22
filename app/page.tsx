@@ -65,6 +65,8 @@ type CommentItem = {
   likes: number
   reportCount: number
   hidden: boolean
+  createdAt?: string | null
+  replyToCommentId?: number | null
 }
 
 type CommentReactionType = 'agree' | 'disagree' | 'wow' | 'relatable' | 'absurd'
@@ -171,6 +173,8 @@ type MyPostItem = {
   title: string
   category: string
   ageGroup: string
+  hasNewComments?: boolean
+  newCommentsCount?: number
 }
 
 type MyCommentItem = {
@@ -179,6 +183,16 @@ type MyCommentItem = {
   postId: number
   postTitle: string
   text: string
+  hasNewReplies?: boolean
+  newRepliesCount?: number
+}
+
+type UserActivityReadRow = {
+  id: number
+  actor_key: string
+  target_type: 'post' | 'comment'
+  target_id: number
+  last_seen_at: string | null
 }
 
 type DeletedCommentItem = {
@@ -1867,6 +1881,12 @@ function getActorUnifiedKey(userId?: string | null, voterKey?: string | null) {
   return null
 }
 
+function getRawActorKey(userId?: string | null, voterKey?: string | null) {
+  if (userId) return userId
+  if (voterKey) return voterKey
+  return null
+}
+
 function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
@@ -2480,9 +2500,9 @@ function MyActivityModal({
   watchlistItems: WatchlistItem[]
   unreadWatchlistCount: number
   initialTab?: 'posts' | 'comments' | 'watchlist'
-  onOpenPost: (postId: number) => void
+  onOpenPost: (postId: number, markSeenPostId?: number) => void
   onOpenWatchlistItem: (item: WatchlistItem) => void
-  onOpenComment: (postId: number) => void
+  onOpenComment: (postId: number, commentId?: number) => void
   onLogout: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
@@ -2719,12 +2739,12 @@ function MyActivityModal({
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && myPosts.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 글이 없음
+              아직 작성한 글이 없음
             </div>
           )}
           {tab === 'comments' && myComments.length === 0 && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              로그인 후 작성한 댓글이 없음
+              아직 작성한 댓글이 없음
             </div>
           )}
           {tab === 'watchlist' && (
@@ -2803,7 +2823,7 @@ function MyActivityModal({
             myPosts.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onOpenPost(item.postId)}
+                onClick={() => onOpenPost(item.postId, item.postId)}
                 className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">
@@ -2812,6 +2832,11 @@ function MyActivityModal({
                 <div className="mt-1 font-bold text-slate-900">
                   {item.title}
                 </div>
+                {item.hasNewComments ? (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                    새 댓글 {item.newCommentsCount ?? 1}개
+                  </div>
+                ) : null}
                 <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
               </button>
             ))}
@@ -2820,13 +2845,18 @@ function MyActivityModal({
             myComments.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onOpenComment(item.postId)}
+                onClick={() => onOpenComment(item.postId, item.commentId)}
                 className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
               >
                 <div className="text-xs text-slate-500">{item.postTitle}</div>
                 <div className="mt-1 text-sm text-slate-900/85">
                   {item.text}
                 </div>
+                {item.hasNewReplies ? (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
+                    🔥 반박 {item.newRepliesCount ?? 1}개
+                  </div>
+                ) : null}
                 <div className="mt-2 text-xs text-slate-400">
                   댓글 단 글로 이동
                 </div>
@@ -3045,7 +3075,11 @@ function CommentModal({
   post: PostItem | null
   open: boolean
   onClose: () => void
-  onAddComment: (text: string, side: Side) => Promise<void> | void
+  onAddComment: (
+    text: string,
+    side: Side,
+    replyToCommentId?: number | null,
+  ) => Promise<void> | void
   onOpenReportComment: (commentId: number) => void
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
@@ -3347,7 +3381,7 @@ function CommentModal({
       return '사람들이 계속 달려드는 댓글'
     }
 
-    return '서로 물고 늘어지기 시작한 댓글'
+    return '반박이 오가기 시작한 댓글'
   }, [liveCommentRow, recentBattleCommentId])
 
   const scrollCommentListToTop = useCallback(() => {
@@ -3481,7 +3515,9 @@ function CommentModal({
     setIsSubmitting(true)
 
     try {
-      await Promise.resolve(onAddComment(trimmed, commentSide))
+      await Promise.resolve(
+        onAddComment(trimmed, commentSide, replyTarget?.commentId ?? null),
+      )
       setPendingOwnCommentMatch({
         text: trimmed,
         side: commentSide,
@@ -4694,6 +4730,7 @@ export default function MatnyaApp() {
     authUser?.id ?? null,
     voterKey,
   )
+  const currentRawActorKey = getRawActorKey(authUser?.id ?? null, voterKey)
 
   const [deletedPosts, setDeletedPosts] = useState<PostItem[]>([])
   const [deletedComments, setDeletedComments] = useState<DeletedCommentItem[]>(
@@ -5368,6 +5405,11 @@ export default function MatnyaApp() {
           likes: Number(comment.likes ?? 0),
           reportCount: Number(comment.report_count ?? 0),
           hidden: Boolean(comment.hidden ?? false),
+          createdAt: comment.created_at ?? null,
+          replyToCommentId:
+            comment.reply_to_comment_id != null
+              ? Number(comment.reply_to_comment_id)
+              : null,
         }),
       )
 
@@ -5392,79 +5434,151 @@ export default function MatnyaApp() {
   const fetchMyActivity = useCallback(async (actorKey: string) => {
     if (!actorKey) return
 
-    const { data: myPostsData, error: myPostsError } = await supabase
-      .from('posts')
-      .select('id, title, category, age_group')
-      .eq('author_key', actorKey)
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
+    const [myPostsRes, myCommentsRes] = await Promise.all([
+      supabase
+        .from('posts')
+        .select('id, title, category, age_group, created_at')
+        .eq('author_key', actorKey)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('comments')
+        .select('id, post_id, text, created_at')
+        .eq('author_key', actorKey)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false }),
+    ])
 
-    if (myPostsError) {
-      console.error('내 글 불러오기 실패', myPostsError)
-    } else {
-      setMyPosts(
-        (myPostsData ?? []).map((post) => ({
-          id: Number(post.id),
-          postId: Number(post.id),
-          title: post.title,
-          category: post.category,
-          ageGroup: post.age_group,
-        })),
-      )
+    if (myPostsRes.error) {
+      console.error('내 글 불러오기 실패', myPostsRes.error)
+      setMyPosts([])
     }
 
-    const { data: myCommentsData, error: myCommentsError } = await supabase
-      .from('comments')
-      .select('id, post_id, text')
-      .eq('author_key', actorKey)
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
-
-    if (myCommentsError) {
-      console.error('내 댓글 불러오기 실패', myCommentsError)
+    if (myCommentsRes.error) {
+      console.error('내 댓글 불러오기 실패', myCommentsRes.error)
+      setMyComments([])
       return
     }
 
-    const commentRows = (myCommentsData ?? []).map((comment) => ({
+    const myPostsData = myPostsRes.data ?? []
+    const myCommentsData = myCommentsRes.data ?? []
+
+    const postIds = myPostsData.map((post: any) => Number(post.id))
+    const commentRows = myCommentsData.map((comment: any) => ({
       id: Number(comment.id),
       commentId: Number(comment.id),
       postId: Number(comment.post_id),
       text: comment.text,
     }))
-
+    const commentIds = commentRows.map((item) => item.commentId)
     const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
+    const activityTargetIds = [...new Set([...postIds, ...commentIds])]
 
-    if (uniquePostIds.length === 0) {
-      setMyComments([])
-      return
+    const [
+      commentPostsRes,
+      activityReadsRes,
+      postCommentsRes,
+      replyCommentsRes,
+    ] = await Promise.all([
+      uniquePostIds.length > 0
+        ? supabase.from('posts').select('id, title').in('id', uniquePostIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      activityTargetIds.length > 0
+        ? supabase
+            .from('user_activity_reads')
+            .select('id, actor_key, target_type, target_id, last_seen_at')
+            .eq('actor_key', actorKey)
+            .in('target_id', activityTargetIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      postIds.length > 0
+        ? supabase
+            .from('comments')
+            .select('id, post_id, author_key, created_at')
+            .in('post_id', postIds)
+            .neq('status', 'deleted')
+        : Promise.resolve({ data: [], error: null } as any),
+      commentIds.length > 0
+        ? supabase
+            .from('comments')
+            .select('id, reply_to_comment_id, author_key, created_at')
+            .in('reply_to_comment_id', commentIds)
+            .neq('status', 'deleted')
+        : Promise.resolve({ data: [], error: null } as any),
+    ])
+
+    if (commentPostsRes.error) {
+      console.error('댓글 글 제목 불러오기 실패', commentPostsRes.error)
     }
-
-    const { data: commentPostsData, error: commentPostsError } = await supabase
-      .from('posts')
-      .select('id, title')
-      .in('id', uniquePostIds)
-
-    if (commentPostsError) {
-      console.error('댓글 대상 글 불러오기 실패', commentPostsError)
-      setMyComments(
-        commentRows.map((comment) => ({
-          ...comment,
-          postTitle: '삭제되었거나 찾을 수 없는 글',
-        })),
-      )
-      return
+    if (activityReadsRes.error) {
+      console.error('활동 읽음 상태 불러오기 실패', activityReadsRes.error)
+    }
+    if (postCommentsRes.error) {
+      console.error('내 글 새 댓글 불러오기 실패', postCommentsRes.error)
+    }
+    if (replyCommentsRes.error) {
+      console.error('내 댓글 반박 불러오기 실패', replyCommentsRes.error)
     }
 
     const postTitleMap = new Map<number, string>()
-    ;(commentPostsData ?? []).forEach((post) => {
+    ;(commentPostsRes.data ?? []).forEach((post: any) => {
       postTitleMap.set(Number(post.id), post.title)
     })
+
+    const readMap = new Map<string, string | null>()
+    ;(activityReadsRes.data ?? []).forEach((row: any) => {
+      readMap.set(
+        `${row.target_type}:${Number(row.target_id)}`,
+        row.last_seen_at ?? null,
+      )
+    })
+
+    const newCommentCountMap = new Map<number, number>()
+    ;(postCommentsRes.data ?? []).forEach((row: any) => {
+      const postId = Number(row.post_id)
+      const seenAt = readMap.get(`post:${postId}`)
+      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
+      const seenTime = seenAt ? new Date(seenAt).getTime() : 0
+      const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+      if (!isOtherUser || createdAt <= seenTime) return
+      newCommentCountMap.set(
+        postId,
+        Number(newCommentCountMap.get(postId) ?? 0) + 1,
+      )
+    })
+
+    const newReplyCountMap = new Map<number, number>()
+    ;(replyCommentsRes.data ?? []).forEach((row: any) => {
+      const commentId = Number(row.reply_to_comment_id)
+      const seenAt = readMap.get(`comment:${commentId}`)
+      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
+      const seenTime = seenAt ? new Date(seenAt).getTime() : 0
+      const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+      if (!isOtherUser || createdAt <= seenTime) return
+      newReplyCountMap.set(
+        commentId,
+        Number(newReplyCountMap.get(commentId) ?? 0) + 1,
+      )
+    })
+
+    setMyPosts(
+      myPostsData.map((post: any) => ({
+        id: Number(post.id),
+        postId: Number(post.id),
+        title: post.title,
+        category: post.category,
+        ageGroup: post.age_group,
+        hasNewComments:
+          Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
+        newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
+      })),
+    )
 
     setMyComments(
       commentRows.map((comment) => ({
         ...comment,
-        postTitle:
-          postTitleMap.get(comment.postId) ?? '삭제되었거나 찾을 수 없는 글',
+        postTitle: postTitleMap.get(comment.postId) ?? '원글',
+        hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
+        newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
       })),
     )
   }, [])
@@ -8144,7 +8258,31 @@ ${shareUrl}`)
     }
   }
 
-  const openPostDirect = (postId: number) => {
+  const markActivitySeen = useCallback(
+    async (targetType: 'post' | 'comment', targetId: number) => {
+      if (!currentRawActorKey || !targetId) return
+
+      const { error } = await supabase.from('user_activity_reads').upsert(
+        {
+          actor_key: currentRawActorKey,
+          target_type: targetType,
+          target_id: targetId,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: 'actor_key,target_type,target_id' },
+      )
+
+      if (error) {
+        console.error('활동 읽음 처리 실패', error)
+        return
+      }
+
+      void fetchMyActivity(currentRawActorKey)
+    },
+    [currentRawActorKey, fetchMyActivity],
+  )
+
+  const openPostDirect = (postId: number, markSeenPostId?: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
       const latestSeenAt = postOutcomeMap[postId]?.[0]?.createdAt ?? null
@@ -8160,6 +8298,9 @@ ${shareUrl}`)
         setActivityOpen(false)
       })
       refreshWatchlistSignalsAfterAction(80)
+      if (markSeenPostId) {
+        void markActivitySeen('post', markSeenPostId)
+      }
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
@@ -8173,7 +8314,7 @@ ${shareUrl}`)
     }
   }
 
-  const openCommentDirect = (postId: number) => {
+  const openCommentDirect = (postId: number, commentId?: number) => {
     const index = posts.findIndex((p) => p.id === postId)
     if (index >= 0) {
       if (currentPost) {
@@ -8188,6 +8329,9 @@ ${shareUrl}`)
         setActivityOpen(false)
         setCommentOpen(true)
       })
+      if (commentId) {
+        void markActivitySeen('comment', commentId)
+      }
     }
   }
 
@@ -8655,7 +8799,11 @@ ${shareUrl}`)
     }
   }
 
-  const addComment = async (text: string, side: Side) => {
+  const addComment = async (
+    text: string,
+    side: Side,
+    replyToCommentId?: number | null,
+  ) => {
     if (!currentPost) return
 
     const targetPostId = currentPost.id
@@ -8670,6 +8818,7 @@ ${shareUrl}`)
         side,
         text,
         author_key: authUser?.id ?? voterKey,
+        reply_to_comment_id: replyToCommentId ?? null,
         status: 'active',
       })
       .select()
@@ -8690,6 +8839,11 @@ ${shareUrl}`)
       likes: Number(inserted.likes ?? 0),
       reportCount: Number(inserted.report_count ?? 0),
       hidden: Boolean(inserted.hidden ?? false),
+      createdAt: inserted.created_at ?? null,
+      replyToCommentId:
+        inserted.reply_to_comment_id != null
+          ? Number(inserted.reply_to_comment_id)
+          : null,
     }
 
     setPosts((prev) =>
@@ -8708,18 +8862,18 @@ ${shareUrl}`)
       ),
     )
 
-    if (authUser) {
-      setMyComments((prev) => [
-        {
-          id: newComment.id,
-          commentId: newComment.id,
-          postId: targetPostId,
-          postTitle: targetPostTitle,
-          text: newComment.text,
-        },
-        ...prev.filter((comment) => comment.commentId !== newComment.id),
-      ])
-    }
+    setMyComments((prev) => [
+      {
+        id: newComment.id,
+        commentId: newComment.id,
+        postId: targetPostId,
+        postTitle: targetPostTitle,
+        text: newComment.text,
+        hasNewReplies: false,
+        newRepliesCount: 0,
+      },
+      ...prev.filter((comment) => comment.commentId !== newComment.id),
+    ])
 
     showToast('댓글 등록됨')
 
@@ -8742,6 +8896,9 @@ ${shareUrl}`)
 
     scheduleDiscoveryRefresh()
     refreshWatchlistSignalsAfterAction(120)
+    if (currentRawActorKey) {
+      void fetchMyActivity(currentRawActorKey)
+    }
   }
 
   const openReportPost = () => {
@@ -8948,18 +9105,18 @@ ${shareUrl}`)
 
     setPosts((prev) => [newPost, ...prev])
 
-    if (authUser) {
-      setMyPosts((prev) => [
-        {
-          id: newPost.id,
-          postId: newPost.id,
-          title: newPost.title,
-          category: newPost.category,
-          ageGroup: newPost.ageGroup,
-        },
-        ...prev.filter((item) => item.postId !== newPost.id),
-      ])
-    }
+    setMyPosts((prev) => [
+      {
+        id: newPost.id,
+        postId: newPost.id,
+        title: newPost.title,
+        category: newPost.category,
+        ageGroup: newPost.ageGroup,
+        hasNewComments: false,
+        newCommentsCount: 0,
+      },
+      ...prev.filter((item) => item.postId !== newPost.id),
+    ])
 
     clearShareMode()
     requestCurrentPostFocus()
