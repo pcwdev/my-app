@@ -3511,6 +3511,7 @@ function CommentModal({
       }
 
       setCommentSide(side)
+      console.log('[matnya] setReplyTarget', { commentId, author, side })
       setReplyTarget({ commentId, author, side })
       if (!text.trim()) {
         setText('')
@@ -3525,6 +3526,12 @@ function CommentModal({
     setIsSubmitting(true)
 
     try {
+      console.log('[matnya] submitComment', {
+        text: trimmed,
+        commentSide,
+        replyTarget,
+        resolvedReplyToCommentId: replyTarget?.commentId ?? null,
+      })
       await Promise.resolve(
         onAddComment(trimmed, commentSide, replyTarget?.commentId ?? null),
       )
@@ -8849,17 +8856,29 @@ ${shareUrl}`)
     const targetPostTitle = currentPost.title
     const authorName = profile?.anonymous_name ?? guestName
 
+    console.log('[matnya] addComment:start', {
+      text,
+      side,
+      replyToCommentId: replyToCommentId ?? null,
+      currentPostId: targetPostId,
+    })
+
+    const commentInsertPayload = {
+      post_id: targetPostId,
+      author: authorName,
+      side,
+      text,
+      author_key: authUser?.id ?? voterKey,
+      reply_to_comment_id: replyToCommentId ?? null,
+      parent_comment_id: replyToCommentId ?? null,
+      status: 'active' as const,
+    }
+
+    console.log('[matnya] addComment:payload', commentInsertPayload)
+
     const { data: inserted, error } = await supabase
       .from('comments')
-      .insert({
-        post_id: targetPostId,
-        author: authorName,
-        side,
-        text,
-        author_key: authUser?.id ?? voterKey,
-        reply_to_comment_id: replyToCommentId ?? null,
-        status: 'active',
-      })
+      .insert(commentInsertPayload)
       .select()
       .single()
 
