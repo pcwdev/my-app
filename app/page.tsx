@@ -2515,12 +2515,16 @@ function MyActivityModal({
   const [profileExpanded, setProfileExpanded] = useState(false)
   const [watchlistFilter, setWatchlistFilter] =
     useState<WatchlistItem['watchStatus']>('updated')
+  const [postFilter, setPostFilter] = useState<'new' | 'all'>('new')
+  const [commentFilter, setCommentFilter] = useState<'new' | 'all'>('new')
 
   useEffect(() => {
     if (open) {
       setTab(initialTab)
       setProfileExpanded(false)
       setWatchlistFilter('updated')
+      setPostFilter('new')
+      setCommentFilter('new')
     }
   }, [open, initialTab])
 
@@ -2535,6 +2539,14 @@ function MyActivityModal({
     { label: '댓글', value: stats.comments_count },
     { label: '궁금', value: watchlistItems.length },
   ]
+
+  const unreadMyPostCount = myPosts.filter(
+    (item) => Number(item.newCommentsCount ?? 0) > 0,
+  ).length
+  const unreadMyCommentCount = myComments.filter(
+    (item) => Number(item.newRepliesCount ?? 0) > 0,
+  ).length
+
   const updatedWatchlistItems = watchlistItems.filter(
     (item) => item.watchStatus === 'updated',
   )
@@ -2550,12 +2562,17 @@ function MyActivityModal({
       : watchlistFilter === 'waiting'
         ? waitingWatchlistItems
         : archivedWatchlistItems
-  const unreadMyPostsCount = myPosts.filter(
+
+  const postsWithNew = myPosts.filter(
     (item) => Number(item.newCommentsCount ?? 0) > 0,
-  ).length
-  const unreadMyCommentsCount = myComments.filter(
+  )
+  const commentsWithNew = myComments.filter(
     (item) => Number(item.newRepliesCount ?? 0) > 0,
-  ).length
+  )
+
+  const filteredMyPosts = postFilter === 'new' ? postsWithNew : myPosts
+  const filteredMyComments =
+    commentFilter === 'new' ? commentsWithNew : myComments
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2716,18 +2733,9 @@ function MyActivityModal({
               }`}
             >
               내가 올린 글
-              <span
-                className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                  tab === 'posts'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {myPosts.length}
-              </span>
-              {unreadMyPostsCount > 0 ? (
+              {unreadMyPostCount > 0 ? (
                 <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {unreadMyPostsCount}
+                  {unreadMyPostCount}
                 </span>
               ) : null}
             </button>
@@ -2740,18 +2748,9 @@ function MyActivityModal({
               }`}
             >
               내가 남긴 댓글
-              <span
-                className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                  tab === 'comments'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {myComments.length}
-              </span>
-              {unreadMyCommentsCount > 0 ? (
+              {unreadMyCommentCount > 0 ? (
                 <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {unreadMyCommentsCount}
+                  {unreadMyCommentCount}
                 </span>
               ) : null}
             </button>
@@ -2771,19 +2770,101 @@ function MyActivityModal({
               ) : null}
             </button>
           </div>
+
+          {tab === 'posts' ? (
+            <div className="mt-3 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'new', label: '새 반응', count: postsWithNew.length },
+                  { key: 'all', label: '전체', count: myPosts.length },
+                ].map((item) => {
+                  const active = postFilter === item.key
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setPostFilter(item.key as 'new' | 'all')}
+                      className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                        active
+                          ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {item.label}
+                      <span
+                        className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                          active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white text-slate-500'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {tab === 'comments' ? (
+            <div className="mt-3 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  {
+                    key: 'new',
+                    label: '새 반응',
+                    count: commentsWithNew.length,
+                  },
+                  { key: 'all', label: '전체', count: myComments.length },
+                ].map((item) => {
+                  const active = commentFilter === item.key
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() =>
+                        setCommentFilter(item.key as 'new' | 'all')
+                      }
+                      className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
+                        active
+                          ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {item.label}
+                      <span
+                        className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                          active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white text-slate-500'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
-          {tab === 'posts' && myPosts.length === 0 && (
+          {tab === 'posts' && filteredMyPosts.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              아직 작성한 글이 없음
+              {postFilter === 'new'
+                ? '아직 새 반응이 온 글이 없음'
+                : '아직 작성한 글이 없음'}
             </div>
-          )}
-          {tab === 'comments' && myComments.length === 0 && (
+          ) : null}
+
+          {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              아직 작성한 댓글이 없음
+              {commentFilter === 'new'
+                ? '아직 새 반응이 온 댓글이 없음'
+                : '아직 작성한 댓글이 없음'}
             </div>
-          )}
+          ) : null}
+
           {tab === 'watchlist' && (
             <>
               <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
@@ -2857,7 +2938,7 @@ function MyActivityModal({
           )}
 
           {tab === 'posts' &&
-            myPosts.map((item) => (
+            filteredMyPosts.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onOpenPost(item.postId, item.postId)}
@@ -2870,7 +2951,7 @@ function MyActivityModal({
                   {item.title}
                 </div>
                 {item.hasNewComments ? (
-                  <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
+                  <div className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
                     새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
                 ) : (item.totalCommentsCount ?? 0) > 0 ? (
@@ -2878,7 +2959,7 @@ function MyActivityModal({
                     댓글 {item.totalCommentsCount ?? 0}개
                   </div>
                 ) : (
-                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
                     아직 반응 없음
                   </div>
                 )}
@@ -2887,7 +2968,7 @@ function MyActivityModal({
             ))}
 
           {tab === 'comments' &&
-            myComments.map((item) => (
+            filteredMyComments.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onOpenComment(item.postId, item.commentId)}
@@ -2906,7 +2987,7 @@ function MyActivityModal({
                     반박 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : (
-                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
                     아직 반응 없음
                   </div>
                 )}
