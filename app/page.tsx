@@ -8687,13 +8687,92 @@ ${shareUrl}`)
     }
   }
 
-  const openNewestPostNotice = () => {
+  const openNewestPostNotice = async () => {
     const newestPostId = newPostNoticeIds[0]
     if (!newestPostId) return
 
     latestSeenPostIdRef.current = newestPostId
     setNewPostNoticeIds([])
-    openPostDirect(newestPostId)
+
+    const existingIndex = posts.findIndex((post) => post.id === newestPostId)
+    if (existingIndex >= 0) {
+      openPostDirect(newestPostId)
+      return
+    }
+
+    const [
+      { data: postRow, error: postError },
+      { data: commentRows, error: commentsError },
+    ] = await Promise.all([
+      supabase
+        .from('posts')
+        .select('*')
+        .eq('id', newestPostId)
+        .neq('status', 'deleted')
+        .maybeSingle(),
+      supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', newestPostId)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false }),
+    ])
+
+    if (postError || !postRow) {
+      console.error('새 글 이동용 게시글 조회 실패', postError)
+      return
+    }
+
+    if (commentsError) {
+      console.error('새 글 이동용 댓글 조회 실패', commentsError)
+    }
+
+    const hydratedPost: PostItem = {
+      id: Number(postRow.id),
+      category: postRow.category,
+      ageGroup: postRow.age_group,
+      title: postRow.title,
+      content: postRow.content,
+      leftLabel: postRow.left_label,
+      rightLabel: postRow.right_label,
+      leftVotes: Number(postRow.left_votes ?? 0),
+      rightVotes: Number(postRow.right_votes ?? 0),
+      reportCount: Number(postRow.report_count ?? 0),
+      hidden: Boolean(postRow.hidden ?? false),
+      authorKey: postRow.author_key ?? null,
+      views: Number(postRow.views ?? 0),
+      comments: (commentRows ?? []).map((comment: any) => ({
+        id: Number(comment.id),
+        author: comment.author,
+        authorKey: comment.author_key ?? null,
+        side: comment.side as Side,
+        text: comment.text,
+        likes: Number(comment.likes ?? 0),
+        reportCount: Number(comment.report_count ?? 0),
+        hidden: Boolean(comment.hidden ?? false),
+        createdAt: comment.created_at ?? null,
+        replyToCommentId:
+          comment.reply_to_comment_id != null
+            ? Number(comment.reply_to_comment_id)
+            : null,
+      })),
+    }
+
+    setPosts((prev) => {
+      const withoutTarget = prev.filter((post) => post.id !== newestPostId)
+      return [hydratedPost, ...withoutTarget]
+    })
+
+    requestCurrentPostFocus()
+    runKakaoSafeTransition(() => {
+      endSharedEntryMode()
+      setTab('추천')
+      setSelectedCategory('전체')
+      setCurrentIndex(0)
+    })
+
+    refreshWatchlistSignalsAfterAction(80)
+    refreshPostCommentsAfterAction([newestPostId], 100)
   }
 
   const openWatchlistActivity = () => {
@@ -10097,7 +10176,7 @@ ${shareUrl}`)
           {newPostNoticeCount > 0 ? (
             <button
               type="button"
-              onClick={openNewestPostNotice}
+              onClick={() => void openNewestPostNotice()}
               className="mb-3 flex w-full items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7_0%,#ebfff4_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(16,185,129,0.10)]"
             >
               <div className="min-w-0">
