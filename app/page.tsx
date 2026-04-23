@@ -2294,6 +2294,7 @@ const CommentCard = React.memo(function CommentCard({
                 {
                   reactionType: 'relatable' as CommentReactionType,
                   label: '공감',
+                  leading: '💬',
                   count:
                     Number(reactionSummary.relatable ?? 0) +
                     Number(reactionSummary.agree ?? 0) +
@@ -2306,6 +2307,7 @@ const CommentCard = React.memo(function CommentCard({
                 {
                   reactionType: 'disagree' as CommentReactionType,
                   label: '반박',
+                  leading: '🔥',
                   count: Number(reactionSummary.disagree ?? 0),
                   active: !!myReactionMap.disagree,
                   activeClass:
@@ -2320,8 +2322,9 @@ const CommentCard = React.memo(function CommentCard({
                     onClick={() =>
                       onReactComment(comment.id, item.reactionType)
                     }
-                    className={`inline-flex h-8 items-center gap-1 rounded-full border px-3 font-bold transition duration-200 ${item.active ? item.activeClass : item.idleClass} ${isPulse ? 'scale-[1.08] shadow-[0_10px_20px_rgba(15,23,42,0.12)]' : 'scale-100'}`}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-bold transition duration-200 ${item.active ? item.activeClass : item.idleClass} ${isPulse ? 'scale-[1.08] shadow-[0_10px_20px_rgba(15,23,42,0.12)]' : 'scale-100'}`}
                   >
+                    <span>{item.leading}</span>
                     <span>{item.label}</span>
                     <span className={isPulse ? 'animate-pulse' : ''}>
                       {item.count}
@@ -2330,11 +2333,6 @@ const CommentCard = React.memo(function CommentCard({
                 )
               })}
             </div>
-            {Number(reactionSummary.disagree ?? 0) > 0 ? (
-              <div className="mt-1.5 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                🔥 반박 {Number(reactionSummary.disagree ?? 0)}개
-              </div>
-            ) : null}
           </div>
         ) : null}
 
