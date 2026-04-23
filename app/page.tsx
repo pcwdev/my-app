@@ -6724,6 +6724,30 @@ export default function MatnyaApp() {
     ],
   )
 
+  const refreshPostCommentsAfterAction = useCallback(
+    (postIds: Array<number | null | undefined>, delay = 120) => {
+      const uniquePostIds = [
+        ...new Set(
+          postIds
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0),
+        ),
+      ]
+
+      if (uniquePostIds.length === 0) return
+
+      window.setTimeout(
+        () => {
+          void Promise.all(
+            uniquePostIds.map((postId) => refreshCommentsForPost(postId)),
+          )
+        },
+        Math.max(60, delay),
+      )
+    },
+    [refreshCommentsForPost],
+  )
+
   const upsertResultUnlock = useCallback(
     async (postId: number, patch: ResultUnlockPatch) => {
       if (!currentActorUnifiedKey || !postId) return null
@@ -8348,6 +8372,7 @@ ${shareUrl}`)
       setCurrentIndex(targetIndex)
     })
     refreshWatchlistSignalsAfterAction(120)
+    refreshPostCommentsAfterAction([currentPost?.id, targetPost?.id], 140)
   }
 
   const next = () => {
@@ -8364,6 +8389,7 @@ ${shareUrl}`)
       setCurrentIndex(targetIndex)
     })
     refreshWatchlistSignalsAfterAction(120)
+    refreshPostCommentsAfterAction([currentPost?.id, targetPost?.id], 140)
   }
 
   const handleNextWithGuard = () => {
@@ -8391,6 +8417,7 @@ ${shareUrl}`)
         setCurrentIndex(nextIndexInFiltered)
       })
       refreshWatchlistSignalsAfterAction(120)
+      refreshPostCommentsAfterAction([currentPost?.id, postId], 140)
       return
     }
 
@@ -8454,6 +8481,7 @@ ${shareUrl}`)
         setActivityOpen(false)
       })
       refreshWatchlistSignalsAfterAction(80)
+      refreshPostCommentsAfterAction([postId], 100)
       if (markSeenPostId) {
         void markActivitySeen('post', markSeenPostId)
       }
@@ -8485,6 +8513,7 @@ ${shareUrl}`)
         setActivityOpen(false)
         setCommentOpen(true)
       })
+      refreshPostCommentsAfterAction([postId], 100)
       if (commentId) {
         void markActivitySeen('comment', commentId)
       }
