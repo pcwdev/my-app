@@ -2583,7 +2583,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              내가 올린 글, 댓글, 저장한 글 모아보기
+              내 글, 댓글, 저장한 글 모아보기
             </div>
           </div>
           <button
@@ -2734,7 +2734,7 @@ function MyActivityModal({
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
-              내가 올린 글
+              내 글
               {unreadMyPostCount > 0 ? (
                 <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
                   {unreadMyPostCount}
@@ -2749,7 +2749,7 @@ function MyActivityModal({
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
-              내가 남긴 댓글
+              내 댓글
               {unreadMyCommentCount > 0 ? (
                 <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
                   {unreadMyCommentCount}
@@ -3064,7 +3064,7 @@ function MyActivityModal({
               onClick={onLogin}
               className="w-full rounded-2xl border border-[#cdd9ff] bg-[#eef3ff] px-4 py-3 text-sm font-bold text-[#335cff]"
             >
-              구글 로그인
+              로그인하고 이어보기
             </button>
           )}
         </div>
@@ -6105,8 +6105,8 @@ export default function MatnyaApp() {
     try {
       await signInWithGoogle()
     } catch (error) {
-      console.error('구글 로그인 실패', error)
-      showToast('구글 로그인 실패')
+      console.error('로그인하고 이어보기 실패', error)
+      showToast('로그인하고 이어보기 실패')
     }
   }
 
