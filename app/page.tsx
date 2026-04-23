@@ -2039,10 +2039,10 @@ const VoteOption = React.memo(function VoteOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
+      className={`w-full rounded-[24px] border px-4 py-3.5 text-left transition-all duration-200 ${
         active
           ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
-          : 'border-slate-200/80 bg-white shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
+          : 'border-slate-200/80 bg-white shadow-[0_9px_18px_rgba(15,23,42,0.05)]'
       } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-slate-50'}`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -2054,12 +2054,12 @@ const VoteOption = React.memo(function VoteOption({
           {label}
         </span>
         {showValue ? (
-          <span className="text-[17px] font-extrabold text-slate-900">
+          <span className="text-[18px] font-black tracking-[-0.02em] text-slate-900">
             {value}%
           </span>
         ) : (
-          <span className="text-[12px] font-bold text-slate-500">
-            {previewTitle}
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-extrabold text-slate-600">
+            터치해서 선택
           </span>
         )}
       </div>
@@ -2072,7 +2072,7 @@ const VoteOption = React.memo(function VoteOption({
         </div>
       ) : (
         <div className="mt-2 text-[12px] font-semibold text-slate-500">
-          {previewHelper}
+          {showValue ? '선택 완료 · 지금 분위기 반영됨' : previewHelper}
         </div>
       )}
     </button>
@@ -10034,11 +10034,14 @@ ${shareUrl}`)
           <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#4f7cff]">
                   맞냐
                 </div>
-                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
-                  이거 맞냐?
+                <div className="mt-1 text-[24px] font-black tracking-[-0.03em] text-slate-950">
+                  내가 틀린 거냐?
+                </div>
+                <div className="mt-2 inline-flex items-center rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-3 py-1 text-[11px] font-bold text-[#315fdc]">
+                  3초 안에 고르고 바로 분위기 보기
                 </div>
               </div>
 
@@ -10118,8 +10121,8 @@ ${shareUrl}`)
                   }}
                   className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
                     tab === label
-                      ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                      : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
+                      ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.22)]'
+                      : 'border border-slate-200/80 bg-white/92 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
                   }`}
                 >
                   {label}
@@ -10211,7 +10214,7 @@ ${shareUrl}`)
             <button
               type="button"
               onClick={() => void openNewestPostNotice()}
-              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7_0%,#ebfff4_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(16,185,129,0.10)]"
+              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[20px] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7_0%,#ebfff4_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(16,185,129,0.10)]"
             >
               <div className="min-w-0">
                 <div className="text-[11px] font-extrabold tracking-[0.18em] text-emerald-600">
@@ -10220,9 +10223,12 @@ ${shareUrl}`)
                 <div className="mt-1 text-sm font-black text-slate-900">
                   새 글 {newPostNoticeCount}개 올라옴
                 </div>
+                <div className="mt-0.5 text-[12px] font-medium text-emerald-700/80">
+                  최신 글부터 바로 넘겨봄
+                </div>
               </div>
               <div className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-black text-emerald-700">
-                보러가기
+                최신부터 보기
               </div>
             </button>
           ) : null}
@@ -10276,15 +10282,17 @@ ${shareUrl}`)
             </div>
 
             <div className="rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f9fbff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_rgba(148,163,184,0.12)]">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                today issue
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-slate-400">
+                <span>지금 올라온 판</span>
+                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                <span>빠르게 고르고 넘기기</span>
               </div>
-              <h1 className="text-[22px] font-black leading-tight tracking-tight text-slate-900">
+              <h1 className="text-[23px] font-black leading-[1.28] tracking-[-0.03em] text-slate-900">
                 {currentPost.hidden && !adminMode
                   ? '신고 누적으로 숨겨진 글'
                   : currentPost.title}
               </h1>
-              <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-slate-700">
+              <p className="mt-3 whitespace-pre-line text-[15px] leading-[1.75] text-slate-700">
                 {currentPost.hidden && !adminMode
                   ? '관리자 확인 전까지 숨김 처리됩니다.'
                   : currentPost.content}
