@@ -8688,80 +8688,114 @@ ${shareUrl}`)
   }
 
   const openNewestPostNotice = async () => {
-    const newestPostId = newPostNoticeIds[0]
+    const noticeIds = newPostNoticeIds.filter(
+      (id) => Number.isFinite(id) && id > 0,
+    )
+    const newestPostId = noticeIds[0]
     if (!newestPostId) return
 
     latestSeenPostIdRef.current = newestPostId
+
+    const missingIds = noticeIds.filter(
+      (postId) => !posts.some((post) => Number(post.id) === Number(postId)),
+    )
+
+    if (missingIds.length > 0) {
+      const [
+        { data: postRows, error: postError },
+        { data: commentRows, error: commentsError },
+      ] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('*')
+          .in('id', missingIds)
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('comments')
+          .select('*')
+          .in('post_id', missingIds)
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (postError) {
+        console.error('새 글 이동용 게시글 조회 실패', postError)
+        return
+      }
+
+      if (commentsError) {
+        console.error('새 글 이동용 댓글 조회 실패', commentsError)
+      }
+
+      const commentsByPostId = new Map<number, any[]>()
+      ;(commentRows ?? []).forEach((comment: any) => {
+        const postId = Number(comment.post_id)
+        const bucket = commentsByPostId.get(postId) ?? []
+        bucket.push(comment)
+        commentsByPostId.set(postId, bucket)
+      })
+
+      const hydratedPosts = (postRows ?? []).map((postRow: any) => ({
+        id: Number(postRow.id),
+        category: postRow.category,
+        ageGroup: postRow.age_group,
+        title: postRow.title,
+        content: postRow.content,
+        leftLabel: postRow.left_label,
+        rightLabel: postRow.right_label,
+        leftVotes: Number(postRow.left_votes ?? 0),
+        rightVotes: Number(postRow.right_votes ?? 0),
+        reportCount: Number(postRow.report_count ?? 0),
+        hidden: Boolean(postRow.hidden ?? false),
+        authorKey: postRow.author_key ?? null,
+        views: Number(postRow.views ?? 0),
+        comments: (commentsByPostId.get(Number(postRow.id)) ?? []).map(
+          (comment: any) => ({
+            id: Number(comment.id),
+            author: comment.author,
+            authorKey: comment.author_key ?? null,
+            side: comment.side as Side,
+            text: comment.text,
+            likes: Number(comment.likes ?? 0),
+            reportCount: Number(comment.report_count ?? 0),
+            hidden: Boolean(comment.hidden ?? false),
+            createdAt: comment.created_at ?? null,
+            replyToCommentId:
+              comment.reply_to_comment_id != null
+                ? Number(comment.reply_to_comment_id)
+                : null,
+          }),
+        ),
+      })) as PostItem[]
+
+      const hydratedById = new Map<number, PostItem>()
+      hydratedPosts.forEach((post) => {
+        hydratedById.set(Number(post.id), post)
+      })
+
+      setPosts((prev) => {
+        const orderedHydrated = noticeIds
+          .map((postId) => hydratedById.get(Number(postId)))
+          .filter(Boolean) as PostItem[]
+
+        const existingNoticePosts = noticeIds
+          .map((postId) =>
+            prev.find((post) => Number(post.id) === Number(postId)),
+          )
+          .filter(Boolean) as PostItem[]
+
+        const prepended =
+          orderedHydrated.length > 0 ? orderedHydrated : existingNoticePosts
+        const prependedIds = new Set(prepended.map((post) => Number(post.id)))
+        const remaining = prev.filter(
+          (post) => !prependedIds.has(Number(post.id)),
+        )
+        return [...prepended, ...remaining]
+      })
+    }
+
     setNewPostNoticeIds([])
-
-    const existingIndex = posts.findIndex((post) => post.id === newestPostId)
-    if (existingIndex >= 0) {
-      openPostDirect(newestPostId)
-      return
-    }
-
-    const [
-      { data: postRow, error: postError },
-      { data: commentRows, error: commentsError },
-    ] = await Promise.all([
-      supabase
-        .from('posts')
-        .select('*')
-        .eq('id', newestPostId)
-        .neq('status', 'deleted')
-        .maybeSingle(),
-      supabase
-        .from('comments')
-        .select('*')
-        .eq('post_id', newestPostId)
-        .neq('status', 'deleted')
-        .order('created_at', { ascending: false }),
-    ])
-
-    if (postError || !postRow) {
-      console.error('새 글 이동용 게시글 조회 실패', postError)
-      return
-    }
-
-    if (commentsError) {
-      console.error('새 글 이동용 댓글 조회 실패', commentsError)
-    }
-
-    const hydratedPost: PostItem = {
-      id: Number(postRow.id),
-      category: postRow.category,
-      ageGroup: postRow.age_group,
-      title: postRow.title,
-      content: postRow.content,
-      leftLabel: postRow.left_label,
-      rightLabel: postRow.right_label,
-      leftVotes: Number(postRow.left_votes ?? 0),
-      rightVotes: Number(postRow.right_votes ?? 0),
-      reportCount: Number(postRow.report_count ?? 0),
-      hidden: Boolean(postRow.hidden ?? false),
-      authorKey: postRow.author_key ?? null,
-      views: Number(postRow.views ?? 0),
-      comments: (commentRows ?? []).map((comment: any) => ({
-        id: Number(comment.id),
-        author: comment.author,
-        authorKey: comment.author_key ?? null,
-        side: comment.side as Side,
-        text: comment.text,
-        likes: Number(comment.likes ?? 0),
-        reportCount: Number(comment.report_count ?? 0),
-        hidden: Boolean(comment.hidden ?? false),
-        createdAt: comment.created_at ?? null,
-        replyToCommentId:
-          comment.reply_to_comment_id != null
-            ? Number(comment.reply_to_comment_id)
-            : null,
-      })),
-    }
-
-    setPosts((prev) => {
-      const withoutTarget = prev.filter((post) => post.id !== newestPostId)
-      return [hydratedPost, ...withoutTarget]
-    })
 
     requestCurrentPostFocus()
     runKakaoSafeTransition(() => {
@@ -8772,7 +8806,7 @@ ${shareUrl}`)
     })
 
     refreshWatchlistSignalsAfterAction(80)
-    refreshPostCommentsAfterAction([newestPostId], 100)
+    refreshPostCommentsAfterAction(noticeIds, 100)
   }
 
   const openWatchlistActivity = () => {
