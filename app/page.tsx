@@ -10038,18 +10038,18 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f7cff]">
+          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-[34px] leading-none font-black tracking-[-0.05em] text-slate-950 sm:text-[38px]">
                   맞냐
                 </div>
-                <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
+                <div className="mt-1 text-[13px] font-medium tracking-[-0.02em] text-slate-500 sm:text-[14px]">
                   이거 맞냐?
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-start">
                 {!authUser ? (
                   <button
                     onClick={openWatchlistActivity}
@@ -10111,7 +10111,7 @@ ${shareUrl}`)
               </div>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex items-center justify-end gap-2">
               {(['추천', '인기', '최신'] as const).map((label) => (
                 <button
                   key={label}
