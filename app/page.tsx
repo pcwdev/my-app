@@ -2306,9 +2306,7 @@ const CommentCard = React.memo(function CommentCard({
                 {
                   reactionType: 'disagree' as CommentReactionType,
                   label: '반박',
-                  count:
-                    Number(reactionSummary.disagree ?? 0) +
-                    Number(reactionSummary.absurd ?? 0),
+                  count: Number(reactionSummary.disagree ?? 0),
                   active: !!myReactionMap.disagree,
                   activeClass:
                     'border-rose-200 bg-rose-50 text-rose-700 shadow-[0_6px_14px_rgba(244,63,94,0.12)]',
@@ -2332,6 +2330,11 @@ const CommentCard = React.memo(function CommentCard({
                 )
               })}
             </div>
+            {Number(reactionSummary.disagree ?? 0) > 0 ? (
+              <div className="mt-1.5 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                🔥 반박 {Number(reactionSummary.disagree ?? 0)}개
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -3144,64 +3147,6 @@ function CommentModal({
   const unlockingKeyboardRef = useRef(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
-  const getReplyTargetStorageKey = useCallback(
-    (postId?: number | null) =>
-      postId != null ? `matnya_reply_target_post_${postId}` : null,
-    [],
-  )
-
-  const persistReplyTarget = useCallback(
-    (
-      nextTarget: {
-        commentId: number
-        author: string
-        side: Side
-      } | null,
-    ) => {
-      if (typeof window === 'undefined') return
-      const storageKey = getReplyTargetStorageKey(post?.id ?? null)
-      if (!storageKey) return
-
-      try {
-        if (nextTarget) {
-          window.sessionStorage.setItem(storageKey, JSON.stringify(nextTarget))
-        } else {
-          window.sessionStorage.removeItem(storageKey)
-        }
-      } catch {}
-    },
-    [getReplyTargetStorageKey, post?.id],
-  )
-
-  const readPersistedReplyTarget = useCallback(() => {
-    if (typeof window === 'undefined') return null
-    const storageKey = getReplyTargetStorageKey(post?.id ?? null)
-    if (!storageKey) return null
-
-    try {
-      const raw = window.sessionStorage.getItem(storageKey)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as {
-        commentId?: number
-        author?: string
-        side?: Side
-      }
-      if (
-        typeof parsed?.commentId === 'number' &&
-        typeof parsed?.author === 'string' &&
-        (parsed?.side === 'left' || parsed?.side === 'right')
-      ) {
-        return {
-          commentId: Number(parsed.commentId),
-          author: parsed.author,
-          side: parsed.side,
-        }
-      }
-    } catch {}
-
-    return null
-  }, [getReplyTargetStorageKey, post?.id])
-
   useEffect(() => {
     if (!open) return
     setVisibleCount(12)
@@ -3214,9 +3159,8 @@ function CommentModal({
     setLastSubmittedCommentId(null)
     setSuppressAutoKeyboard(true)
     replyTargetRef.current = null
-    persistReplyTarget(null)
     unlockingKeyboardRef.current = false
-  }, [open, post?.id, persistReplyTarget])
+  }, [open, post?.id])
 
   const unlockCommentInput = useCallback(() => {
     if (!suppressAutoKeyboard || unlockingKeyboardRef.current) return
@@ -3548,39 +3492,12 @@ function CommentModal({
     const wasActive = !!myCommentReactions[reactionKey]
 
     if (reactionType === 'disagree') {
-      const nextReplyTarget = { commentId, author, side }
-
-      replyTargetRef.current = nextReplyTarget
-      setReplyTarget(nextReplyTarget)
-      persistReplyTarget(nextReplyTarget)
       setRecentBattleCommentId(commentId)
-      setCommentSide(side)
-
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
           setRecentBattleCommentId((prev) => (prev === commentId ? null : prev))
         }, 2600)
       }
-
-      console.log('[matnya] setReplyTarget:locked', nextReplyTarget)
-
-      Promise.resolve(onReactComment(commentId, reactionType)).catch(
-        (error) => {
-          console.error('comment reaction 실패', error)
-        },
-      )
-
-      if (!wasActive) {
-        const pulseKey = `${commentId}:${reactionType}`
-        setReactionPulseKey(pulseKey)
-        if (typeof window !== 'undefined') {
-          window.setTimeout(() => {
-            setReactionPulseKey((prev) => (prev === pulseKey ? null : prev))
-          }, 520)
-        }
-      }
-
-      return
     }
 
     await Promise.resolve(onReactComment(commentId, reactionType))
@@ -3603,23 +3520,14 @@ function CommentModal({
     setIsSubmitting(true)
 
     try {
-      const persistedReplyTarget = readPersistedReplyTarget()
-      const submitReplyTarget =
-        replyTargetRef.current ?? replyTarget ?? persistedReplyTarget ?? null
-      const resolvedReplyToCommentId = submitReplyTarget?.commentId ?? null
-
       console.log('[matnya] submitComment', {
         text: trimmed,
         commentSide,
-        replyTarget,
-        replyTargetRef: replyTargetRef.current,
-        submitReplyTarget,
-        persistedReplyTarget,
-        resolvedReplyToCommentId,
+        replyTarget: null,
+        replyTargetRef: null,
+        resolvedReplyToCommentId: null,
       })
-      await Promise.resolve(
-        onAddComment(trimmed, commentSide, resolvedReplyToCommentId),
-      )
+      await Promise.resolve(onAddComment(trimmed, commentSide, null))
       setPendingOwnCommentMatch({
         text: trimmed,
         side: commentSide,
@@ -3628,7 +3536,6 @@ function CommentModal({
       setText('')
       setReplyTarget(null)
       replyTargetRef.current = null
-      persistReplyTarget(null)
     } catch (error) {
       console.error('댓글 등록 실패', error)
     } finally {
@@ -3921,36 +3828,9 @@ function CommentModal({
         </div>
 
         <div className="shrink-0 border-t border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(246,249,255,0.9)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-          {replyTarget ? (
-            <div className="mb-1.5 flex items-center justify-between gap-2 rounded-[16px] border border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] px-2.5 py-1.5 text-[11px] shadow-[0_6px_16px_rgba(244,63,94,0.08)]">
-              <div className="min-w-0">
-                <div className="truncate font-black text-rose-700">
-                  🔥 {replyTarget.author}에게 반박함
-                </div>
-                <div className="truncate font-semibold text-rose-600/90">
-                  {replyTarget.side === 'left'
-                    ? post.leftLabel
-                    : post.rightLabel}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setReplyTarget(null)
-                  replyTargetRef.current = null
-                  persistReplyTarget(null)
-                  setCommentSide(activeTab)
-                }}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500"
-                aria-label="반박 모드 닫기"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : null}
-
           <div className="mx-auto max-w-md rounded-[22px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-1.5 shadow-[0_12px_26px_rgba(15,23,42,0.09)] backdrop-blur-2xl">
             <div className="mb-1 text-[10px] font-semibold text-slate-400">
-              등록 후에만 내 댓글 쪽으로 바로 보여줌
+              반박 버튼 수는 바로 반영되고 내 활동에도 새 반박으로 잡힘
             </div>
             <div className="mb-2 grid grid-cols-2 gap-1 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,#f8faff_0%,#eef3ff_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]">
               <button
@@ -3999,11 +3879,7 @@ function CommentModal({
                       return
                     }
                   }}
-                  placeholder={
-                    replyTarget
-                      ? `${replyTarget.author}한테 한마디 더 얹기`
-                      : '너의 의견은?'
-                  }
+                  placeholder={'너의 의견은?'}
                   style={{ fontSize: 16, lineHeight: '20px' }}
                   className="h-[38px] w-full resize-none bg-transparent pl-3 pr-12 pt-[8px] text-base leading-5 text-slate-900 outline-none placeholder:text-slate-400 [text-size-adjust:100%] [-webkit-text-size-adjust:100%]"
                 />
@@ -5588,7 +5464,7 @@ export default function MatnyaApp() {
       commentPostsRes,
       activityReadsRes,
       postCommentsRes,
-      replyCommentsRes,
+      replyReactionsRes,
     ] = await Promise.all([
       uniquePostIds.length > 0
         ? supabase.from('posts').select('id, title').in('id', uniquePostIds)
@@ -5609,10 +5485,10 @@ export default function MatnyaApp() {
         : Promise.resolve({ data: [], error: null } as any),
       commentIds.length > 0
         ? supabase
-            .from('comments')
-            .select('id, reply_to_comment_id, author_key, author, created_at')
-            .in('reply_to_comment_id', commentIds)
-            .neq('status', 'deleted')
+            .from('comment_reactions')
+            .select('id, comment_id, reactor_key, reaction_type, created_at')
+            .eq('reaction_type', 'disagree')
+            .in('comment_id', commentIds)
         : Promise.resolve({ data: [], error: null } as any),
     ])
 
@@ -5625,8 +5501,8 @@ export default function MatnyaApp() {
     if (postCommentsRes.error) {
       console.error('내 글 새 댓글 불러오기 실패', postCommentsRes.error)
     }
-    if (replyCommentsRes.error) {
-      console.error('내 댓글 반박 불러오기 실패', replyCommentsRes.error)
+    if (replyReactionsRes.error) {
+      console.error('내 댓글 반박 불러오기 실패', replyReactionsRes.error)
     }
 
     const postTitleMap = new Map<number, string>()
@@ -5665,12 +5541,12 @@ export default function MatnyaApp() {
 
     const totalReplyCountMap = new Map<number, number>()
     const newReplyCountMap = new Map<number, number>()
-    ;(replyCommentsRes.data ?? []).forEach((row: any) => {
-      const commentId = Number(row.reply_to_comment_id)
+    ;(replyReactionsRes.data ?? []).forEach((row: any) => {
+      const commentId = Number(row.comment_id)
       const seenAt = readMap.get(`comment:${commentId}`)
       const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
       const seenTime = seenAt ? new Date(seenAt).getTime() : 0
-      const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+      const isOtherUser = String(row.reactor_key ?? '') !== String(actorKey)
       totalReplyCountMap.set(
         commentId,
         Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
@@ -5705,7 +5581,7 @@ export default function MatnyaApp() {
 
     console.log('myPosts', nextMyPosts)
     console.log('myComments', nextMyComments)
-    console.log('replyCommentsRaw', replyCommentsRes.data ?? [])
+    console.log('replyReactionsRaw', replyReactionsRes.data ?? [])
     console.groupEnd()
 
     setMyPosts(nextMyPosts)
@@ -8542,6 +8418,9 @@ ${shareUrl}`)
         }
 
         showToast('반응 취소')
+        if (currentRawActorKey) {
+          void fetchMyActivity(currentRawActorKey)
+        }
         return
       }
 
@@ -8581,6 +8460,9 @@ ${shareUrl}`)
       }
 
       showToast(reactionType === 'relatable' ? '공감 반영' : '반박 반영')
+      if (currentRawActorKey) {
+        void fetchMyActivity(currentRawActorKey)
+      }
     } finally {
       commentReactionInFlightRef.current[mapKey] = false
       commentReactionInFlightRef.current[oppositeMapKey] = false
@@ -8906,6 +8788,9 @@ ${shareUrl}`)
         }
 
         showToast('반응 취소')
+        if (currentRawActorKey) {
+          void fetchMyActivity(currentRawActorKey)
+        }
         return
       }
 
