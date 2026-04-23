@@ -2550,6 +2550,12 @@ function MyActivityModal({
       : watchlistFilter === 'waiting'
         ? waitingWatchlistItems
         : archivedWatchlistItems
+  const unreadMyPostsCount = myPosts.filter(
+    (item) => Number(item.newCommentsCount ?? 0) > 0,
+  ).length
+  const unreadMyCommentsCount = myComments.filter(
+    (item) => Number(item.newRepliesCount ?? 0) > 0,
+  ).length
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2710,6 +2716,20 @@ function MyActivityModal({
               }`}
             >
               내가 올린 글
+              <span
+                className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                  tab === 'posts'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {myPosts.length}
+              </span>
+              {unreadMyPostsCount > 0 ? (
+                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {unreadMyPostsCount}
+                </span>
+              ) : null}
             </button>
             <button
               onClick={() => setTab('comments')}
@@ -2720,6 +2740,20 @@ function MyActivityModal({
               }`}
             >
               내가 남긴 댓글
+              <span
+                className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                  tab === 'comments'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {myComments.length}
+              </span>
+              {unreadMyCommentsCount > 0 ? (
+                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {unreadMyCommentsCount}
+                </span>
+              ) : null}
             </button>
             <button
               onClick={() => setTab('watchlist')}
@@ -2836,14 +2870,18 @@ function MyActivityModal({
                   {item.title}
                 </div>
                 {item.hasNewComments ? (
-                  <div className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                  <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
                     새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
                 ) : (item.totalCommentsCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
                     댓글 {item.totalCommentsCount ?? 0}개
                   </div>
-                ) : null}
+                ) : (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                    아직 반응 없음
+                  </div>
+                )}
                 <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
               </button>
             ))}
@@ -2867,7 +2905,11 @@ function MyActivityModal({
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
                     반박 {item.totalRepliesCount ?? 0}개
                   </div>
-                ) : null}
+                ) : (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                    아직 반응 없음
+                  </div>
+                )}
                 <div className="mt-2 text-xs text-slate-400">
                   댓글 단 글로 이동
                 </div>
