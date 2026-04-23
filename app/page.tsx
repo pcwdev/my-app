@@ -7336,6 +7336,14 @@ ${shareUrl}`)
   const unreadWatchlistCount = watchlistItems.filter(
     (item) => item.unreadOutcome,
   ).length
+  const unreadMyPostsTopCount = myPosts.filter(
+    (item) => Number(item.newCommentsCount ?? 0) > 0,
+  ).length
+  const unreadMyCommentsTopCount = myComments.filter(
+    (item) => Number(item.newRepliesCount ?? 0) > 0,
+  ).length
+  const unreadActivityBadgeCount =
+    unreadWatchlistCount + unreadMyPostsTopCount + unreadMyCommentsTopCount
   const currentWatchUnread =
     !!currentPost &&
     (watchlistItems.find((item) => item.postId === currentPost.id)
@@ -9706,9 +9714,9 @@ ${shareUrl}`)
                       <span className="text-xs font-bold">
                         {profile?.anonymous_name ?? '익명'}
                       </span>
-                      {unreadWatchlistCount > 0 ? (
+                      {unreadActivityBadgeCount > 0 ? (
                         <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                          {unreadWatchlistCount}
+                          {unreadActivityBadgeCount}
                         </span>
                       ) : null}
                     </button>
