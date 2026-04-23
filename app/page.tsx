@@ -6706,9 +6706,22 @@ export default function MatnyaApp() {
 
       window.setTimeout(() => {
         requestLightweightMetaRefresh({ delay })
+        if (currentRawActorKey) {
+          window.setTimeout(
+            () => {
+              void fetchMyActivity(currentRawActorKey)
+            },
+            Math.max(80, delay),
+          )
+        }
       }, 0)
     },
-    [currentActorUnifiedKey, requestLightweightMetaRefresh],
+    [
+      currentActorUnifiedKey,
+      currentRawActorKey,
+      fetchMyActivity,
+      requestLightweightMetaRefresh,
+    ],
   )
 
   const upsertResultUnlock = useCallback(
@@ -9609,7 +9622,10 @@ ${shareUrl}`)
 
         <MyActivityModal
           open={activityOpen}
-          onClose={() => setActivityOpen(false)}
+          onClose={() => {
+            setActivityOpen(false)
+            refreshWatchlistSignalsAfterAction(80)
+          }}
           myPosts={myPosts}
           myComments={myComments}
           watchlistItems={watchlistItems}
@@ -10879,7 +10895,10 @@ ${shareUrl}`)
 
         <MyActivityModal
           open={activityOpen}
-          onClose={() => setActivityOpen(false)}
+          onClose={() => {
+            setActivityOpen(false)
+            refreshWatchlistSignalsAfterAction(80)
+          }}
           myPosts={myPosts}
           myComments={myComments}
           watchlistItems={watchlistItems}
