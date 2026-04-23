@@ -9869,10 +9869,8 @@ ${shareUrl}`)
                     <span className="text-xs font-bold">
                       Lv.{levelInfo.level}
                     </span>
-                    {unreadWatchlistCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                        {unreadWatchlistCount}
-                      </span>
+                    {unreadActivityBadgeCount > 0 ? (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                     ) : null}
                   </button>
                 ) : (
@@ -9886,10 +9884,8 @@ ${shareUrl}`)
                     <span className="text-xs font-bold">
                       Lv.{levelInfo.level}
                     </span>
-                    {unreadWatchlistCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                        {unreadWatchlistCount}
-                      </span>
+                    {unreadActivityBadgeCount > 0 ? (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                     ) : null}
                   </button>
                 )}
