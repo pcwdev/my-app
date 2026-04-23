@@ -2493,6 +2493,9 @@ function MyActivityModal({
   onOpenComment,
   onLogout,
   onLogin,
+  onMarkAllPostsSeen,
+  onMarkAllCommentsSeen,
+  onMarkAllWatchlistSeen,
   profile,
   stats,
   badges,
@@ -2509,6 +2512,9 @@ function MyActivityModal({
   onOpenComment: (postId: number, commentId?: number) => void
   onLogout: () => void
   onLogin: () => void
+  onMarkAllPostsSeen: () => void
+  onMarkAllCommentsSeen: () => void
+  onMarkAllWatchlistSeen: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
   badges: string[]
@@ -2775,76 +2781,100 @@ function MyActivityModal({
 
           {tab === 'posts' ? (
             <div className="mt-3 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'new', label: '새 반응', count: postsWithNew.length },
-                  { key: 'all', label: '전체', count: myPosts.length },
-                ].map((item) => {
-                  const active = postFilter === item.key
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => setPostFilter(item.key as 'new' | 'all')}
-                      className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
-                        active
-                          ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {item.label}
-                      <span
-                        className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    {
+                      key: 'new',
+                      label: '새 반응',
+                      count: postsWithNew.length,
+                    },
+                    { key: 'all', label: '전체', count: myPosts.length },
+                  ].map((item) => {
+                    const active = postFilter === item.key
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => setPostFilter(item.key as 'new' | 'all')}
+                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
                           active
-                            ? 'bg-white/20 text-white'
-                            : 'bg-white text-slate-500'
+                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                            : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {item.count}
-                      </span>
-                    </button>
-                  )
-                })}
+                        {item.label}
+                        <span
+                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            active
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white text-slate-500'
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {unreadMyPostCount > 0 ? (
+                  <button
+                    onClick={onMarkAllPostsSeen}
+                    className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                  >
+                    전체 읽음
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
 
           {tab === 'comments' ? (
             <div className="mt-3 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  {
-                    key: 'new',
-                    label: '새 반응',
-                    count: commentsWithNew.length,
-                  },
-                  { key: 'all', label: '전체', count: myComments.length },
-                ].map((item) => {
-                  const active = commentFilter === item.key
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() =>
-                        setCommentFilter(item.key as 'new' | 'all')
-                      }
-                      className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
-                        active
-                          ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {item.label}
-                      <span
-                        className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    {
+                      key: 'new',
+                      label: '새 반응',
+                      count: commentsWithNew.length,
+                    },
+                    { key: 'all', label: '전체', count: myComments.length },
+                  ].map((item) => {
+                    const active = commentFilter === item.key
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() =>
+                          setCommentFilter(item.key as 'new' | 'all')
+                        }
+                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
                           active
-                            ? 'bg-white/20 text-white'
-                            : 'bg-white text-slate-500'
+                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                            : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {item.count}
-                      </span>
-                    </button>
-                  )
-                })}
+                        {item.label}
+                        <span
+                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                            active
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white text-slate-500'
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {unreadMyCommentCount > 0 ? (
+                  <button
+                    onClick={onMarkAllCommentsSeen}
+                    className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                  >
+                    전체 읽음
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -2870,52 +2900,62 @@ function MyActivityModal({
           {tab === 'watchlist' && (
             <>
               <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    {
-                      key: 'updated',
-                      label: '새 소식',
-                      count: updatedWatchlistItems.length,
-                    },
-                    {
-                      key: 'waiting',
-                      label: '대기중',
-                      count: waitingWatchlistItems.length,
-                    },
-                    {
-                      key: 'archived',
-                      label: '보관됨',
-                      count: archivedWatchlistItems.length,
-                    },
-                  ].map((item) => {
-                    const active = watchlistFilter === item.key
-                    return (
-                      <button
-                        key={item.key}
-                        onClick={() =>
-                          setWatchlistFilter(
-                            item.key as WatchlistItem['watchStatus'],
-                          )
-                        }
-                        className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
-                          active
-                            ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {item.label}
-                        <span
-                          className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      {
+                        key: 'updated',
+                        label: '새 소식',
+                        count: updatedWatchlistItems.length,
+                      },
+                      {
+                        key: 'waiting',
+                        label: '대기중',
+                        count: waitingWatchlistItems.length,
+                      },
+                      {
+                        key: 'archived',
+                        label: '보관됨',
+                        count: archivedWatchlistItems.length,
+                      },
+                    ].map((item) => {
+                      const active = watchlistFilter === item.key
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() =>
+                            setWatchlistFilter(
+                              item.key as WatchlistItem['watchStatus'],
+                            )
+                          }
+                          className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
                             active
-                              ? 'bg-white/20 text-white'
-                              : 'bg-white text-slate-500'
+                              ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {item.count}
-                        </span>
-                      </button>
-                    )
-                  })}
+                          {item.label}
+                          <span
+                            className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                              active
+                                ? 'bg-white/20 text-white'
+                                : 'bg-white text-slate-500'
+                            }`}
+                          >
+                            {item.count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {unreadWatchlistCount > 0 ? (
+                    <button
+                      onClick={onMarkAllWatchlistSeen}
+                      className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                    >
+                      전체 읽음
+                    </button>
+                  ) : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">
                   새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
@@ -5719,6 +5759,64 @@ export default function MatnyaApp() {
     setMyPosts(nextMyPosts)
     setMyComments(nextMyComments)
   }, [])
+
+  const markAllMyPostsSeen = useCallback(async () => {
+    if (!currentRawActorKey) return
+
+    const targetPostIds = myPosts
+      .filter((item) => Number(item.newCommentsCount ?? 0) > 0)
+      .map((item) => Number(item.postId))
+      .filter(Boolean)
+
+    if (targetPostIds.length === 0) return
+
+    const seenAt = new Date().toISOString()
+    const { error } = await supabase.from('user_activity_reads').upsert(
+      targetPostIds.map((postId) => ({
+        actor_key: currentRawActorKey,
+        target_type: 'post',
+        target_id: postId,
+        last_seen_at: seenAt,
+      })),
+      { onConflict: 'actor_key,target_type,target_id' },
+    )
+
+    if (error) {
+      console.error('내 글 전체 읽음 처리 실패', error)
+      return
+    }
+
+    void fetchMyActivity(currentRawActorKey)
+  }, [currentRawActorKey, fetchMyActivity, myPosts])
+
+  const markAllMyCommentsSeen = useCallback(async () => {
+    if (!currentRawActorKey) return
+
+    const targetCommentIds = myComments
+      .filter((item) => Number(item.newRepliesCount ?? 0) > 0)
+      .map((item) => Number(item.commentId))
+      .filter(Boolean)
+
+    if (targetCommentIds.length === 0) return
+
+    const seenAt = new Date().toISOString()
+    const { error } = await supabase.from('user_activity_reads').upsert(
+      targetCommentIds.map((commentId) => ({
+        actor_key: currentRawActorKey,
+        target_type: 'comment',
+        target_id: commentId,
+        last_seen_at: seenAt,
+      })),
+      { onConflict: 'actor_key,target_type,target_id' },
+    )
+
+    if (error) {
+      console.error('내 댓글 전체 읽음 처리 실패', error)
+      return
+    }
+
+    void fetchMyActivity(currentRawActorKey)
+  }, [currentRawActorKey, fetchMyActivity, myComments])
 
   const fetchDeletedItems = useCallback(async () => {
     const { data: deletedPostsData, error: deletedPostsError } = await supabase
@@ -8710,6 +8808,19 @@ ${shareUrl}`)
     [currentActorUnifiedKey, postOutcomeMap],
   )
 
+  const markAllWatchlistSeen = useCallback(async () => {
+    const targets = watchlistItems.filter(
+      (item) => !!item.unreadOutcome && !!item.latestOutcomeCreatedAt,
+    )
+
+    if (targets.length === 0) return
+
+    await Promise.all(
+      targets.map((item) =>
+        markWatchlistOutcomeSeen(item.postId, item.latestOutcomeCreatedAt),
+      ),
+    )
+  }, [markWatchlistOutcomeSeen, watchlistItems])
   const submitOutcome = async (
     outcomeType: PostOutcomeItem['outcomeType'],
     summary: string,
@@ -9665,6 +9776,9 @@ ${shareUrl}`)
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           onLogin={() => void handleGoogleLogin()}
+          onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
+          onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
+          onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
           profile={profile}
           stats={stats}
           badges={badges}
@@ -10938,6 +11052,9 @@ ${shareUrl}`)
           onOpenComment={openCommentDirect}
           onLogout={() => void handleLogout()}
           onLogin={() => void handleGoogleLogin()}
+          onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
+          onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
+          onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
           profile={profile}
           stats={stats}
           badges={badges}
