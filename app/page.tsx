@@ -3049,14 +3049,16 @@ function MyActivityModal({
             })}
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 px-5 py-4">
-          <button
-            onClick={onLogout}
-            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
-          >
-            로그아웃
-          </button>
-        </div>
+        {profile?.id ? (
+          <div className="shrink-0 border-t border-slate-200 px-5 py-4">
+            <button
+              onClick={onLogout}
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+            >
+              로그아웃
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   )
