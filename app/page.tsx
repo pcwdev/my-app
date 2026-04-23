@@ -23,7 +23,7 @@ const LIMITS = {
 }
 
 const categories = ['연애', '직장', '돈', '인간관계', '기타']
-const categoryFilters = ['전체', ...categories]
+const categoryFilters = ['전체']
 const ageGroups = ['10대', '20대', '30대', '40대', '50대+']
 const reportReasons = [
   '욕설/비방',
@@ -4751,6 +4751,8 @@ export default function MatnyaApp() {
   const [postFocusPulse, setPostFocusPulse] = useState(false)
   const [tab, setTab] = useState<'추천' | '인기' | '최신'>('추천')
   const [selectedCategory, setSelectedCategory] = useState<string>('전체')
+  const [newPostNoticeIds, setNewPostNoticeIds] = useState<number[]>([])
+  const latestSeenPostIdRef = useRef<number | null>(null)
   const [votes, setVotes] = useState<Record<number, VoteSide>>({})
   const [reportedPosts, setReportedPosts] = useState<Record<number, boolean>>(
     {},
@@ -5500,6 +5502,9 @@ export default function MatnyaApp() {
       }))
 
       setPosts(merged)
+      if (!latestSeenPostIdRef.current && merged.length > 0) {
+        latestSeenPostIdRef.current = merged[0].id
+      }
 
       const voteMap: Record<number, VoteSide> = {}
       ;(voteRows ?? []).forEach((row: VoteRow) => {
@@ -6798,12 +6803,58 @@ export default function MatnyaApp() {
     [currentActorUnifiedKey, refreshLightweightMetaNow],
   )
 
+  const refreshNewPostSignalsAfterAction = useCallback((delay = 140) => {
+    window.setTimeout(
+      async () => {
+        const { data, error } = await supabase
+          .from('posts')
+          .select('id')
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false })
+          .limit(8)
+
+        if (error) {
+          console.error('새 글 신호 조회 실패', error)
+          return
+        }
+
+        const latestIds = (data ?? [])
+          .map((row: any) => Number(row.id))
+          .filter((id: number) => Number.isFinite(id) && id > 0)
+
+        if (latestIds.length === 0) return
+
+        const latestTopId = latestIds[0]
+        const previousTopId = latestSeenPostIdRef.current
+
+        if (!previousTopId) {
+          latestSeenPostIdRef.current = latestTopId
+          return
+        }
+
+        if (latestTopId === previousTopId) return
+
+        const cutoffIndex = latestIds.findIndex(
+          (id: number) => id == previousTopId,
+        )
+        const unseenIds =
+          cutoffIndex >= 0 ? latestIds.slice(0, cutoffIndex) : latestIds
+
+        if (unseenIds.length === 0) return
+
+        setNewPostNoticeIds(unseenIds)
+      },
+      Math.max(80, delay),
+    )
+  }, [])
+
   const refreshWatchlistSignalsAfterAction = useCallback(
     (delay = 120) => {
       if (!currentActorUnifiedKey) return
 
       window.setTimeout(() => {
         requestLightweightMetaRefresh({ delay })
+        refreshNewPostSignalsAfterAction(delay)
         if (currentRawActorKey) {
           window.setTimeout(
             () => {
@@ -6819,6 +6870,7 @@ export default function MatnyaApp() {
       currentRawActorKey,
       fetchMyActivity,
       requestLightweightMetaRefresh,
+      refreshNewPostSignalsAfterAction,
     ],
   )
 
@@ -7344,6 +7396,7 @@ ${shareUrl}`)
   ).length
   const unreadActivityBadgeCount =
     unreadWatchlistCount + unreadMyPostsTopCount + unreadMyCommentsTopCount
+  const newPostNoticeCount = newPostNoticeIds.length
   const currentWatchUnread =
     !!currentPost &&
     (watchlistItems.find((item) => item.postId === currentPost.id)
@@ -8586,6 +8639,10 @@ ${shareUrl}`)
         setCurrentIndex(index)
         setActivityOpen(false)
       })
+      if (newPostNoticeIds.includes(postId)) {
+        latestSeenPostIdRef.current = postId
+        setNewPostNoticeIds((prev) => prev.filter((id) => id !== postId))
+      }
       refreshWatchlistSignalsAfterAction(80)
       refreshPostCommentsAfterAction([postId], 100)
       if (markSeenPostId) {
@@ -8619,11 +8676,24 @@ ${shareUrl}`)
         setActivityOpen(false)
         setCommentOpen(true)
       })
+      if (newPostNoticeIds.includes(postId)) {
+        latestSeenPostIdRef.current = postId
+        setNewPostNoticeIds((prev) => prev.filter((id) => id !== postId))
+      }
       refreshPostCommentsAfterAction([postId], 100)
       if (commentId) {
         void markActivitySeen('comment', commentId)
       }
     }
+  }
+
+  const openNewestPostNotice = () => {
+    const newestPostId = newPostNoticeIds[0]
+    if (!newestPostId) return
+
+    latestSeenPostIdRef.current = newestPostId
+    setNewPostNoticeIds([])
+    openPostDirect(newestPostId)
   }
 
   const openWatchlistActivity = () => {
@@ -9431,6 +9501,8 @@ ${shareUrl}`)
     }
 
     setPosts((prev) => [newPost, ...prev])
+    latestSeenPostIdRef.current = Number(newPost.id)
+    setNewPostNoticeIds([])
 
     setMyPosts((prev) => [
       {
@@ -9941,31 +10013,6 @@ ${shareUrl}`)
                 </button>
               ))}
             </div>
-
-            <div className="mt-3 -mx-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max gap-2 px-1">
-                {categoryFilters.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      requestCurrentPostFocus()
-                      runKakaoSafeTransition(() => {
-                        setSelectedCategory(category)
-                        setCurrentIndex(0)
-                      })
-                      refreshWatchlistSignalsAfterAction(120)
-                    }}
-                    className={`whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-semibold tracking-[-0.01em] transition ${
-                      selectedCategory === category
-                        ? 'border border-[#cfe0ff] bg-[linear-gradient(180deg,#eff4ff_0%,#e7efff_100%)] text-[#315fdc] shadow-[0_10px_20px_rgba(79,124,255,0.12)]'
-                        : 'border border-slate-200/90 bg-white/95 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </header>
 
@@ -10045,6 +10092,26 @@ ${shareUrl}`)
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {newPostNoticeCount > 0 ? (
+            <button
+              type="button"
+              onClick={openNewestPostNotice}
+              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7_0%,#ebfff4_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(16,185,129,0.10)]"
+            >
+              <div className="min-w-0">
+                <div className="text-[11px] font-extrabold tracking-[0.18em] text-emerald-600">
+                  NEW
+                </div>
+                <div className="mt-1 text-sm font-black text-slate-900">
+                  새 글 {newPostNoticeCount}개 올라옴
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-black text-emerald-700">
+                보러가기
+              </div>
+            </button>
           ) : null}
 
           <div
