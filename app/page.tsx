@@ -1199,7 +1199,7 @@ function getOwnerChoiceInsight(
     friendLabel,
     relationLabel: sameSide ? '내 선택 쪽이 우세' : '친구들은 반대로 가는 중',
     relationTone: sameSide
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'border-rose-100 bg-emerald-50 text-rose-600'
       : 'border-rose-200 bg-rose-50 text-rose-700',
     helper: sameSide
       ? '내 감이 맞는 흐름. 더 보내면 우세가 굳는지 볼 수 있음'
@@ -1247,7 +1247,7 @@ function getLevelTheme(level: number) {
       icon: '🟢',
       chipClass:
         'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#86efac_100%)] text-emerald-900 shadow-[0_10px_22px_rgba(16,185,129,0.14)]',
-      softClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      softClass: 'bg-emerald-50 text-emerald-800 border-rose-100',
       ringClass: 'from-emerald-300 via-lime-300 to-emerald-400',
     }
   }
@@ -1297,8 +1297,8 @@ function getBadgeTheme(badgeName?: string | null) {
   if (badgeName.includes('글') || badgeName.includes('썰')) {
     return {
       icon: '✍️',
-      pillClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-      softClass: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+      pillClass: 'border-rose-100 bg-emerald-50 text-emerald-800',
+      softClass: 'border-rose-100 bg-emerald-50 text-emerald-800',
     }
   }
 
@@ -1734,7 +1734,7 @@ function getResultRevealStage(
       level: 4,
       label: '후기 있음',
       helper: '결국 어떻게 됐는지까지 볼 수 있음',
-      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      toneClass: 'border-rose-100 bg-emerald-50 text-rose-600',
       leftValue: exact.left,
       rightValue: exact.right,
       showExact: true,
@@ -1899,7 +1899,7 @@ function getRawActorKey(userId?: string | null, voterKey?: string | null) {
 function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-rose-100 bg-emerald-50 text-rose-600'
     case 'update':
       return 'border-sky-200 bg-sky-50 text-sky-700'
     case 'author_followup':
@@ -2635,7 +2635,7 @@ function MyActivityModal({
 
               <button
                 onClick={() => setProfileExpanded((prev) => !prev)}
-                className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600"
+                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500.5 text-[11px] font-bold text-slate-600"
               >
                 {profileExpanded ? '접기' : '더보기'}
               </button>
@@ -3000,7 +3000,7 @@ function MyActivityModal({
                   {item.title}
                 </div>
                 {item.hasNewComments ? (
-                  <div className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                  <div className="mt-2 inline-flex items-center rounded-full border border-rose-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-rose-600">
                     새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
                 ) : (item.totalCommentsCount ?? 0) > 0 ? (
@@ -4526,7 +4526,7 @@ function ShareInboxModal({
                               : `${item.totalCount}명 반응`}
                           </span>
                           {item.unreadCount > 0 ? (
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-600">
+                            <span className="rounded-full border border-rose-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-600">
                               새 응답 +{item.unreadCount}
                             </span>
                           ) : null}
@@ -9869,14 +9869,14 @@ ${shareUrl}`)
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
-          <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-2.5 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <header className="sticky top-0 z-30 px-5 pt-4">
+            <div className="rounded-[28px] border border-transparent bg-transparent px-0 pb-2 pt-0 shadow-none backdrop-blur-xl">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.28em] text-[#4f7cff]">
+                  <div className="text-[42px] leading-none font-black tracking-[-0.075em] text-slate-950">
                     맞냐
                   </div>
-                  <div className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-950">
+                  <div className="mt-1 text-[15px] font-bold tracking-[-0.03em] text-slate-500">
                     이거 맞냐?
                   </div>
                   {unreadWatchlistCount > 0 ? (
@@ -9894,7 +9894,7 @@ ${shareUrl}`)
                   {!authUser ? (
                     <button
                       onClick={() => setAuthOpen(true)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)]"
                     >
                       <User className="h-5 w-5" />
                     </button>
@@ -9917,7 +9917,7 @@ ${shareUrl}`)
                   {isAdmin && (
                     <button
                       onClick={() => void handleAdminToggle()}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)]"
                     >
                       <Shield className="h-5 w-5" />
                     </button>
@@ -9925,7 +9925,7 @@ ${shareUrl}`)
 
                   <button
                     onClick={() => setWriteOpen(true)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_22px_rgba(79,124,255,0.26)]"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4268ff_100%)] text-white shadow-[0_14px_26px_rgba(79,124,255,0.30)]"
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -10038,197 +10038,169 @@ ${shareUrl}`)
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
         <header className="sticky top-0 z-30 px-4 pt-3">
-          <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,248,255,0.98)_100%)] px-4 pb-3 pt-3 shadow-[0_18px_44px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="text-[34px] leading-none font-black tracking-[-0.05em] text-slate-950 sm:text-[38px]">
-                  맞냐
-                </div>
-                <div className="mt-1 text-[13px] font-medium tracking-[-0.02em] text-slate-500 sm:text-[14px]">
-                  이거 맞냐?
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start">
-                {!authUser ? (
-                  <button
-                    onClick={openWatchlistActivity}
-                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
-                  >
-                    <span className="text-xs">
-                      {getLevelTheme(levelInfo.level).icon}
-                    </span>
-                    <span className="text-xs font-bold">
-                      Lv.{levelInfo.level}
-                    </span>
-                    {unreadActivityBadgeCount > 0 ? (
-                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                    ) : null}
-                  </button>
-                ) : (
-                  <button
-                    onClick={openWatchlistActivity}
-                    className={`relative flex h-10 min-w-[44px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
-                  >
-                    <span className="text-xs">
-                      {getLevelTheme(levelInfo.level).icon}
-                    </span>
-                    <span className="text-xs font-bold">
-                      Lv.{levelInfo.level}
-                    </span>
-                    {unreadActivityBadgeCount > 0 ? (
-                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                    ) : null}
-                  </button>
-                )}
-
-                {isAdmin && (
-                  <button
-                    onClick={() => void handleAdminToggle()}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                      adminMode
-                        ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                        : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
-                    }`}
-                  >
-                    <Shield className="h-5 w-5" />
-                  </button>
-                )}
-
+          <div className="overflow-hidden rounded-[30px] border border-white/80 bg-white/95 shadow-[0_18px_44px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            <div className="px-4 pb-3 pt-4">
+              <div className="flex items-start justify-between gap-3">
                 <button
-                  onClick={openReportPost}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.05)]"
-                >
-                  <Flag className="h-5 w-5" />
-                </button>
-
-                <button
-                  onClick={() => setWriteOpen(true)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4f7cff] text-white shadow-[0_12px_22px_rgba(79,124,255,0.26)]"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-end gap-2">
-              {(['추천', '인기', '최신'] as const).map((label) => (
-                <button
-                  key={label}
+                  type="button"
                   onClick={() => {
                     requestCurrentPostFocus()
                     runKakaoSafeTransition(() => {
-                      setTab(label)
+                      setTab('추천')
+                      setSelectedCategory('전체')
                       setCurrentIndex(0)
                     })
                     refreshWatchlistSignalsAfterAction(120)
                   }}
-                  className={`rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] transition ${
-                    tab === label
-                      ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                      : 'border border-slate-200 bg-white text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)]'
-                  }`}
+                  className="min-w-0 flex-1 text-left"
                 >
-                  {label}
+                  <div className="flex items-center gap-2">
+                    <div className="text-[39px] leading-none font-black tracking-[-0.085em] text-slate-950 sm:text-[44px]">
+                      맞냐
+                    </div>
+                    <span className="mt-1 inline-flex items-center rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black tracking-[0.05em] text-white shadow-[0_8px_18px_rgba(244,63,94,0.22)]">
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[13px] font-extrabold tracking-[-0.03em] text-slate-500">
+                    오늘 가장 많이 갈리는 이야기
+                  </div>
                 </button>
-              ))}
-            </div>
-          </div>
-        </header>
 
-        <div className="px-4">
-          <div className="mx-1 border-t border-slate-200/80" />
-        </div>
-
-        <main className="px-4 pb-32 pt-2">
-          {activeLiveTickerItem ? (
-            <div className="mb-3 overflow-hidden rounded-[18px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_28px_rgba(79,124,255,0.12)]">
-              <div className="flex items-center gap-2 px-3 py-2.5">
-                <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-2 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_20px_rgba(79,124,255,0.22)]">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-80" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                  </span>
-                  <span>
-                    {activeLiveTickerItem.liveBadgeLabel ?? '실시간 논쟁'}
-                  </span>
-                </div>
-
-                <div className="relative h-[24px] min-w-0 flex-1 overflow-hidden">
+                <div className="flex shrink-0 items-center gap-1.5 self-start">
                   <button
-                    type="button"
-                    onClick={handleLiveTickerOpen}
-                    className="absolute inset-0 flex w-full items-center gap-2 text-left"
+                    onClick={openWatchlistActivity}
+                    className={`relative flex h-10 min-w-[58px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
                   >
-                    <span
-                      className={`shrink-0 text-[12px] font-black ${activeLiveTickerItem.rankToneClass}`}
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
+                    <span className="text-xs font-black">
+                      Lv.{levelInfo.level}
+                    </span>
+                    {unreadActivityBadgeCount > 0 ? (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                    ) : null}
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => void handleAdminToggle()}
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                        adminMode
+                          ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                          : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
+                      }`}
                     >
-                      {activeLiveTickerItem.rank}위
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-900">
-                      {activeLiveTickerItem.title}
-                    </span>
-                    <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600">
-                      {activeLiveTickerItem.emotionLabel}
-                    </span>
+                      <Shield className="h-[18px] w-[18px]" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={openReportPost}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.06)]"
+                  >
+                    <Flag className="h-[18px] w-[18px]" />
+                  </button>
+
+                  <button
+                    onClick={() => setWriteOpen(true)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4268ff_100%)] text-white shadow-[0_14px_26px_rgba(79,124,255,0.30)]"
+                  >
+                    <Plus className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 border-t border-slate-200/70 bg-white/70 px-3 py-2">
+              {activeLiveTickerItem ? (
                 <button
                   type="button"
                   onClick={handleLiveTickerOpen}
-                  className="min-w-0 flex-1 text-left"
+                  className="mt-4 block w-full overflow-hidden rounded-[22px] border border-violet-100 bg-[linear-gradient(135deg,#f5f3ff_0%,#ffffff_48%,#fff1f2_100%)] p-3.5 text-left shadow-[0_14px_30px_rgba(79,70,229,0.10)]"
                 >
-                  <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-slate-600">
-                    <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                      {activeLiveTickerItem.category}
-                    </span>
-                    <span className="truncate">
-                      {activeLiveTickerItem.shortMetric}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="inline-flex max-w-[64%] items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#4f46e5_0%,#7c3aed_100%)] px-3 py-1 text-[10px] font-black tracking-[0.04em] text-white shadow-[0_8px_18px_rgba(79,70,229,0.22)]">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-80" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                      </span>
+                      <span className="truncate">
+                        {activeLiveTickerItem.liveBadgeLabel ?? '지금 난리남'}
+                      </span>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-600">
+                      {activeLiveTickerItem.emotionLabel}
                     </span>
                   </div>
-                </button>
 
-                <div className="flex shrink-0 items-center gap-1">
-                  {liveTickerItems.map((item, index) => {
-                    const active = index === liveTickerIndex
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setLiveTickerIndex(index)
-                          refreshWatchlistSignalsAfterAction(120)
-                        }}
-                        aria-label={`${item.rank}위 보기`}
-                        className={`h-1.5 rounded-full transition-all ${
-                          active ? 'w-5 bg-[#4f7cff]' : 'w-1.5 bg-slate-300'
-                        }`}
-                      />
-                    )
-                  })}
-                </div>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <span
+                      className={`shrink-0 text-[13px] font-black ${activeLiveTickerItem.rankToneClass}`}
+                    >
+                      {activeLiveTickerItem.rank}위
+                    </span>
+                    <div className="min-w-0 flex-1 truncate text-[15px] font-black tracking-[-0.03em] text-slate-950">
+                      {activeLiveTickerItem.title}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold text-slate-500">
+                    <span className="min-w-0 truncate">
+                      {activeLiveTickerItem.category} ·{' '}
+                      {activeLiveTickerItem.shortMetric}
+                    </span>
+                    <span className="shrink-0 text-rose-500">보러가기</span>
+                  </div>
+                </button>
+              ) : null}
+
+              <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-[20px] bg-slate-100 p-1.5">
+                {(
+                  [
+                    { value: '추천', label: 'HOT' },
+                    { value: '최신', label: '최신' },
+                    { value: '인기', label: '논쟁중' },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => {
+                      requestCurrentPostFocus()
+                      runKakaoSafeTransition(() => {
+                        setTab(item.value)
+                        setCurrentIndex(0)
+                      })
+                      refreshWatchlistSignalsAfterAction(120)
+                    }}
+                    className={`rounded-2xl px-3 py-2.5 text-[14px] font-black tracking-[-0.03em] transition ${
+                      tab === item.value
+                        ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] text-white shadow-[0_10px_22px_rgba(79,124,255,0.24)]'
+                        : 'bg-white text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
-          ) : null}
-
+          </div>
+        </header>
+        <main className="px-4 pb-32 pt-2">
           {newPostNoticeCount > 0 ? (
             <button
               type="button"
               onClick={() => void openNewestPostNotice()}
-              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[18px] border border-emerald-200 bg-[linear-gradient(180deg,#f3fff7_0%,#ebfff4_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(16,185,129,0.10)]"
+              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-[linear-gradient(180deg,#fff2f2_0%,#fff7f7_100%)] px-4 py-3 text-left shadow-[0_12px_28px_rgba(244,63,94,0.10)]"
             >
               <div className="min-w-0">
-                <div className="text-[11px] font-extrabold tracking-[0.18em] text-emerald-600">
+                <div className="text-[11px] font-extrabold tracking-[0.18em] text-rose-500">
                   NEW
                 </div>
                 <div className="mt-1 text-sm font-black text-slate-900">
                   새 글 {newPostNoticeCount}개 올라옴
                 </div>
               </div>
-              <div className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-black text-emerald-700">
+              <div className="shrink-0 rounded-full border border-rose-100 bg-white px-3 py-1 text-[11px] font-black text-rose-600">
                 보러가기
               </div>
             </button>
@@ -10238,14 +10210,14 @@ ${shareUrl}`)
             key={`${currentPost?.id ?? 'empty'}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
             ref={currentPostCardRef}
             tabIndex={-1}
-            className={`rounded-[30px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,255,0.98)_100%)] p-4 shadow-[0_18px_42px_rgba(148,163,184,0.16),0_2px_10px_rgba(15,23,42,0.04)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_22px_48px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/90'}`}
+            className={`rounded-[30px] border bg-white p-5 shadow-[0_18px_42px_rgba(148,163,184,0.14),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_22px_48px_rgba(79,124,255,0.16),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
                   {currentPost.category}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
                   {currentPost.ageGroup}
                 </span>
               </div>
@@ -10282,16 +10254,14 @@ ${shareUrl}`)
               )}
             </div>
 
-            <div className="rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f9fbff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_rgba(148,163,184,0.12)]">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                today issue
-              </div>
-              <h1 className="text-[22px] font-black leading-tight tracking-tight text-slate-900">
+            <div className="rounded-[24px] border border-transparent bg-transparent p-0 shadow-none">
+              <div className="hidden">today issue</div>
+              <h1 className="mt-3 text-[26px] font-black leading-[1.2] tracking-[-0.04em] text-slate-950">
                 {currentPost.hidden && !adminMode
                   ? '신고 누적으로 숨겨진 글'
                   : currentPost.title}
               </h1>
-              <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-slate-700">
+              <p className="mt-3 whitespace-pre-line text-[15px] leading-7 tracking-[-0.02em] text-slate-600">
                 {currentPost.hidden && !adminMode
                   ? '관리자 확인 전까지 숨김 처리됩니다.'
                   : currentPost.content}
@@ -10306,7 +10276,7 @@ ${shareUrl}`)
                 )}
                 {isSharedOwnerViewingPost && (
                   <div
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold transition-all duration-300 ${sharePulse ? 'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#d1fae5_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.18)] -translate-y-0.5' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold transition-all duration-300 ${sharePulse ? 'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#d1fae5_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.18)] -translate-y-0.5' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
                   >
                     <span>
                       {shareResponseTotal > 0
@@ -10326,7 +10296,7 @@ ${shareUrl}`)
                   </div>
                 )}
                 {!isOwnCurrentPost && revisitMeta && (
-                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600">
+                  <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-bold text-slate-600">
                     👀 {revisitMeta.label}
                   </div>
                 )}
@@ -10629,7 +10599,7 @@ ${shareUrl}`)
                         !currentShadowDrama &&
                         !(currentChoicePathTop && choicePathNextPost) ? (
                           <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-600">
+                            <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-black text-slate-600">
                               지금은 조용한 판
                             </div>
                             <div className="mt-2 text-[13px] font-semibold text-slate-600">
@@ -10659,7 +10629,7 @@ ${shareUrl}`)
                             <button
                               key={reactionType}
                               onClick={() => void reactToPost(reactionType)}
-                              className={`rounded-2xl border px-3 py-3 text-[13px] font-bold transition active:scale-[0.98] ${active ? meta.activeClass : meta.idleClass}`}
+                              className={`rounded-2xl border px-3 py-3 text-[13px] font-bold shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition active:scale-[0.98] ${active ? meta.activeClass : meta.idleClass}`}
                             >
                               <div className="flex items-center justify-center gap-1">
                                 <span>{meta.label}</span>
@@ -10746,7 +10716,7 @@ ${shareUrl}`)
                         }
                         handleNextWithGuard()
                       }}
-                      className="w-full rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left transition-all shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
+                      className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-center transition-all shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
                     >
                       <div className="text-xs font-bold text-[#4f7cff]">
                         {nextRecommendationReason}
@@ -10843,7 +10813,7 @@ ${shareUrl}`)
                         {isSharedOwnerViewingPost && !showOwnerShareResults ? (
                           <div className="mt-3 space-y-3">
                             <div
-                              className={`rounded-2xl border px-4 py-3.5 text-[15px] leading-7 font-semibold transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-emerald-700 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
+                              className={`rounded-2xl border px-4 py-3.5 text-[15px] leading-7 font-semibold transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
                             >
                               {shareResponseTotal === 0
                                 ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
@@ -10952,7 +10922,7 @@ ${shareUrl}`)
                               </div>
                               <div className="mt-3 grid grid-cols-2 gap-2">
                                 <div
-                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
                                 >
                                   <div className="text-[11px] text-slate-400">
                                     친구들 {currentPost.leftLabel}
@@ -10977,7 +10947,7 @@ ${shareUrl}`)
                                   </div>
                                 </div>
                                 <div
-                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-emerald-200 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
                                 >
                                   <div className="text-[11px] text-slate-400">
                                     친구들 {currentPost.rightLabel}
@@ -11161,7 +11131,7 @@ ${shareUrl}`)
 
         {!isModalOpen && (
           <div className="fixed bottom-3 left-0 right-0 z-[9999] px-4">
-            <div className="mx-auto max-w-[392px] rounded-[24px] border border-white/90 bg-white/92 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_14px_28px_rgba(148,163,184,0.18),0_2px_8px_rgba(15,23,42,0.04)]">
+            <div className="mx-auto max-w-[392px] rounded-[24px] border border-white/90 bg-white/95 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_14px_28px_rgba(148,163,184,0.18),0_2px_8px_rgba(15,23,42,0.04)]">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={prev}
