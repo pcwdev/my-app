@@ -6551,41 +6551,85 @@ export default function MatnyaApp() {
     }
   }, [authUser?.id, voterKey])
 
+  const refreshBadges = useCallback(async () => {
+    const currentUserId = authUser?.id ?? null
+    const currentVoterKey = currentUserId ? null : voterKey
+    if (!currentUserId && !currentVoterKey) return []
+
+    let badgeQuery = supabase
+      .from('user_badges')
+      .select('badge_name')
+      .order('created_at', { ascending: false })
+
+    badgeQuery = currentUserId
+      ? badgeQuery.eq('user_id', currentUserId)
+      : badgeQuery.eq('voter_key', currentVoterKey)
+
+    const { data, error } = await badgeQuery
+
+    if (error) {
+      console.error('user_badges 새로고침 실패', error)
+      return []
+    }
+
+    const nextBadges = Array.from(
+      new Set((data ?? []).map((row) => String(row.badge_name))),
+    )
+    setBadges(nextBadges)
+    return nextBadges
+  }, [authUser?.id, voterKey])
+
   const awardBadgesFromStats = useCallback(
     async (nextStats: UserStatsRow) => {
       const currentUserId = authUser?.id ?? null
       const currentVoterKey = currentUserId ? null : voterKey
       if (!currentUserId && !currentVoterKey) return
 
+      const latestBadges = await refreshBadges()
+      const latestBadgeSet = new Set(latestBadges)
+
       const nextBadgeNames = BADGE_RULES.filter((rule) =>
         rule.check(nextStats),
       ).map((rule) => rule.name)
 
       const newlyEarned = nextBadgeNames.filter(
-        (name) => !badges.includes(name),
+        (name) => !latestBadgeSet.has(name),
       )
       if (newlyEarned.length === 0) return
 
-      const rows = newlyEarned.map((badgeName) => ({
-        user_id: currentUserId,
-        voter_key: currentVoterKey,
-        badge_name: badgeName,
-      }))
+      const insertedBadges: string[] = []
 
-      const { error } = await supabase.from('user_badges').insert(rows)
-      if (error && error.code !== '23505') {
-        console.error('뱃지 저장 실패', error)
-        return
+      for (const badgeName of newlyEarned) {
+        const { error } = await supabase.from('user_badges').insert({
+          user_id: currentUserId,
+          voter_key: currentVoterKey,
+          badge_name: badgeName,
+        })
+
+        if (error) {
+          if (error.code === '23505') {
+            continue
+          }
+
+          console.error('뱃지 저장 실패', error)
+          continue
+        }
+
+        insertedBadges.push(badgeName)
       }
 
-      setBadges((prev) => {
-        const merged = [...newlyEarned, ...prev]
-        return Array.from(new Set(merged))
-      })
+      const finalBadges = await refreshBadges()
 
-      newlyEarned.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
+      if (insertedBadges.length > 0) {
+        setBadges((prev) => {
+          const merged = [...insertedBadges, ...finalBadges, ...prev]
+          return Array.from(new Set(merged))
+        })
+
+        insertedBadges.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
+      }
     },
-    [authUser?.id, voterKey, badges, showToast],
+    [authUser?.id, voterKey, refreshBadges, showToast],
   )
 
   const upsertStreak = useCallback(
