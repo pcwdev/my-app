@@ -9956,9 +9956,9 @@ ${shareUrl}`)
     return (
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
-          <header className="sticky top-0 z-30 px-4 pt-3">
-            <div className="overflow-hidden rounded-[32px] border border-white/80 bg-white/92 shadow-[0_18px_48px_rgba(15,23,42,0.09)] backdrop-blur-xl">
-              <div className="relative px-4 pb-4 pt-4">
+          <header className="sticky top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3">
+            <div className="overflow-hidden rounded-[24px] border border-white/80 bg-white/94 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:rounded-[32px] sm:shadow-[0_18px_48px_rgba(15,23,42,0.09)]">
+              <div className="relative px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4">
                 <div className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-[#dbe7ff] blur-2xl" />
                 <div className="pointer-events-none absolute -left-10 top-8 h-28 w-28 rounded-full bg-rose-100/70 blur-2xl" />
 
@@ -9972,14 +9972,14 @@ ${shareUrl}`)
                     className="min-w-0 flex-1 text-left"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="text-[39px] leading-none font-black tracking-[-0.08em] text-slate-950 sm:text-[44px]">
+                      <div className="text-[31px] leading-none font-black tracking-[-0.08em] text-slate-950 sm:text-[44px]">
                         맞냐
                       </div>
-                      <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-white shadow-[0_8px_18px_rgba(15,23,42,0.20)]">
+                      <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[9px] font-black tracking-[0.12em] text-white shadow-[0_8px_18px_rgba(15,23,42,0.20)] sm:px-2.5 sm:py-1 sm:text-[10px]">
                         LIVE
                       </span>
                     </div>
-                    <div className="mt-1 text-[13px] font-extrabold tracking-[-0.03em] text-slate-500">
+                    <div className="mt-0.5 text-[11px] font-extrabold tracking-[-0.03em] text-slate-500 sm:mt-1 sm:text-[13px]">
                       오늘 가장 많이 갈리는 이야기
                     </div>
                   </button>
@@ -9987,12 +9987,12 @@ ${shareUrl}`)
                   <div className="flex shrink-0 items-center gap-1.5 self-start">
                     <button
                       onClick={openWatchlistActivity}
-                      className={`relative flex h-10 min-w-[48px] items-center justify-center gap-1 rounded-full border px-3 text-slate-900 ${getLevelTheme(levelInfo.level).chipClass}`}
+                      className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
                     >
                       <span className="text-xs">
                         {getLevelTheme(levelInfo.level).icon}
                       </span>
-                      <span className="text-xs font-black">
+                      <span className="text-[11px] font-black sm:text-xs">
                         Lv.{levelInfo.level}
                       </span>
                       {unreadActivityBadgeCount > 0 ? (
@@ -10015,7 +10015,7 @@ ${shareUrl}`)
 
                     <button
                       onClick={openReportPost}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)]"
+                      className="hidden h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] sm:flex sm:h-10 sm:w-10"
                       aria-label="신고"
                     >
                       <Flag className="h-5 w-5" />
@@ -10023,7 +10023,7 @@ ${shareUrl}`)
 
                     <button
                       onClick={() => setWriteOpen(true)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4268ff_100%)] text-white shadow-[0_14px_26px_rgba(79,124,255,0.30)]"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4268ff_100%)] text-white shadow-[0_14px_26px_rgba(79,124,255,0.30)] sm:h-10 sm:w-10"
                       aria-label="글쓰기"
                     >
                       <Plus className="h-5 w-5" />
@@ -10031,7 +10031,7 @@ ${shareUrl}`)
                   </div>
                 </div>
 
-                <div className="relative mt-4 grid grid-cols-3 gap-1.5">
+                <div className="relative mt-2 hidden grid-cols-3 gap-1.5 sm:mt-4 sm:grid">
                   <div className="rounded-2xl border border-rose-100 bg-rose-50/80 px-3 py-2 text-center">
                     <div className="text-[10px] font-black text-rose-500">
                       LIVE
@@ -10059,7 +10059,7 @@ ${shareUrl}`)
                   </div>
                 </div>
 
-                <div className="relative mt-4 grid grid-cols-3 gap-1.5 rounded-[22px] border border-slate-200/70 bg-slate-100/80 p-1.5">
+                <div className="relative mt-2 grid grid-cols-3 gap-1 rounded-[18px] border border-slate-200/70 bg-slate-100/80 p-1 sm:mt-4 sm:gap-1.5 sm:rounded-[22px] sm:p-1.5">
                   {(
                     [
                       { value: '추천', label: '🔥 HOT' },
@@ -10077,7 +10077,7 @@ ${shareUrl}`)
                         })
                         refreshWatchlistSignalsAfterAction(120)
                       }}
-                      className={`rounded-[17px] px-2 py-2.5 text-[13px] font-black tracking-[-0.03em] transition ${
+                      className={`rounded-[14px] px-1.5 py-2 text-[12px] font-black tracking-[-0.03em] transition sm:rounded-[17px] sm:px-2 sm:py-2.5 sm:text-[13px] ${
                         tab === item.value
                           ? 'bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]'
                           : 'bg-white/80 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
@@ -10091,21 +10091,21 @@ ${shareUrl}`)
             </div>
           </header>
 
-          <main className="px-4 pb-32 pt-2">
+          <main className="px-3 pb-28 pt-1.5 sm:px-4 sm:pb-32 sm:pt-2">
             {activeLiveTickerItem ? (
-              <div className="mb-3 overflow-hidden rounded-[30px] border border-white/90 bg-[radial-gradient(circle_at_top_left,rgba(79,124,255,0.16),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fbff_44%,#fff7f7_100%)] shadow-[0_22px_52px_rgba(79,124,255,0.14)]">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100/80 px-4 py-3">
+              <div className="mb-2 overflow-hidden rounded-[22px] border border-white/90 bg-[radial-gradient(circle_at_top_left,rgba(79,124,255,0.14),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fbff_44%,#fff7f7_100%)] shadow-[0_12px_30px_rgba(79,124,255,0.12)] sm:mb-3 sm:rounded-[30px] sm:shadow-[0_22px_52px_rgba(79,124,255,0.14)]">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100/80 px-3 py-2 sm:px-4 sm:py-3">
                   <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)]">
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-80" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
                     </span>
-                    LIVE 사건 피드
+                    LIVE
                   </div>
                   <button
                     type="button"
                     onClick={handleLiveTickerOpen}
-                    className="rounded-full border border-rose-100 bg-white px-3 py-1 text-[11px] font-black text-rose-600 shadow-[0_8px_18px_rgba(244,63,94,0.08)]"
+                    className="rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-black text-rose-600 shadow-[0_8px_18px_rgba(244,63,94,0.08)] sm:px-3 sm:text-[11px]"
                   >
                     지금 보기
                   </button>
@@ -10114,10 +10114,10 @@ ${shareUrl}`)
                 <button
                   type="button"
                   onClick={handleLiveTickerOpen}
-                  className="block w-full px-4 py-4 text-left transition hover:bg-white/60"
+                  className="block w-full px-3 py-2.5 text-left transition hover:bg-white/60 sm:px-4 sm:py-4"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_100%)] text-[15px] font-black text-white shadow-[0_12px_28px_rgba(244,63,94,0.28)]">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_100%)] text-[12px] font-black text-white shadow-[0_10px_22px_rgba(244,63,94,0.24)] sm:h-12 sm:w-12 sm:rounded-[22px] sm:text-[15px] sm:shadow-[0_12px_28px_rgba(244,63,94,0.28)]">
                       {activeLiveTickerItem.rank}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -10129,20 +10129,20 @@ ${shareUrl}`)
                           {activeLiveTickerItem.category}
                         </span>
                       </div>
-                      <div className="mt-2 line-clamp-2 text-[18px] font-black leading-[1.25] tracking-[-0.05em] text-slate-950">
+                      <div className="mt-1 line-clamp-1 text-[14px] font-black leading-[1.25] tracking-[-0.05em] text-slate-950 sm:mt-2 sm:line-clamp-2 sm:text-[18px]">
                         {activeLiveTickerItem.title}
                       </div>
-                      <div className="mt-2 text-[12px] font-bold text-slate-500">
+                      <div className="mt-1 text-[11px] font-bold text-slate-500 sm:mt-2 sm:text-[12px]">
                         {activeLiveTickerItem.shortMetric}
                       </div>
                     </div>
-                    <div className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-500">
+                    <div className="hidden shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 sm:block">
                       이동 ›
                     </div>
                   </div>
                 </button>
 
-                <div className="grid grid-cols-3 gap-1.5 border-t border-slate-100/80 p-2">
+                <div className="hidden grid-cols-3 gap-1.5 border-t border-slate-100/80 p-2 sm:grid">
                   {liveTickerItems.slice(0, 3).map((item, index) => {
                     const active = index === liveTickerIndex
                     return (
@@ -10208,7 +10208,7 @@ ${shareUrl}`)
               key={`${currentPost.id}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
               ref={currentPostCardRef}
               tabIndex={-1}
-              className={`relative overflow-hidden rounded-[34px] border bg-white p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
+              className={`relative overflow-hidden rounded-[26px] border bg-white p-4 sm:rounded-[34px] sm:p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
             >
               <div className="relative mb-4 flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.04em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.20)]">
