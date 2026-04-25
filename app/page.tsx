@@ -1172,6 +1172,94 @@ type ShareInboxItem = {
 }
 
 const POST_SIGNAL_STORAGE_KEY = 'matnya_post_signals_v1'
+const ACTIVITY_READ_STORAGE_KEY = 'matnya_activity_reads_v2'
+
+type ActivityReadTargetType = 'post' | 'comment'
+type StoredActivityReadMap = Record<string, string>
+
+function getActivityReadStorageKey(
+  actorKey: string,
+  targetType: ActivityReadTargetType,
+  targetId: number,
+) {
+  return `${actorKey}:${targetType}:${Number(targetId)}`
+}
+
+function readStoredActivityReads(): StoredActivityReadMap {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const raw = window.localStorage.getItem(ACTIVITY_READ_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object'
+      ? (parsed as StoredActivityReadMap)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeStoredActivityReads(
+  rows: Array<{
+    actor_key: string
+    target_type: ActivityReadTargetType
+    target_id: number
+    last_seen_at: string
+  }>,
+) {
+  if (typeof window === 'undefined' || rows.length === 0) return
+
+  try {
+    const parsed = readStoredActivityReads()
+
+    rows.forEach((row) => {
+      const actorKey = String(row.actor_key ?? '').trim()
+      const targetId = Number(row.target_id)
+      const seenAt = String(row.last_seen_at ?? '').trim()
+      if (!actorKey || !Number.isFinite(targetId) || targetId <= 0 || !seenAt) {
+        return
+      }
+
+      const key = getActivityReadStorageKey(actorKey, row.target_type, targetId)
+      const prev = parsed[key]
+      if (!prev || new Date(seenAt).getTime() > new Date(prev).getTime()) {
+        parsed[key] = seenAt
+      }
+    })
+
+    window.localStorage.setItem(
+      ACTIVITY_READ_STORAGE_KEY,
+      JSON.stringify(parsed),
+    )
+  } catch {
+    // noop
+  }
+}
+
+function getStoredActivityReadAt(params: {
+  actorKeys: string[]
+  targetType: ActivityReadTargetType
+  targetId: number
+}) {
+  const parsed = readStoredActivityReads()
+  let latest: string | null = null
+
+  params.actorKeys.forEach((actorKey) => {
+    const key = getActivityReadStorageKey(
+      String(actorKey),
+      params.targetType,
+      Number(params.targetId),
+    )
+    const value = parsed[key]
+    if (!value) return
+    if (!latest || new Date(value).getTime() > new Date(latest).getTime()) {
+      latest = value
+    }
+  })
+
+  return latest
+}
 
 function readStoredPostSignal(postId: number): StoredPostSignal | null {
   if (typeof window === 'undefined') return null
@@ -6573,16 +6661,41 @@ export default function MatnyaApp() {
       })
 
       const readMap = new Map<string, string | null>()
-      ;(activityReadsRes.data ?? []).forEach((row: any) => {
-        const key = `${row.target_type}:${Number(row.target_id)}`
+      const mergeReadAt = (key: string, next?: string | null) => {
+        if (!next) return
         const prev = readMap.get(key)
-        const next = row.last_seen_at ?? null
-        if (
-          !prev ||
-          (next && new Date(next).getTime() > new Date(prev).getTime())
-        ) {
+        if (!prev || new Date(next).getTime() > new Date(prev).getTime()) {
           readMap.set(key, next)
         }
+      }
+
+      ;(activityReadsRes.data ?? []).forEach((row: any) => {
+        mergeReadAt(
+          `${row.target_type}:${Number(row.target_id)}`,
+          row.last_seen_at ?? null,
+        )
+      })
+
+      postIds.forEach((postId: number) => {
+        mergeReadAt(
+          `post:${Number(postId)}`,
+          getStoredActivityReadAt({
+            actorKeys: actorLookupKeys,
+            targetType: 'post',
+            targetId: Number(postId),
+          }),
+        )
+      })
+
+      commentIds.forEach((commentId: number) => {
+        mergeReadAt(
+          `comment:${Number(commentId)}`,
+          getStoredActivityReadAt({
+            actorKeys: actorLookupKeys,
+            targetType: 'comment',
+            targetId: Number(commentId),
+          }),
+        )
       })
 
       const totalCommentCountMap = new Map<number, number>()
@@ -6763,16 +6876,19 @@ export default function MatnyaApp() {
       })),
     )
 
+    writeStoredActivityReads(rows)
     const { error } = await saveActivityReads(rows)
 
     if (error) {
-      console.error('내 글 전체 읽음 처리 실패', error)
-      setMyPosts(prevMyPosts)
-      showToast('전체 읽음 처리 실패')
-      return
+      console.error(
+        '내 글 전체 읽음 DB 저장 실패 - 로컬 읽음 상태는 유지',
+        error,
+      )
+      showToast('기기에는 읽음 처리됨 · DB 저장은 확인 필요')
+    } else {
+      showToast('내 글 새 반응 읽음 처리됨')
     }
 
-    showToast('내 글 새 반응 읽음 처리됨')
     await fetchMyActivity(readActorKeys[0])
   }, [
     currentActorUnifiedKey,
@@ -6834,16 +6950,19 @@ export default function MatnyaApp() {
       })),
     )
 
+    writeStoredActivityReads(rows)
     const { error } = await saveActivityReads(rows)
 
     if (error) {
-      console.error('내 댓글 전체 읽음 처리 실패', error)
-      setMyComments(prevMyComments)
-      showToast('전체 읽음 처리 실패')
-      return
+      console.error(
+        '내 댓글 전체 읽음 DB 저장 실패 - 로컬 읽음 상태는 유지',
+        error,
+      )
+      showToast('기기에는 읽음 처리됨 · DB 저장은 확인 필요')
+    } else {
+      showToast('내 댓글 새 반응 읽음 처리됨')
     }
 
-    showToast('내 댓글 새 반응 읽음 처리됨')
     await fetchMyActivity(readActorKeys[0])
   }, [
     currentActorUnifiedKey,
