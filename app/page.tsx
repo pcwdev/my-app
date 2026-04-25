@@ -256,6 +256,89 @@ type NotificationEventRow = {
   created_at: string | null
 }
 
+const LIVE_DISCOVERY_LIMITS = {
+  myPosts: 60,
+  myCommentPosts: 60,
+  watchlist: 80,
+  votedPosts: 80,
+  hotCandidates: 50,
+  total: 180,
+} as const
+
+const LIVE_REVISIT_NOTIFICATION_TYPES: NotificationType[] = [
+  'post_comment',
+  'reply_attack',
+  'result_open',
+  'vote_flip',
+  'minority_alert',
+  'comment_battle',
+  'friend_opposite',
+  'best_comment',
+  'hot_entry',
+]
+
+function takeUniqueNumbers(
+  values: Array<number | string | null | undefined>,
+  limit: number,
+) {
+  const result: number[] = []
+  const seen = new Set<number>()
+
+  values.forEach((value) => {
+    const next = Number(value)
+    if (!Number.isFinite(next) || next <= 0 || seen.has(next)) return
+    seen.add(next)
+    result.push(next)
+  })
+
+  return result.slice(0, limit)
+}
+
+function buildLiveDiscoveryPostIds(params: {
+  posts: PostItem[]
+  currentPostId?: number | null
+  myPosts: MyPostItem[]
+  myComments: MyCommentItem[]
+  watchlistItems: WatchlistItem[]
+  votes: Record<number, VoteSide>
+}) {
+  const hotCandidateIds = [...params.posts]
+    .filter((post) => !post.hidden)
+    .sort((a, b) => {
+      const scoreA =
+        Number(a.leftVotes ?? 0) +
+        Number(a.rightVotes ?? 0) +
+        Number(a.comments?.length ?? 0) * 2 +
+        Number(a.views ?? 0) * 0.1
+      const scoreB =
+        Number(b.leftVotes ?? 0) +
+        Number(b.rightVotes ?? 0) +
+        Number(b.comments?.length ?? 0) * 2 +
+        Number(b.views ?? 0) * 0.1
+      return scoreB - scoreA
+    })
+    .slice(0, LIVE_DISCOVERY_LIMITS.hotCandidates)
+    .map((post) => post.id)
+
+  return takeUniqueNumbers(
+    [
+      params.currentPostId,
+      ...params.myPosts
+        .slice(0, LIVE_DISCOVERY_LIMITS.myPosts)
+        .map((item) => item.postId),
+      ...params.myComments
+        .slice(0, LIVE_DISCOVERY_LIMITS.myCommentPosts)
+        .map((item) => item.postId),
+      ...params.watchlistItems
+        .slice(0, LIVE_DISCOVERY_LIMITS.watchlist)
+        .map((item) => item.postId),
+      ...Object.keys(params.votes).slice(0, LIVE_DISCOVERY_LIMITS.votedPosts),
+      ...hotCandidateIds,
+    ],
+    LIVE_DISCOVERY_LIMITS.total,
+  )
+}
+
 type MyPostItem = {
   id: number
   postId: number
@@ -3069,7 +3152,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              내 글 반응, 내 댓글 반박, 궁금한 글 결말 확인
+              내 글, 댓글, 저장한 글 모아보기
             </div>
           </div>
           <button
@@ -3266,7 +3349,7 @@ function MyActivityModal({
                   {[
                     {
                       key: 'new',
-                      label: '🔥 새 댓글',
+                      label: '새 반응',
                       count: postsWithNew.length,
                     },
                     { key: 'all', label: '전체', count: myPosts.length },
@@ -3315,7 +3398,7 @@ function MyActivityModal({
                   {[
                     {
                       key: 'new',
-                      label: '⚔️ 새 반박',
+                      label: '새 반응',
                       count: commentsWithNew.length,
                     },
                     { key: 'all', label: '전체', count: myComments.length },
@@ -3364,7 +3447,7 @@ function MyActivityModal({
           {tab === 'posts' && filteredMyPosts.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {postFilter === 'new'
-                ? '아직 네 글에 새 댓글이 없음'
+                ? '아직 새 반응이 온 글이 없음'
                 : '아직 작성한 글이 없음'}
             </div>
           ) : null}
@@ -3372,7 +3455,7 @@ function MyActivityModal({
           {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {commentFilter === 'new'
-                ? '아직 네 댓글에 새 반박이 없음'
+                ? '아직 새 반응이 온 댓글이 없음'
                 : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
@@ -3385,12 +3468,12 @@ function MyActivityModal({
                     {[
                       {
                         key: 'updated',
-                        label: '👀 결말 공개',
+                        label: '새 소식',
                         count: updatedWatchlistItems.length,
                       },
                       {
                         key: 'waiting',
-                        label: '기다리는 중',
+                        label: '대기중',
                         count: waitingWatchlistItems.length,
                       },
                       {
@@ -3438,7 +3521,8 @@ function MyActivityModal({
                   ) : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">
-                  결말 공개된 글은 여기 먼저 뜨고, 확인하면 보관됨으로 이동
+                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
+                  이동
                 </div>
               </div>
 
@@ -3449,7 +3533,7 @@ function MyActivityModal({
               ) : filteredWatchlistItems.length === 0 ? (
                 <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
                   {watchlistFilter === 'updated'
-                    ? '아직 결말 공개된 글이 없음'
+                    ? '아직 새로 도착한 후기가 없음'
                     : watchlistFilter === 'waiting'
                       ? '후기 대기중인 글이 없음'
                       : '보관된 업데이트가 없음'}
@@ -3473,20 +3557,18 @@ function MyActivityModal({
                 </div>
                 {item.hasNewComments ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-rose-600">
-                    🔥 네 글에 새 댓글 {item.newCommentsCount ?? 1}개
+                    새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
                 ) : (item.totalCommentsCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    댓글 반응 {item.totalCommentsCount ?? 0}개
+                    댓글 {item.totalCommentsCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
                     아직 반응 없음
                   </div>
                 )}
-                <div className="mt-2 text-xs text-slate-400">
-                  내 글 반응 확인
-                </div>
+                <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
               </button>
             ))}
 
@@ -3503,11 +3585,11 @@ function MyActivityModal({
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    ⚔️ 네 댓글에 반박 {item.newRepliesCount ?? 1}개
+                    🔥 새 반박 {item.newRepliesCount ?? 1}개
                   </div>
                 ) : (item.totalRepliesCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    반박 기록 {item.totalRepliesCount ?? 0}개
+                    반박 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
@@ -3515,7 +3597,7 @@ function MyActivityModal({
                   </div>
                 )}
                 <div className="mt-2 text-xs text-slate-400">
-                  반박 흐름 확인
+                  댓글 단 글로 이동
                 </div>
               </button>
             ))}
@@ -3547,7 +3629,7 @@ function MyActivityModal({
                     ) : null}
                     {item.unreadOutcome ? (
                       <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                        결말 도착
+                        읽기 전
                       </span>
                     ) : null}
                   </div>
@@ -3557,8 +3639,8 @@ function MyActivityModal({
                   <div className="mt-2 text-xs text-slate-500">
                     {item.latestOutcomeSummary ??
                       (item.watchStatus === 'archived'
-                        ? '이미 확인한 결말/후기'
-                        : '결말 나오면 다시 보려고 저장한 글')}
+                        ? '이미 확인한 업데이트 글'
+                        : '나중에 결과 보려고 저장한 글')}
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
                     {item.watchStatus === 'updated'
@@ -5537,8 +5619,9 @@ export default function MatnyaApp() {
         'id, target_actor_key, target_user_id, type, reference_post_id, reference_comment_id, title, message, is_read, created_at',
       )
       .in('target_actor_key', actorKeys)
+      .in('type', LIVE_REVISIT_NOTIFICATION_TYPES)
       .order('created_at', { ascending: false })
-      .limit(40)
+      .limit(60)
 
     if (error) {
       console.error('알림 조회 실패', error)
@@ -5781,87 +5864,110 @@ export default function MatnyaApp() {
     [],
   )
 
-  const loadDiscoveryData = useCallback(async (sourcePosts?: PostItem[]) => {
-    const basePosts = sourcePosts ?? postsRef.current
+  const loadDiscoveryData = useCallback(
+    async (sourcePosts?: PostItem[]) => {
+      const basePosts = sourcePosts ?? postsRef.current
 
-    if (basePosts.length === 0) {
-      setHotScoreMap({})
-      setTurningPointMap({})
-      setHotNowPosts([])
-      return
-    }
-
-    const postIds = basePosts.map((post) => post.id)
-
-    const [hotResult, turningResult] = await Promise.all([
-      supabase
-        .from('post_hot_scores')
-        .select(
-          'post_id, score, view_1h, vote_1h, comment_1h, share_24h, controversy_ratio, updated_at',
-        )
-        .in('post_id', postIds),
-      supabase
-        .from('post_turning_points')
-        .select(
-          'post_id, event_label, leader_side, snapshot_left_votes, snapshot_right_votes, created_at',
-        )
-        .in('post_id', postIds)
-        .order('created_at', { ascending: false }),
-    ])
-
-    if (hotResult.error) {
-      console.error('post_hot_scores 불러오기 실패', hotResult.error)
-    }
-
-    if (turningResult.error) {
-      console.error('post_turning_points 불러오기 실패', turningResult.error)
-    }
-
-    const nextHotMap: Record<number, HotMeta> = {}
-    ;(hotResult.data ?? []).forEach((row: any) => {
-      nextHotMap[Number(row.post_id)] = {
-        score: Number(row.score ?? 0),
-        view1h: Number(row.view_1h ?? 0),
-        vote1h: Number(row.vote_1h ?? 0),
-        comment1h: Number(row.comment_1h ?? 0),
-        share24h: Number(row.share_24h ?? 0),
-        controversyRatio: Number(row.controversy_ratio ?? 1),
-        updatedAt: row.updated_at ?? null,
+      if (basePosts.length === 0) {
+        setHotScoreMap({})
+        setTurningPointMap({})
+        setHotNowPosts([])
+        return
       }
-    })
-    setHotScoreMap(nextHotMap)
 
-    const nextTurningMap: Record<number, TurningPointMeta> = {}
-    ;(turningResult.data ?? []).forEach((row: any) => {
-      const postId = Number(row.post_id)
-      if (nextTurningMap[postId]) return
-      nextTurningMap[postId] = {
-        eventLabel: row.event_label,
-        leaderSide: row.leader_side ?? null,
-        leftVotes: Number(row.snapshot_left_votes ?? 0),
-        rightVotes: Number(row.snapshot_right_votes ?? 0),
-        createdAt: row.created_at ?? null,
-      }
-    })
-    setTurningPointMap(nextTurningMap)
-
-    const ranked = [...basePosts]
-      .filter((post) => !post.hidden)
-      .sort((a, b) => {
-        const scoreA = nextHotMap[a.id]?.score ?? 0
-        const scoreB = nextHotMap[b.id]?.score ?? 0
-        if (scoreB !== scoreA) return scoreB - scoreA
-        return (
-          b.comments.length +
-          b.leftVotes +
-          b.rightVotes -
-          (a.comments.length + a.leftVotes + a.rightVotes)
-        )
+      // 전체 글을 모두 LIVE/알림 대상으로 추적하지 않는다.
+      // 규모가 커져도 복잡해지지 않도록 내 활동 관련 글 + HOT 후보만 선별 조회한다.
+      const currentPostId = basePosts[currentIndex]?.id ?? null
+      const discoveryPostIds = buildLiveDiscoveryPostIds({
+        posts: basePosts,
+        currentPostId,
+        myPosts,
+        myComments,
+        watchlistItems,
+        votes,
       })
-      .slice(0, 3)
+      const postIdSet = new Set(discoveryPostIds)
+      const discoveryPosts = basePosts.filter((post) => postIdSet.has(post.id))
+      const postIds = discoveryPosts.map((post) => post.id)
 
-    setHotNowPosts(ranked)
-  }, [])
+      if (postIds.length === 0) {
+        setHotScoreMap({})
+        setTurningPointMap({})
+        setHotNowPosts([])
+        return
+      }
+
+      const [hotResult, turningResult] = await Promise.all([
+        supabase
+          .from('post_hot_scores')
+          .select(
+            'post_id, score, view_1h, vote_1h, comment_1h, share_24h, controversy_ratio, updated_at',
+          )
+          .in('post_id', postIds),
+        supabase
+          .from('post_turning_points')
+          .select(
+            'post_id, event_label, leader_side, snapshot_left_votes, snapshot_right_votes, created_at',
+          )
+          .in('post_id', postIds)
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (hotResult.error) {
+        console.error('post_hot_scores 불러오기 실패', hotResult.error)
+      }
+
+      if (turningResult.error) {
+        console.error('post_turning_points 불러오기 실패', turningResult.error)
+      }
+
+      const nextHotMap: Record<number, HotMeta> = {}
+      ;(hotResult.data ?? []).forEach((row: any) => {
+        nextHotMap[Number(row.post_id)] = {
+          score: Number(row.score ?? 0),
+          view1h: Number(row.view_1h ?? 0),
+          vote1h: Number(row.vote_1h ?? 0),
+          comment1h: Number(row.comment_1h ?? 0),
+          share24h: Number(row.share_24h ?? 0),
+          controversyRatio: Number(row.controversy_ratio ?? 1),
+          updatedAt: row.updated_at ?? null,
+        }
+      })
+      setHotScoreMap(nextHotMap)
+
+      const nextTurningMap: Record<number, TurningPointMeta> = {}
+      ;(turningResult.data ?? []).forEach((row: any) => {
+        const postId = Number(row.post_id)
+        if (nextTurningMap[postId]) return
+        nextTurningMap[postId] = {
+          eventLabel: row.event_label,
+          leaderSide: row.leader_side ?? null,
+          leftVotes: Number(row.snapshot_left_votes ?? 0),
+          rightVotes: Number(row.snapshot_right_votes ?? 0),
+          createdAt: row.created_at ?? null,
+        }
+      })
+      setTurningPointMap(nextTurningMap)
+
+      const ranked = [...discoveryPosts]
+        .filter((post) => !post.hidden)
+        .sort((a, b) => {
+          const scoreA = nextHotMap[a.id]?.score ?? 0
+          const scoreB = nextHotMap[b.id]?.score ?? 0
+          if (scoreB !== scoreA) return scoreB - scoreA
+          return (
+            b.comments.length +
+            b.leftVotes +
+            b.rightVotes -
+            (a.comments.length + a.leftVotes + a.rightVotes)
+          )
+        })
+        .slice(0, 3)
+
+      setHotNowPosts(ranked)
+    },
+    [currentIndex, myComments, myPosts, votes, watchlistItems],
+  )
 
   const scheduleDiscoveryRefresh = useCallback(
     (sourcePosts?: PostItem[]) => {
@@ -10033,18 +10139,7 @@ ${shareUrl}`)
   }
 
   const openWatchlistActivity = () => {
-    // 별도 화면을 만들지 않고 기존 내활동 탭으로 분산 처리
-    // 우선순위: 내 댓글 반박 > 내 글 새 댓글 > 궁금한 글 결말 > 기본 내 글
-    const nextTab: 'posts' | 'comments' | 'watchlist' =
-      unreadMyCommentsTopCount > 0
-        ? 'comments'
-        : unreadMyPostsTopCount > 0
-          ? 'posts'
-          : unreadWatchlistCount > 0
-            ? 'watchlist'
-            : 'posts'
-
-    setActivityInitialTab(nextTab)
+    setActivityInitialTab('watchlist')
     setActivityOpen(true)
     requestLightweightMetaRefresh()
   }
@@ -10705,7 +10800,7 @@ ${shareUrl}`)
         type: 'post_comment',
         reference_post_id: targetPostId,
         reference_comment_id: newComment.id,
-        title: '🔥 네 글에 새 댓글 붙음',
+        title: '💬 네 글에 댓글 달림',
         message: '방금 누가 네 논쟁에 의견을 남김. 지금 흐름 확인해봐.',
         dedupe_key: buildNotificationDedupeKey([
           'post_comment',
@@ -11222,7 +11317,8 @@ ${shareUrl}`)
     authOpen ||
     shareInboxOpen ||
     inquiryOpen ||
-    inquiryAdminOpen
+    inquiryAdminOpen ||
+    notificationOpen
 
   if (loading) {
     return (
@@ -11293,6 +11389,7 @@ ${shareUrl}`)
                     <button
                       onClick={() => {
                         openWatchlistActivity()
+                        void loadNotificationEvents()
                       }}
                       className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
                     >
@@ -11302,7 +11399,8 @@ ${shareUrl}`)
                       <span className="text-[11px] font-black sm:text-xs">
                         Lv.{levelInfo.level}
                       </span>
-                      {unreadActivityBadgeCount > 0 ? (
+                      {unreadActivityBadgeCount + unreadNotificationCount >
+                      0 ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                       ) : null}
                     </button>
@@ -12727,6 +12825,99 @@ ${shareUrl}`)
             postTitle={currentPost?.title ?? '후기 등록'}
             initialType="author_followup"
           />
+
+          {notificationOpen ? (
+            <div
+              className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/40 px-3 pt-20 backdrop-blur-sm"
+              onClick={() => setNotificationOpen(false)}
+            >
+              <div
+                className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.25)]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
+                  <div>
+                    <div className="text-lg font-black tracking-[-0.03em] text-slate-950">
+                      실시간 알림
+                    </div>
+                    <div className="mt-0.5 text-xs font-bold text-slate-500">
+                      뒤집힘, 반박, 결말 공개를 여기서 확인
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {unreadNotificationCount > 0 ? (
+                      <button
+                        onClick={() => void markAllNotificationsRead()}
+                        className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-600"
+                      >
+                        모두 읽음
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={() => setNotificationOpen(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white"
+                      aria-label="알림 닫기"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[62vh] overflow-y-auto px-3 py-3">
+                  {notificationLoading ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                      알림 불러오는 중
+                    </div>
+                  ) : notificationItems.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                      아직 새 알림이 없음
+                    </div>
+                  ) : (
+                    notificationItems.map((item) => {
+                      const meta = getNotificationMeta(item.type)
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openNotificationItem(item)}
+                          className={`mb-2 w-full rounded-[22px] border px-4 py-3 text-left transition active:scale-[0.99] ${
+                            item.is_read
+                              ? 'border-slate-100 bg-white text-slate-500'
+                              : 'border-rose-100 bg-rose-50/80 text-slate-950 shadow-[0_10px_26px_rgba(244,63,94,0.08)]'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-base ${meta.toneClass}`}
+                            >
+                              {meta.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${meta.toneClass}`}
+                                >
+                                  {meta.label}
+                                </span>
+                                {!item.is_read ? (
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                ) : null}
+                              </div>
+                              <div className="mt-1 text-sm font-black tracking-[-0.03em] text-slate-950">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                                {item.message}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <InquiryCenterModal
             key={inquiryModalKey}
