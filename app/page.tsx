@@ -5500,6 +5500,7 @@ export default function MatnyaApp() {
       }),
     )
     setBadges([])
+    setStreakMap({})
     setCommentOpen(false)
     setActivityOpen(false)
     setActivityInitialTab('posts')
@@ -6520,6 +6521,34 @@ export default function MatnyaApp() {
     } else {
       setBadges((badgeRows ?? []).map((row) => row.badge_name))
     }
+
+    const actorKey = getActorUnifiedKey(currentUserId, currentVoterKey ?? '')
+    if (actorKey) {
+      const { data: streakRows, error: streakError } = await supabase
+        .from('user_streaks')
+        .select('streak_type, current_count, best_count, last_action_at')
+        .eq('actor_key', actorKey)
+
+      if (streakError) {
+        console.error('user_streaks 조회 실패', streakError)
+      } else {
+        const nextStreakMap: Record<string, UserStreakRow> = {}
+
+        ;(streakRows ?? []).forEach((row: any) => {
+          const streakType = row.streak_type as UserStreakRow['streakType']
+          nextStreakMap[streakType] = {
+            streakType,
+            currentCount: Number(row.current_count ?? 0),
+            bestCount: Number(row.best_count ?? 0),
+            lastActionAt: row.last_action_at ?? null,
+          }
+        })
+
+        setStreakMap(nextStreakMap)
+      }
+    } else {
+      setStreakMap({})
+    }
   }, [authUser?.id, voterKey])
 
   const awardBadgesFromStats = useCallback(
@@ -6544,12 +6573,16 @@ export default function MatnyaApp() {
       }))
 
       const { error } = await supabase.from('user_badges').insert(rows)
-      if (error) {
+      if (error && error.code !== '23505') {
         console.error('뱃지 저장 실패', error)
         return
       }
 
-      setBadges((prev) => [...newlyEarned, ...prev])
+      setBadges((prev) => {
+        const merged = [...newlyEarned, ...prev]
+        return Array.from(new Set(merged))
+      })
+
       newlyEarned.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
     },
     [authUser?.id, voterKey, badges, showToast],
@@ -6814,6 +6847,7 @@ export default function MatnyaApp() {
         }),
       )
       setBadges([])
+      setStreakMap({})
       setAdminMode(false)
 
       showToast('로그아웃 완료')
