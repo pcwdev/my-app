@@ -2967,9 +2967,6 @@ function MyActivityModal({
   myComments,
   watchlistItems,
   unreadWatchlistCount,
-  notificationItems,
-  notificationLoading,
-  unreadNotificationCount,
   initialTab = 'posts',
   onOpenPost,
   onOpenWatchlistItem,
@@ -2979,8 +2976,6 @@ function MyActivityModal({
   onMarkAllPostsSeen,
   onMarkAllCommentsSeen,
   onMarkAllWatchlistSeen,
-  onOpenNotificationItem,
-  onMarkAllNotificationsRead,
   profile,
   stats,
   badges,
@@ -2991,10 +2986,7 @@ function MyActivityModal({
   myComments: MyCommentItem[]
   watchlistItems: WatchlistItem[]
   unreadWatchlistCount: number
-  notificationItems: NotificationEventRow[]
-  notificationLoading: boolean
-  unreadNotificationCount: number
-  initialTab?: 'posts' | 'comments' | 'watchlist' | 'notifications'
+  initialTab?: 'posts' | 'comments' | 'watchlist'
   onOpenPost: (postId: number, markSeenPostId?: number) => void
   onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number, commentId?: number) => void
@@ -3003,15 +2995,11 @@ function MyActivityModal({
   onMarkAllPostsSeen: () => void
   onMarkAllCommentsSeen: () => void
   onMarkAllWatchlistSeen: () => void
-  onOpenNotificationItem: (item: NotificationEventRow) => void
-  onMarkAllNotificationsRead: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
   badges: string[]
 }) {
-  const [tab, setTab] = useState<
-    'posts' | 'comments' | 'watchlist' | 'notifications'
-  >(initialTab)
+  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
   const [profileExpanded, setProfileExpanded] = useState(false)
   const [watchlistFilter, setWatchlistFilter] =
     useState<WatchlistItem['watchStatus']>('updated')
@@ -3038,7 +3026,6 @@ function MyActivityModal({
     { label: '글', value: stats.posts_count },
     { label: '댓글', value: stats.comments_count },
     { label: '궁금', value: watchlistItems.length },
-    { label: '알림', value: unreadNotificationCount },
   ]
 
   const unreadMyPostCount = myPosts.filter(
@@ -3082,7 +3069,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              내 글, 댓글, 저장한 글, 실시간 알림 모아보기
+              내 글 반응, 내 댓글 반박, 궁금한 글 결말 확인
             </div>
           </div>
           <button
@@ -3127,7 +3114,7 @@ function MyActivityModal({
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               {summaryStats.map((item) => (
                 <div
                   key={item.label}
@@ -3270,21 +3257,6 @@ function MyActivityModal({
                 </span>
               ) : null}
             </button>
-            <button
-              onClick={() => setTab('notifications')}
-              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
-                tab === 'notifications'
-                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              알림
-              {unreadNotificationCount > 0 ? (
-                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {unreadNotificationCount}
-                </span>
-              ) : null}
-            </button>
           </div>
 
           {tab === 'posts' ? (
@@ -3294,7 +3266,7 @@ function MyActivityModal({
                   {[
                     {
                       key: 'new',
-                      label: '새 반응',
+                      label: '🔥 새 댓글',
                       count: postsWithNew.length,
                     },
                     { key: 'all', label: '전체', count: myPosts.length },
@@ -3343,7 +3315,7 @@ function MyActivityModal({
                   {[
                     {
                       key: 'new',
-                      label: '새 반응',
+                      label: '⚔️ 새 반박',
                       count: commentsWithNew.length,
                     },
                     { key: 'all', label: '전체', count: myComments.length },
@@ -3392,7 +3364,7 @@ function MyActivityModal({
           {tab === 'posts' && filteredMyPosts.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {postFilter === 'new'
-                ? '아직 새 반응이 온 글이 없음'
+                ? '아직 네 글에 새 댓글이 없음'
                 : '아직 작성한 글이 없음'}
             </div>
           ) : null}
@@ -3400,96 +3372,10 @@ function MyActivityModal({
           {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {commentFilter === 'new'
-                ? '아직 새 반응이 온 댓글이 없음'
+                ? '아직 네 댓글에 새 반박이 없음'
                 : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
-
-          {tab === 'notifications' ? (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-black text-slate-950">
-                    실시간 알림
-                  </div>
-                  <div className="mt-0.5 text-[11px] font-bold text-slate-500">
-                    반박, 뒤집힘, 결말 공개를 여기서 확인
-                  </div>
-                </div>
-                {unreadNotificationCount > 0 ? (
-                  <button
-                    onClick={onMarkAllNotificationsRead}
-                    className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
-                  >
-                    전체 읽음
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {tab === 'notifications' && notificationLoading ? (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm font-bold text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              알림 불러오는 중
-            </div>
-          ) : null}
-
-          {tab === 'notifications' &&
-          !notificationLoading &&
-          notificationItems.length === 0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              아직 새 알림이 없음
-            </div>
-          ) : null}
-
-          {tab === 'notifications' &&
-            !notificationLoading &&
-            notificationItems.map((item) => {
-              const meta = getNotificationMeta(item.type)
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onOpenNotificationItem(item)}
-                  className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
-                    item.is_read
-                      ? 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
-                      : 'border-rose-200 bg-rose-50/90'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-base ${meta.toneClass}`}
-                    >
-                      {meta.icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${meta.toneClass}`}
-                        >
-                          {meta.label}
-                        </span>
-                        {!item.is_read ? (
-                          <span className="h-2 w-2 rounded-full bg-rose-500" />
-                        ) : null}
-                        <span className="text-[10px] font-bold text-slate-400">
-                          {formatRelativeShort(item.created_at)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-sm font-black tracking-[-0.03em] text-slate-950">
-                        {item.title}
-                      </div>
-                      <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                        {item.message}
-                      </div>
-                      <div className="mt-2 text-[11px] font-black text-rose-600">
-                        눌러서 바로 확인
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
 
           {tab === 'watchlist' && (
             <>
@@ -3499,12 +3385,12 @@ function MyActivityModal({
                     {[
                       {
                         key: 'updated',
-                        label: '새 소식',
+                        label: '👀 결말 공개',
                         count: updatedWatchlistItems.length,
                       },
                       {
                         key: 'waiting',
-                        label: '대기중',
+                        label: '기다리는 중',
                         count: waitingWatchlistItems.length,
                       },
                       {
@@ -3552,8 +3438,7 @@ function MyActivityModal({
                   ) : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">
-                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
-                  이동
+                  결말 공개된 글은 여기 먼저 뜨고, 확인하면 보관됨으로 이동
                 </div>
               </div>
 
@@ -3564,7 +3449,7 @@ function MyActivityModal({
               ) : filteredWatchlistItems.length === 0 ? (
                 <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
                   {watchlistFilter === 'updated'
-                    ? '아직 새로 도착한 후기가 없음'
+                    ? '아직 결말 공개된 글이 없음'
                     : watchlistFilter === 'waiting'
                       ? '후기 대기중인 글이 없음'
                       : '보관된 업데이트가 없음'}
@@ -3588,18 +3473,20 @@ function MyActivityModal({
                 </div>
                 {item.hasNewComments ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-rose-600">
-                    새 댓글 {item.newCommentsCount ?? 1}개
+                    🔥 네 글에 새 댓글 {item.newCommentsCount ?? 1}개
                   </div>
                 ) : (item.totalCommentsCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    댓글 {item.totalCommentsCount ?? 0}개
+                    댓글 반응 {item.totalCommentsCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
                     아직 반응 없음
                   </div>
                 )}
-                <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
+                <div className="mt-2 text-xs text-slate-400">
+                  내 글 반응 확인
+                </div>
               </button>
             ))}
 
@@ -3616,11 +3503,11 @@ function MyActivityModal({
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    🔥 새 반박 {item.newRepliesCount ?? 1}개
+                    ⚔️ 네 댓글에 반박 {item.newRepliesCount ?? 1}개
                   </div>
                 ) : (item.totalRepliesCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    반박 {item.totalRepliesCount ?? 0}개
+                    반박 기록 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
@@ -3628,7 +3515,7 @@ function MyActivityModal({
                   </div>
                 )}
                 <div className="mt-2 text-xs text-slate-400">
-                  댓글 단 글로 이동
+                  반박 흐름 확인
                 </div>
               </button>
             ))}
@@ -3660,7 +3547,7 @@ function MyActivityModal({
                     ) : null}
                     {item.unreadOutcome ? (
                       <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                        읽기 전
+                        결말 도착
                       </span>
                     ) : null}
                   </div>
@@ -3670,8 +3557,8 @@ function MyActivityModal({
                   <div className="mt-2 text-xs text-slate-500">
                     {item.latestOutcomeSummary ??
                       (item.watchStatus === 'archived'
-                        ? '이미 확인한 업데이트 글'
-                        : '나중에 결과 보려고 저장한 글')}
+                        ? '이미 확인한 결말/후기'
+                        : '결말 나오면 다시 보려고 저장한 글')}
                   </div>
                   <div className="mt-2 text-xs text-slate-400">
                     {item.watchStatus === 'updated'
@@ -5587,7 +5474,7 @@ export default function MatnyaApp() {
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [activityInitialTab, setActivityInitialTab] = useState<
-    'posts' | 'comments' | 'watchlist' | 'notifications'
+    'posts' | 'comments' | 'watchlist'
   >('posts')
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
@@ -9979,7 +9866,6 @@ ${shareUrl}`)
   const openNotificationItem = (item: NotificationEventRow) => {
     void markNotificationRead(item.id)
     setNotificationOpen(false)
-    setActivityOpen(false)
 
     if (item.reference_post_id) {
       openPostDirect(Number(item.reference_post_id))
@@ -10147,11 +10033,19 @@ ${shareUrl}`)
   }
 
   const openWatchlistActivity = () => {
-    setActivityInitialTab(
-      unreadNotificationCount > 0 ? 'notifications' : 'watchlist',
-    )
+    // 별도 화면을 만들지 않고 기존 내활동 탭으로 분산 처리
+    // 우선순위: 내 댓글 반박 > 내 글 새 댓글 > 궁금한 글 결말 > 기본 내 글
+    const nextTab: 'posts' | 'comments' | 'watchlist' =
+      unreadMyCommentsTopCount > 0
+        ? 'comments'
+        : unreadMyPostsTopCount > 0
+          ? 'posts'
+          : unreadWatchlistCount > 0
+            ? 'watchlist'
+            : 'posts'
+
+    setActivityInitialTab(nextTab)
     setActivityOpen(true)
-    void loadNotificationEvents()
     requestLightweightMetaRefresh()
   }
 
@@ -10440,8 +10334,8 @@ ${shareUrl}`)
           type: 'result_open',
           reference_post_id: currentPost.id,
           reference_comment_id: null,
-          title: '👀 결국 이렇게 됨',
-          message: '네가 궁금해하던 그 글 결말 공개됨. 지금 확인해봐.',
+          title: '🎯 결말 공개됨',
+          message: '그때 네 선택, 맞았을까? 지금 확인해봐.',
           dedupe_key: buildNotificationDedupeKey([
             'result_open',
             currentPost.id,
@@ -10792,8 +10686,8 @@ ${shareUrl}`)
         type: 'reply_attack',
         reference_post_id: targetPostId,
         reference_comment_id: newComment.id,
-        title: '🔥 네 댓글에 제대로 반박 붙음',
-        message: '방금 누가 네 의견에 붙었어. 지금 안 보면 흐름 놓침.',
+        title: '⚔️ 네 댓글에 반박 달림',
+        message: '방금 누가 네 의견에 반박했어. 흐름 확인해봐.',
         dedupe_key: buildNotificationDedupeKey([
           'reply_attack',
           targetPostId,
@@ -10811,8 +10705,8 @@ ${shareUrl}`)
         type: 'post_comment',
         reference_post_id: targetPostId,
         reference_comment_id: newComment.id,
-        title: '💬 네 글에 새 의견 붙음',
-        message: '방금 누가 네 논쟁에 들어왔어. 판 분위기 확인해봐.',
+        title: '🔥 네 글에 새 댓글 붙음',
+        message: '방금 누가 네 논쟁에 의견을 남김. 지금 흐름 확인해봐.',
         dedupe_key: buildNotificationDedupeKey([
           'post_comment',
           targetPostId,
@@ -11328,8 +11222,7 @@ ${shareUrl}`)
     authOpen ||
     shareInboxOpen ||
     inquiryOpen ||
-    inquiryAdminOpen ||
-    notificationOpen
+    inquiryAdminOpen
 
   if (loading) {
     return (
@@ -11400,7 +11293,6 @@ ${shareUrl}`)
                     <button
                       onClick={() => {
                         openWatchlistActivity()
-                        void loadNotificationEvents()
                       }}
                       className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
                     >
@@ -11410,8 +11302,7 @@ ${shareUrl}`)
                       <span className="text-[11px] font-black sm:text-xs">
                         Lv.{levelInfo.level}
                       </span>
-                      {unreadActivityBadgeCount + unreadNotificationCount >
-                      0 ? (
+                      {unreadActivityBadgeCount > 0 ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                       ) : null}
                     </button>
@@ -12787,9 +12678,6 @@ ${shareUrl}`)
             myComments={myComments}
             watchlistItems={watchlistItems}
             unreadWatchlistCount={unreadWatchlistCount}
-            notificationItems={notificationItems}
-            notificationLoading={notificationLoading}
-            unreadNotificationCount={unreadNotificationCount}
             initialTab={activityInitialTab}
             onOpenPost={openPostDirect}
             onOpenWatchlistItem={openWatchlistItemDirect}
@@ -12799,8 +12687,6 @@ ${shareUrl}`)
             onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
             onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
             onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
-            onOpenNotificationItem={openNotificationItem}
-            onMarkAllNotificationsRead={() => void markAllNotificationsRead()}
             profile={profile}
             stats={stats}
             badges={badges}
@@ -12841,99 +12727,6 @@ ${shareUrl}`)
             postTitle={currentPost?.title ?? '후기 등록'}
             initialType="author_followup"
           />
-
-          {notificationOpen ? (
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/40 px-3 pt-20 backdrop-blur-sm"
-              onClick={() => setNotificationOpen(false)}
-            >
-              <div
-                className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.25)]"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
-                  <div>
-                    <div className="text-lg font-black tracking-[-0.03em] text-slate-950">
-                      실시간 알림
-                    </div>
-                    <div className="mt-0.5 text-xs font-bold text-slate-500">
-                      뒤집힘, 반박, 결말 공개를 여기서 확인
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {unreadNotificationCount > 0 ? (
-                      <button
-                        onClick={() => void markAllNotificationsRead()}
-                        className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-600"
-                      >
-                        모두 읽음
-                      </button>
-                    ) : null}
-                    <button
-                      onClick={() => setNotificationOpen(false)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white"
-                      aria-label="알림 닫기"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="max-h-[62vh] overflow-y-auto px-3 py-3">
-                  {notificationLoading ? (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
-                      알림 불러오는 중
-                    </div>
-                  ) : notificationItems.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
-                      아직 새 알림이 없음
-                    </div>
-                  ) : (
-                    notificationItems.map((item) => {
-                      const meta = getNotificationMeta(item.type)
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => openNotificationItem(item)}
-                          className={`mb-2 w-full rounded-[22px] border px-4 py-3 text-left transition active:scale-[0.99] ${
-                            item.is_read
-                              ? 'border-slate-100 bg-white text-slate-500'
-                              : 'border-rose-100 bg-rose-50/80 text-slate-950 shadow-[0_10px_26px_rgba(244,63,94,0.08)]'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-base ${meta.toneClass}`}
-                            >
-                              {meta.icon}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${meta.toneClass}`}
-                                >
-                                  {meta.label}
-                                </span>
-                                {!item.is_read ? (
-                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                ) : null}
-                              </div>
-                              <div className="mt-1 text-sm font-black tracking-[-0.03em] text-slate-950">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                                {item.message}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           <InquiryCenterModal
             key={inquiryModalKey}
