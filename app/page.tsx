@@ -33,6 +33,49 @@ const reportReasons = [
   '도배/광고',
 ]
 
+const inquiryTypeMeta: Record<
+  InquiryType,
+  { label: string; helper: string; placeholder: string }
+> = {
+  bug: {
+    label: '버그 신고',
+    helper: '화면 오류나 기능 문제가 있다면 알려주세요.',
+    placeholder: '어떤 화면에서 어떤 문제가 생겼는지 적어주세요.',
+  },
+  general: {
+    label: '운영 문의',
+    helper: '서비스 이용 중 궁금한 점이나 운영 관련 의견을 남겨주세요.',
+    placeholder: '문의하거나 제안하고 싶은 내용을 적어주세요.',
+  },
+  partnership: {
+    label: '제안 및 제휴',
+    helper: '맞냐와 함께할 좋은 제안이 있다면 알려주세요.',
+    placeholder: '제안 내용, 협업 방식, 연락 가능한 정보를 적어주세요.',
+  },
+}
+
+const inquiryStatusMeta: Record<
+  InquiryStatus,
+  { label: string; className: string }
+> = {
+  pending: {
+    label: '접수됨',
+    className: 'border-slate-200 bg-slate-50 text-slate-600',
+  },
+  reviewing: {
+    label: '확인중',
+    className: 'border-blue-200 bg-blue-50 text-blue-700',
+  },
+  resolved: {
+    label: '처리완료',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  },
+  rejected: {
+    label: '보류',
+    className: 'border-amber-200 bg-amber-50 text-amber-700',
+  },
+}
+
 const INITIAL_COMMENT_BATCH = 20
 const REPORT_HIDE_THRESHOLD = 3
 
@@ -165,6 +208,24 @@ type ProfileRow = {
   email: string | null
   anonymous_name: string
   role: 'user' | 'admin'
+}
+
+type InquiryType = 'bug' | 'general' | 'partnership'
+type InquiryStatus = 'pending' | 'reviewing' | 'resolved' | 'rejected'
+
+type InquiryRow = {
+  id: number
+  inquiry_type: InquiryType
+  title: string
+  content: string
+  contact: string | null
+  page_url: string | null
+  user_agent: string | null
+  reporter_key: string | null
+  status: InquiryStatus
+  admin_note: string | null
+  created_at: string | null
+  resolved_at: string | null
 }
 
 type MyPostItem = {
@@ -2100,6 +2161,298 @@ const VoteOption = React.memo(function VoteOption({
     </button>
   )
 })
+
+function InquiryCenterModal({
+  open,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  onClose: () => void
+  onSubmit: (input: {
+    inquiryType: InquiryType
+    title: string
+    content: string
+    contact: string
+  }) => Promise<void>
+}) {
+  const [inquiryType, setInquiryType] = useState<InquiryType>('bug')
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [contact, setContact] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setInquiryType('bug')
+    setTitle('')
+    setContent('')
+    setContact('')
+    setSubmitting(false)
+  }, [open])
+
+  if (!open) return null
+
+  const currentMeta = inquiryTypeMeta[inquiryType]
+  const canSubmit = title.trim().length >= 2 && content.trim().length >= 5
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/35 px-4 py-6 backdrop-blur-md">
+      <div className="mx-auto max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+              CONTACT CENTER
+            </div>
+            <div className="mt-1 text-xl font-black tracking-[-0.03em]">
+              문의하기
+            </div>
+            <div className="mt-1 text-sm leading-5 text-slate-500">
+              답변이 필요하면 연락처를 남겨주세요. 익명으로도 접수 가능해요.
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500"
+            aria-label="닫기"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {(Object.keys(inquiryTypeMeta) as InquiryType[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setInquiryType(item)}
+              className={
+                (inquiryType === item
+                  ? 'border-slate-950 bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]'
+                  : 'border-slate-200 bg-white text-slate-700') +
+                ' rounded-2xl border px-2 py-3 text-center transition'
+              }
+            >
+              <div className="text-[12px] font-black leading-tight">
+                {inquiryTypeMeta[item].label}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
+          {currentMeta.helper}
+        </div>
+
+        <label className="mt-4 block">
+          <span className="text-xs font-black text-slate-500">제목</span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value.slice(0, 60))}
+            placeholder="짧게 적어주세요"
+            className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-950"
+          />
+        </label>
+
+        <label className="mt-3 block">
+          <span className="text-xs font-black text-slate-500">내용</span>
+          <textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value.slice(0, 1000))}
+            placeholder={currentMeta.placeholder}
+            className="mt-1 min-h-[132px] w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-900 outline-none focus:border-slate-950"
+          />
+          <div className="mt-1 text-right text-[11px] font-bold text-slate-400">
+            {content.length}/1000
+          </div>
+        </label>
+
+        <label className="mt-2 block">
+          <span className="text-xs font-black text-slate-500">
+            연락처 선택 입력
+          </span>
+          <input
+            value={contact}
+            onChange={(event) => setContact(event.target.value.slice(0, 120))}
+            placeholder="이메일 또는 오픈채팅 링크"
+            className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-950"
+          />
+        </label>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit || submitting}
+            onClick={async () => {
+              if (!canSubmit || submitting) return
+              setSubmitting(true)
+              try {
+                await onSubmit({
+                  inquiryType,
+                  title: title.trim(),
+                  content: content.trim(),
+                  contact: contact.trim(),
+                })
+              } finally {
+                setSubmitting(false)
+              }
+            }}
+            className={
+              (canSubmit && !submitting ? 'bg-slate-950' : 'bg-slate-300') +
+              ' rounded-2xl px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]'
+            }
+          >
+            {submitting ? '접수중' : '접수하기'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InquiryAdminModal({
+  open,
+  onClose,
+  items,
+  loading,
+  onRefresh,
+  onUpdateStatus,
+}: {
+  open: boolean
+  onClose: () => void
+  items: InquiryRow[]
+  loading: boolean
+  onRefresh: () => void
+  onUpdateStatus: (id: number, status: InquiryStatus) => void
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/35 px-4 py-6 backdrop-blur-md">
+      <div className="mx-auto max-w-md rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+              ADMIN INBOX
+            </div>
+            <div className="mt-1 text-xl font-black tracking-[-0.03em]">
+              문의함
+            </div>
+            <div className="mt-1 text-sm text-slate-500">
+              버그 신고, 운영 문의, 제안 및 제휴 접수 목록
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500"
+            aria-label="닫기"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white"
+          >
+            새로고침
+          </button>
+          <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-500">
+            {items.length}건
+          </div>
+        </div>
+
+        <div className="mt-4 max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+          {loading ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+              불러오는 중
+            </div>
+          ) : items.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+              접수된 문의가 없음
+            </div>
+          ) : (
+            items.map((item) => {
+              const statusMeta =
+                inquiryStatusMeta[item.status] ?? inquiryStatusMeta.pending
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black text-white">
+                          {inquiryTypeMeta[item.inquiry_type]?.label ?? '문의'}
+                        </span>
+                        <span
+                          className={
+                            'rounded-full border px-2.5 py-1 text-[10px] font-black ' +
+                            statusMeta.className
+                          }
+                        >
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                      <div className="mt-2 line-clamp-2 text-sm font-black text-slate-900">
+                        {item.title}
+                      </div>
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-400">
+                      #{item.id}
+                    </div>
+                  </div>
+                  <div className="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-50 px-3 py-3 text-sm font-semibold leading-6 text-slate-700">
+                    {item.content}
+                  </div>
+                  {item.contact ? (
+                    <div className="mt-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600">
+                      연락처: {item.contact}
+                    </div>
+                  ) : null}
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                    {(
+                      [
+                        'pending',
+                        'reviewing',
+                        'resolved',
+                        'rejected',
+                      ] as InquiryStatus[]
+                    ).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => onUpdateStatus(item.id, status)}
+                        className={
+                          (item.status === status
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white text-slate-500') +
+                          ' rounded-xl border px-2 py-2 text-[10px] font-black'
+                        }
+                      >
+                        {inquiryStatusMeta[status].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ReportModal({
   open,
@@ -4967,6 +5320,12 @@ export default function MatnyaApp() {
     id: null,
     label: '',
   })
+  const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [inquiryAdminOpen, setInquiryAdminOpen] = useState(false)
+  const [inquiryAdminItems, setInquiryAdminItems] = useState<InquiryRow[]>([])
+  const [inquiryAdminLoading, setInquiryAdminLoading] = useState(false)
+
+  const isAdmin = profile?.role === 'admin'
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -4974,7 +5333,89 @@ export default function MatnyaApp() {
     return () => clearTimeout(timer)
   }, [])
 
-  const isAdmin = profile?.role === 'admin'
+  const submitInquiry = useCallback(
+    async (input: {
+      inquiryType: InquiryType
+      title: string
+      content: string
+      contact: string
+    }) => {
+      const pageUrl =
+        typeof window !== 'undefined' ? window.location.href : null
+      const userAgent =
+        typeof navigator !== 'undefined' ? navigator.userAgent : null
+      const actorKey =
+        getActorUnifiedKey(authUser?.id ?? null, voterKey) ?? null
+
+      const { error } = await supabase.from('inquiries').insert({
+        inquiry_type: input.inquiryType,
+        title: input.title,
+        content: input.content,
+        contact: input.contact || null,
+        page_url: pageUrl,
+        user_agent: userAgent,
+        reporter_key: actorKey,
+        status: 'pending',
+      })
+
+      if (error) {
+        console.error('문의 접수 실패', error)
+        showToast('문의 접수 실패')
+        return
+      }
+
+      setInquiryOpen(false)
+      showToast('문의 접수 완료 · 운영팀이 확인 중')
+    },
+    [authUser?.id, showToast, voterKey],
+  )
+
+  const loadInquiryAdminItems = useCallback(async () => {
+    if (!isAdmin) return
+    setInquiryAdminLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('inquiries')
+        .select(
+          'id, inquiry_type, title, content, contact, page_url, user_agent, reporter_key, status, admin_note, created_at, resolved_at',
+        )
+        .order('created_at', { ascending: false })
+        .limit(80)
+      if (error) throw error
+      setInquiryAdminItems((data ?? []) as InquiryRow[])
+    } catch (error) {
+      console.error('문의함 조회 실패', error)
+      showToast('문의함 조회 실패')
+    } finally {
+      setInquiryAdminLoading(false)
+    }
+  }, [isAdmin, showToast])
+
+  const updateInquiryStatus = useCallback(
+    async (id: number, status: InquiryStatus) => {
+      if (!isAdmin) return
+      const resolvedAt =
+        status === 'resolved' || status === 'rejected'
+          ? new Date().toISOString()
+          : null
+      const { error } = await supabase
+        .from('inquiries')
+        .update({ status, resolved_at: resolvedAt })
+        .eq('id', id)
+      if (error) {
+        console.error('문의 상태 변경 실패', error)
+        showToast('상태 변경 실패')
+        return
+      }
+      setInquiryAdminItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status, resolved_at: resolvedAt } : item,
+        ),
+      )
+      showToast('문의 상태 변경 완료')
+    },
+    [isAdmin, showToast],
+  )
 
   const clearAuthLocalState = useCallback(() => {
     setAuthUser(null)
@@ -10125,7 +10566,9 @@ ${shareUrl}`)
     outcomeModalOpen ||
     deletedOpen ||
     authOpen ||
-    shareInboxOpen
+    shareInboxOpen ||
+    inquiryOpen ||
+    inquiryAdminOpen
 
   if (loading) {
     return (
@@ -10220,6 +10663,27 @@ ${shareUrl}`)
                         <Shield className="h-5 w-5" />
                       </button>
                     )}
+
+                    {isAdmin ? (
+                      <button
+                        onClick={() => {
+                          setInquiryAdminOpen(true)
+                          void loadInquiryAdminItems()
+                        }}
+                        className="hidden h-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 px-3 text-[11px] font-black text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:flex sm:h-10"
+                        aria-label="문의함"
+                      >
+                        문의함
+                      </button>
+                    ) : null}
+
+                    <button
+                      onClick={() => setInquiryOpen(true)}
+                      className="flex h-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 px-3 text-[11px] font-black text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:px-3.5"
+                      aria-label="문의하기"
+                    >
+                      문의
+                    </button>
 
                     <button
                       onClick={openReportPost}
@@ -11601,6 +12065,23 @@ ${shareUrl}`)
             }
             postTitle={currentPost?.title ?? '후기 등록'}
             initialType="author_followup"
+          />
+
+          <InquiryCenterModal
+            open={inquiryOpen}
+            onClose={() => setInquiryOpen(false)}
+            onSubmit={submitInquiry}
+          />
+
+          <InquiryAdminModal
+            open={inquiryAdminOpen}
+            onClose={() => setInquiryAdminOpen(false)}
+            items={inquiryAdminItems}
+            loading={inquiryAdminLoading}
+            onRefresh={() => void loadInquiryAdminItems()}
+            onUpdateStatus={(id, status) =>
+              void updateInquiryStatus(id, status)
+            }
           />
 
           <ReportModal
