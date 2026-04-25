@@ -3455,7 +3455,7 @@ function MyActivityModal({
           {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {commentFilter === 'new'
-                ? '아직 새 반응이 온 댓글이 없음'
+                ? '아직 새 댓글이 붙은 댓글이 없음'
                 : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
@@ -3585,11 +3585,11 @@ function MyActivityModal({
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    🔥 새 반박 {item.newRepliesCount ?? 1}개
+                    🔥 새 댓글 {item.newRepliesCount ?? 1}개
                   </div>
                 ) : (item.totalRepliesCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    반박 {item.totalRepliesCount ?? 0}개
+                    댓글 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
@@ -6498,10 +6498,14 @@ export default function MatnyaApp() {
       commentId: Number(comment.id),
       postId: Number(comment.post_id),
       text: comment.text,
+      createdAt: comment.created_at ?? null,
     }))
     const commentIds = commentRows.map((item) => item.commentId)
     const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
-    const activityTargetIds = [...new Set([...postIds, ...commentIds])]
+    const trackedActivityPostIds = [...new Set([...postIds, ...uniquePostIds])]
+    const activityTargetIds = [
+      ...new Set([...trackedActivityPostIds, ...commentIds]),
+    ]
 
     const [
       commentPostsRes,
@@ -6519,11 +6523,11 @@ export default function MatnyaApp() {
             .eq('actor_key', actorKey)
             .in('target_id', activityTargetIds)
         : Promise.resolve({ data: [], error: null } as any),
-      postIds.length > 0
+      trackedActivityPostIds.length > 0
         ? supabase
             .from('comments')
             .select('id, post_id, author_key, created_at')
-            .in('post_id', postIds)
+            .in('post_id', trackedActivityPostIds)
             .neq('status', 'deleted')
         : Promise.resolve({ data: [], error: null } as any),
       commentIds.length > 0
@@ -6584,20 +6588,61 @@ export default function MatnyaApp() {
 
     const totalReplyCountMap = new Map<number, number>()
     const newReplyCountMap = new Map<number, number>()
-    ;(replyReactionsRes.data ?? []).forEach((row: any) => {
-      const commentId = Number(row.comment_id)
-      const seenAt = readMap.get(`comment:${commentId}`)
-      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
-      const seenTime = seenAt ? new Date(seenAt).getTime() : 0
-      const isOtherUser = String(row.reactor_key ?? '') !== String(actorKey)
+
+    // 현재 버전은 대댓글이 없으므로, 내댓글 탭의 새 반응은
+    // "내가 댓글 단 글에 새로 붙은 다른 사람 댓글" 기준으로 계산한다.
+    // 읽음 처리도 내글 탭과 동일하게 post 단위(user_activity_reads target_type='post')로 맞춘다.
+    const myCommentPostMap = new Map<
+      number,
+      { commentId: number; createdAt: string | null }
+    >()
+    commentRows.forEach((comment) => {
+      const prev = myCommentPostMap.get(comment.postId)
+      if (!prev) {
+        myCommentPostMap.set(comment.postId, {
+          commentId: comment.commentId,
+          createdAt: comment.createdAt ?? null,
+        })
+        return
+      }
+
+      const prevTime = prev.createdAt ? new Date(prev.createdAt).getTime() : 0
+      const nextTime = comment.createdAt
+        ? new Date(comment.createdAt).getTime()
+        : 0
+      if (nextTime > prevTime) {
+        myCommentPostMap.set(comment.postId, {
+          commentId: comment.commentId,
+          createdAt: comment.createdAt ?? null,
+        })
+      }
+    })
+    ;(postCommentsRes.data ?? []).forEach((row: any) => {
+      const postId = Number(row.post_id)
+      const target = myCommentPostMap.get(postId)
+      if (!target) return
+
+      const rowTime = row.created_at ? new Date(row.created_at).getTime() : 0
+      const myCommentTime = target.createdAt
+        ? new Date(target.createdAt).getTime()
+        : 0
+      const seenAt = readMap.get(`post:${postId}`)
+      const seenTime = seenAt ? new Date(seenAt).getTime() : myCommentTime
+      const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
+
+      // 내가 댓글을 단 이후에 붙은 다른 사람 댓글만 내댓글 탭 반응으로 본다.
+      if (!isOtherUser || rowTime <= myCommentTime) return
+
       totalReplyCountMap.set(
-        commentId,
-        Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
+        target.commentId,
+        Number(totalReplyCountMap.get(target.commentId) ?? 0) + 1,
       )
-      if (!isOtherUser || createdAt <= seenTime) return
+
+      if (rowTime <= seenTime) return
+
       newReplyCountMap.set(
-        commentId,
-        Number(newReplyCountMap.get(commentId) ?? 0) + 1,
+        target.commentId,
+        Number(newReplyCountMap.get(target.commentId) ?? 0) + 1,
       )
     })
 
@@ -6663,29 +6708,25 @@ export default function MatnyaApp() {
   const markAllMyCommentsSeen = useCallback(async () => {
     if (!currentRawActorKey) return
 
-    const targetCommentIds = myComments
-      .map((item) => Number(item.commentId))
-      .filter(Boolean)
+    // 내댓글은 대댓글이 아니라 "내가 댓글 단 글의 새 댓글"을 보는 구조다.
+    // 따라서 내글 탭과 똑같이 post 단위로 읽음 처리해야 한다.
+    const targetPostIds = [
+      ...new Set(
+        myComments
+          .filter((item) => Number(item.newRepliesCount ?? 0) > 0)
+          .map((item) => Number(item.postId))
+          .filter(Boolean),
+      ),
+    ]
 
-    if (targetCommentIds.length === 0) return
+    if (targetPostIds.length === 0) return
 
     const seenAt = new Date().toISOString()
-
-    // 화면에서 먼저 즉시 읽음 처리한다.
-    // DB 반영이 살짝 늦어도 버튼을 누른 사용자는 바로 피드백을 받아야 한다.
-    setMyComments((prev) =>
-      prev.map((item) => ({
-        ...item,
-        hasNewReplies: false,
-        newRepliesCount: 0,
-      })),
-    )
-
     const { error } = await supabase.from('user_activity_reads').upsert(
-      targetCommentIds.map((commentId) => ({
+      targetPostIds.map((postId) => ({
         actor_key: currentRawActorKey,
-        target_type: 'comment',
-        target_id: commentId,
+        target_type: 'post',
+        target_id: postId,
         last_seen_at: seenAt,
       })),
       { onConflict: 'actor_key,target_type,target_id' },
@@ -6693,14 +6734,11 @@ export default function MatnyaApp() {
 
     if (error) {
       console.error('내 댓글 전체 읽음 처리 실패', error)
-      showToast('읽음 처리 실패')
-      void fetchMyActivity(currentRawActorKey)
       return
     }
 
-    showToast('내 댓글 새 반응 전체 읽음')
     void fetchMyActivity(currentRawActorKey)
-  }, [currentRawActorKey, fetchMyActivity, myComments, showToast])
+  }, [currentRawActorKey, fetchMyActivity, myComments])
 
   const fetchDeletedItems = useCallback(async () => {
     const { data: deletedPostsData, error: deletedPostsError } = await supabase
