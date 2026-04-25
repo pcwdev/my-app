@@ -7540,9 +7540,11 @@ ${shareUrl}`)
     if (!currentPost) {
       return {
         topComment: null as CommentItem | null,
-        counterComment: null as CommentItem | null,
+        rebuttalComment: null as CommentItem | null,
         topCommentScore: 0,
-        counterCommentScore: 0,
+        rebuttalScore: 0,
+        rebuttalReplyCount: 0,
+        rebuttalReactionCount: 0,
       }
     }
 
@@ -7550,33 +7552,47 @@ ${shareUrl}`)
       (comment) => !comment.hidden && comment.text.trim().length > 0,
     )
 
-    const getCommentReactionScore = (comment: CommentItem) => {
+    const replyCountByCommentId = visibleComments.reduce<
+      Record<number, number>
+    >((acc, comment) => {
+      const parentId = Number(comment.replyToCommentId ?? 0)
+      if (parentId > 0) {
+        acc[parentId] = Number(acc[parentId] ?? 0) + 1
+      }
+      return acc
+    }, {})
+
+    const getCommentArenaScore = (comment: CommentItem) => {
       const summary =
         commentReactionMap[comment.id] ?? EMPTY_COMMENT_REACTION_SUMMARY
 
-      // 댓글 모달의 '공감' 버튼은 comment.likes가 아니라
-      // comment_reactions.relatable에 저장된다.
-      // 그래서 아레나의 '가장 뜨거운 댓글'도 likes만 보면 안 되고
-      // 실제 반응 테이블 기준 점수를 함께 봐야 한다.
       const supportiveTotal =
         Number(comment.likes ?? 0) +
         Number(summary.relatable ?? 0) +
         Number(summary.agree ?? 0) +
         Number(summary.wow ?? 0)
 
-      const conflictTotal =
+      const rebuttalReactionTotal =
         Number(summary.disagree ?? 0) + Number(summary.absurd ?? 0)
+
+      const directReplyCount = Number(replyCountByCommentId[comment.id] ?? 0)
+      const totalReaction = supportiveTotal + rebuttalReactionTotal
 
       return {
         supportiveTotal,
-        conflictTotal,
-        total: supportiveTotal + conflictTotal,
+        rebuttalReactionTotal,
+        directReplyCount,
+        total: totalReaction + directReplyCount,
+        // 베스트 반박은 "가장 뜨거운 댓글에 달린 대댓글"이 아니라
+        // 실제로 반박 반응이 많이 꽂혔거나, 반박 대댓글이 많이 달린 댓글이다.
+        rebuttalScore:
+          rebuttalReactionTotal * 10 + directReplyCount * 4 + totalReaction,
       }
     }
 
     const sortByHotScore = (a: CommentItem, b: CommentItem) => {
-      const aScore = getCommentReactionScore(a)
-      const bScore = getCommentReactionScore(b)
+      const aScore = getCommentArenaScore(a)
+      const bScore = getCommentArenaScore(b)
 
       if (bScore.supportiveTotal !== aScore.supportiveTotal) {
         return bScore.supportiveTotal - aScore.supportiveTotal
@@ -7589,38 +7605,57 @@ ${shareUrl}`)
       return b.id - a.id
     }
 
-    const topComment = [...visibleComments].sort(sortByHotScore)[0] ?? null
+    const sortByRebuttalScore = (a: CommentItem, b: CommentItem) => {
+      const aScore = getCommentArenaScore(a)
+      const bScore = getCommentArenaScore(b)
 
-    if (!topComment) {
-      return {
-        topComment: null as CommentItem | null,
-        counterComment: null as CommentItem | null,
-        topCommentScore: 0,
-        counterCommentScore: 0,
+      if (bScore.rebuttalScore !== aScore.rebuttalScore) {
+        return bScore.rebuttalScore - aScore.rebuttalScore
       }
+
+      if (bScore.rebuttalReactionTotal !== aScore.rebuttalReactionTotal) {
+        return bScore.rebuttalReactionTotal - aScore.rebuttalReactionTotal
+      }
+
+      if (bScore.directReplyCount !== aScore.directReplyCount) {
+        return bScore.directReplyCount - aScore.directReplyCount
+      }
+
+      return b.id - a.id
     }
 
-    const directReplies = visibleComments.filter(
-      (comment) => comment.replyToCommentId === topComment.id,
-    )
+    const topComment = [...visibleComments].sort(sortByHotScore)[0] ?? null
 
-    // 베스트 반박은 실제 replyToCommentId로 연결된 댓글만 인정한다.
-    // 반대편 댓글을 임의로 고르지 않는다.
-    const counterComment = [...directReplies].sort(sortByHotScore)[0] ?? null
+    const rebuttalComment =
+      [...visibleComments]
+        .filter((comment) => {
+          const score = getCommentArenaScore(comment)
+          return score.rebuttalReactionTotal > 0 || score.directReplyCount > 0
+        })
+        .sort(sortByRebuttalScore)[0] ?? null
+
+    const rebuttalMeta = rebuttalComment
+      ? getCommentArenaScore(rebuttalComment)
+      : null
 
     return {
       topComment,
-      counterComment,
-      topCommentScore: getCommentReactionScore(topComment).supportiveTotal,
-      counterCommentScore: counterComment
-        ? getCommentReactionScore(counterComment).supportiveTotal
+      rebuttalComment,
+      topCommentScore: topComment
+        ? getCommentArenaScore(topComment).supportiveTotal
         : 0,
+      rebuttalScore: rebuttalMeta?.rebuttalScore ?? 0,
+      rebuttalReplyCount: rebuttalMeta?.directReplyCount ?? 0,
+      rebuttalReactionCount: rebuttalMeta?.rebuttalReactionTotal ?? 0,
     }
   }, [currentPost, commentReactionMap])
   const dopamineTopComment = dopamineCommentArena.topComment
-  const dopamineCounterComment = dopamineCommentArena.counterComment
+  const dopamineCounterComment = dopamineCommentArena.rebuttalComment
   const dopamineTopCommentScore = dopamineCommentArena.topCommentScore
-  const dopamineCounterCommentScore = dopamineCommentArena.counterCommentScore
+  const dopamineCounterCommentScore = dopamineCommentArena.rebuttalScore
+  const dopamineCounterReactionCount =
+    dopamineCommentArena.rebuttalReactionCount
+  const dopamineCounterReplyCount = dopamineCommentArena.rebuttalReplyCount
   const dopamineLiveEvents = useMemo(() => {
     if (!currentPost) return [] as string[]
     const events: string[] = []
@@ -10836,14 +10871,14 @@ ${shareUrl}`)
                               className="w-full rounded-2xl border border-blue-100 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(59,130,246,0.08)]"
                             >
                               <div className="text-[11px] font-black tracking-[0.14em] text-blue-500">
-                                🥊 베스트 반박
+                                🥊 반박 많이 받은 댓글
                               </div>
                               <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
                                 “{dopamineCounterComment.text}”
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                공감 {dopamineCounterCommentScore} · 연결된 반박
-                                보기
+                                반박 {dopamineCounterReactionCount} · 대댓글{' '}
+                                {dopamineCounterReplyCount} · 해당 댓글 보기
                               </div>
                             </button>
                           ) : null}
