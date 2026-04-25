@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
-  Bell,
   Eye,
   Flag,
   Flame,
@@ -11281,7 +11280,10 @@ ${shareUrl}`)
 
                   <div className="flex shrink-0 items-center gap-1.5 self-start">
                     <button
-                      onClick={openWatchlistActivity}
+                      onClick={() => {
+                        openWatchlistActivity()
+                        void loadNotificationEvents()
+                      }}
                       className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
                     >
                       <span className="text-xs">
@@ -11290,27 +11292,9 @@ ${shareUrl}`)
                       <span className="text-[11px] font-black sm:text-xs">
                         Lv.{levelInfo.level}
                       </span>
-                      {unreadActivityBadgeCount > 0 ? (
+                      {unreadActivityBadgeCount + unreadNotificationCount >
+                      0 ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                      ) : null}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setNotificationOpen(true)
-                        void loadNotificationEvents()
-                      }}
-                      className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
-                      aria-label="알림"
-                      title="알림"
-                    >
-                      <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-                      {unreadNotificationCount > 0 ? (
-                        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
-                          {unreadNotificationCount > 9
-                            ? '9+'
-                            : unreadNotificationCount}
-                        </span>
                       ) : null}
                     </button>
 
