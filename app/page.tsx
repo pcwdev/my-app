@@ -7938,72 +7938,137 @@ ${shareUrl}`)
   const [liveTickerIndex, setLiveTickerIndex] = useState(0)
 
   const liveTickerItems = useMemo(() => {
-    return discoveryTopPosts.slice(0, 3).map((item, index) => {
-      const hotMeta = hotScoreMap[item.id]
-      const turningMeta = turningPointMap[item.id]
-      const tension = postTensionMap[item.id]
-      const tensionMeta = getTensionMeta(tension)
-      const totalVotes =
-        Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
-      const commentBurst = Number(hotMeta?.comment1h ?? 0)
-      const voteBurst = Number(hotMeta?.vote1h ?? 0)
-      const turningLabel = getTurningPointLabel(turningMeta?.eventLabel)
-      const hotBadgeLabel = getHotBadge(hotMeta)?.label
-      const emotionLabel =
-        turningLabel ??
-        (tension?.isFlipImminent ? tensionMeta.label : null) ??
-        hotBadgeLabel ??
-        '👀 반응 붙는 중'
+    const sourcePosts = [...posts]
+      .filter((post) => !post.hidden)
+      .map((item) => {
+        const hotMeta = hotScoreMap[item.id]
+        const turningMeta = turningPointMap[item.id]
+        const tension = postTensionMap[item.id]
+        const fallbackTension = buildPostTensionState(
+          item.id,
+          item.leftVotes,
+          item.rightVotes,
+        )
+        const effectiveTension = tension ?? fallbackTension
+        const tensionMeta = getTensionMeta(effectiveTension)
+        const totalVotes =
+          Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
+        const commentCount = Number(item.comments?.length ?? 0)
+        const commentBurst = Number(hotMeta?.comment1h ?? 0)
+        const voteBurst = Number(hotMeta?.vote1h ?? 0)
+        const shareBurst = Number(hotMeta?.share24h ?? 0)
+        const viewBurst = Number(hotMeta?.view1h ?? 0)
+        const turningLabel = getTurningPointLabel(turningMeta?.eventLabel)
+        const hotBadgeLabel = getHotBadge(hotMeta)?.label
+        const isBrawl =
+          effectiveTension.tensionType === 'brawl' ||
+          effectiveTension.tensionType === 'tight' ||
+          effectiveTension.isFlipImminent
 
-      const shortMetric = turningLabel
-        ? '방금 판 뒤집힘'
-        : tension?.isFlipImminent
-          ? '지금 네 한 표가 흐름 바꿀 수 있음'
-          : commentBurst >= 8
-            ? `댓글 ${commentBurst}개 확 붙음`
-            : voteBurst >= 1
-              ? `지금 ${voteBurst}명 붙는 중`
-              : totalVotes >= 1
-                ? `현재 ${totalVotes}명 참여중`
-                : '첫 반응 기다리는 중'
+        const emotionLabel =
+          turningLabel ??
+          (effectiveTension.isFlipImminent ? tensionMeta.label : null) ??
+          (isBrawl ? tensionMeta.label : null) ??
+          hotBadgeLabel ??
+          (commentCount >= 5 ? '💬 댓글 붙는 중' : null) ??
+          '👀 반응 붙는 중'
 
-      const liveBadgeLabel =
-        turningLabel != null
-          ? '방금 뒤집힘'
-          : tension?.isFlipImminent
-            ? '역전 임박'
-            : commentBurst >= 8
-              ? '댓글 폭발'
-              : voteBurst >= 8
-                ? '지금 뜨는 판'
-                : '실시간 논쟁'
+        const liveBadgeLabel =
+          turningLabel != null
+            ? '방금 뒤집힘'
+            : effectiveTension.isFlipImminent
+              ? '역전 임박'
+              : effectiveTension.tensionType === 'brawl'
+                ? '개싸움'
+                : commentBurst >= 8 || commentCount >= 8
+                  ? '댓글 폭발'
+                  : shareBurst >= 3
+                    ? '퍼지는 중'
+                    : voteBurst >= 8 || totalVotes >= 20
+                      ? '지금 뜨는 판'
+                      : '실시간 논쟁'
 
-      const rankToneClass =
+        const shortMetric =
+          turningLabel != null
+            ? '방금 판이 흔들렸음'
+            : effectiveTension.isFlipImminent
+              ? '한 표만 더 오면 뒤집힐 수 있음'
+              : effectiveTension.tensionType === 'brawl'
+                ? '의견이 거의 반반으로 갈리는 중'
+                : commentBurst >= 8 || commentCount >= 8
+                  ? '댓글 싸움이 붙는 중'
+                  : shareBurst >= 3
+                    ? '친구 공유로 번지는 중'
+                    : viewBurst >= 20
+                      ? '사람들이 계속 보는 중'
+                      : '선택하면 분위기가 바로 공개됨'
+
+        const score =
+          Number(hotMeta?.score ?? 0) +
+          commentBurst * 9 +
+          voteBurst * 5 +
+          shareBurst * 7 +
+          viewBurst * 2 +
+          commentCount * 3 +
+          totalVotes * 1.2 +
+          (turningLabel ? 120 : 0) +
+          (effectiveTension.isFlipImminent ? 100 : 0) +
+          (effectiveTension.tensionType === 'brawl' ? 80 : 0) +
+          (effectiveTension.tensionType === 'tight' ? 50 : 0)
+
+        return {
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          shortMetric,
+          emotionLabel,
+          liveBadgeLabel,
+          score,
+          signalType:
+            turningLabel != null
+              ? 'flip'
+              : effectiveTension.isFlipImminent
+                ? 'imminent'
+                : effectiveTension.tensionType === 'brawl'
+                  ? 'brawl'
+                  : commentBurst >= 8 || commentCount >= 8
+                    ? 'comment'
+                    : 'hot',
+        }
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+
+    return sourcePosts.map((item, index) => ({
+      ...item,
+      rank: index + 1,
+      rankToneClass:
         index === 0
           ? 'text-rose-600'
           : index === 1
             ? 'text-violet-600'
-            : 'text-sky-600'
+            : 'text-sky-600',
+    }))
+  }, [hotScoreMap, postTensionMap, posts, turningPointMap])
 
-      return {
-        id: item.id,
-        rank: index + 1,
-        title: item.title,
-        category: item.category,
-        shortMetric,
-        emotionLabel,
-        liveBadgeLabel,
-        rankToneClass,
-      }
-    })
-  }, [discoveryTopPosts, hotScoreMap, postTensionMap, turningPointMap])
+  const liveOperationStats = useMemo(() => {
+    const topItems = liveTickerItems.slice(0, 10)
+    return {
+      hot: topItems.filter((item) => item.signalType === 'hot').length,
+      flip: topItems.filter(
+        (item) => item.signalType === 'flip' || item.signalType === 'imminent',
+      ).length,
+      brawl: topItems.filter((item) => item.signalType === 'brawl').length,
+      comment: topItems.filter((item) => item.signalType === 'comment').length,
+    }
+  }, [liveTickerItems])
 
   useEffect(() => {
     if (liveTickerItems.length <= 1) return
 
     const timer = window.setInterval(() => {
       setLiveTickerIndex((prev) => (prev + 1) % liveTickerItems.length)
-    }, 2400)
+    }, 3200)
 
     return () => window.clearInterval(timer)
   }, [liveTickerItems])
@@ -9966,6 +10031,34 @@ ${shareUrl}`)
                   </div>
                 </div>
 
+                <div className="relative mt-4 grid grid-cols-3 gap-1.5">
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50/80 px-3 py-2 text-center">
+                    <div className="text-[10px] font-black text-rose-500">
+                      LIVE
+                    </div>
+                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                      갈리는 판{' '}
+                      {liveOperationStats.brawl || liveOperationStats.hot || 1}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-center">
+                    <div className="text-[10px] font-black text-amber-600">
+                      FLIP
+                    </div>
+                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                      역전 신호 {liveOperationStats.flip || 'ON'}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2 text-center">
+                    <div className="text-[10px] font-black text-blue-600">
+                      COMMENT
+                    </div>
+                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                      댓글 붙는 중
+                    </div>
+                  </div>
+                </div>
+
                 <div className="relative mt-4 grid grid-cols-3 gap-1.5 rounded-[22px] border border-slate-200/70 bg-slate-100/80 p-1.5">
                   {(
                     [
@@ -9999,26 +10092,57 @@ ${shareUrl}`)
           </header>
 
           <main className="px-4 pb-32 pt-2">
-            {liveTickerItems.length > 0 ? (
-              <div className="mb-3 overflow-hidden rounded-[28px] border border-white/90 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_48%,#fff6f7_100%)] shadow-[0_18px_38px_rgba(79,124,255,0.12)]">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#4f7cff_0%,#7c5cff_100%)] px-3 py-1.5 text-[11px] font-black tracking-[0.06em] text-white shadow-[0_10px_24px_rgba(79,124,255,0.24)]">
+            {activeLiveTickerItem ? (
+              <div className="mb-3 overflow-hidden rounded-[30px] border border-white/90 bg-[radial-gradient(circle_at_top_left,rgba(79,124,255,0.16),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fbff_44%,#fff7f7_100%)] shadow-[0_22px_52px_rgba(79,124,255,0.14)]">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100/80 px-4 py-3">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)]">
                     <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70 opacity-80" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-80" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
                     </span>
-                    LIVE TOP 3
+                    LIVE 사건 피드
                   </div>
                   <button
                     type="button"
                     onClick={handleLiveTickerOpen}
-                    className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-600"
+                    className="rounded-full border border-rose-100 bg-white px-3 py-1 text-[11px] font-black text-rose-600 shadow-[0_8px_18px_rgba(244,63,94,0.08)]"
                   >
-                    지금 터지는 판
+                    지금 보기
                   </button>
                 </div>
 
-                <div className="divide-y divide-slate-100">
+                <button
+                  type="button"
+                  onClick={handleLiveTickerOpen}
+                  className="block w-full px-4 py-4 text-left transition hover:bg-white/60"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_100%)] text-[15px] font-black text-white shadow-[0_12px_28px_rgba(244,63,94,0.28)]">
+                      {activeLiveTickerItem.rank}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="shrink-0 rounded-full bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] px-2.5 py-1 text-[10px] font-black text-white">
+                          {activeLiveTickerItem.liveBadgeLabel ?? '실시간 논쟁'}
+                        </span>
+                        <span className="truncate text-[11px] font-black tracking-[0.12em] text-slate-400">
+                          {activeLiveTickerItem.category}
+                        </span>
+                      </div>
+                      <div className="mt-2 line-clamp-2 text-[18px] font-black leading-[1.25] tracking-[-0.05em] text-slate-950">
+                        {activeLiveTickerItem.title}
+                      </div>
+                      <div className="mt-2 text-[12px] font-bold text-slate-500">
+                        {activeLiveTickerItem.shortMetric}
+                      </div>
+                    </div>
+                    <div className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-500">
+                      이동 ›
+                    </div>
+                  </div>
+                </button>
+
+                <div className="grid grid-cols-3 gap-1.5 border-t border-slate-100/80 p-2">
                   {liveTickerItems.slice(0, 3).map((item, index) => {
                     const active = index === liveTickerIndex
                     return (
@@ -10028,65 +10152,36 @@ ${shareUrl}`)
                         onClick={() => {
                           setLiveTickerIndex(index)
                           requestCurrentPostFocus()
-                          runKakaoSafeTransition(() => {
-                            const nextIndex = filteredPosts.findIndex(
-                              (post) => post.id === item.id,
-                            )
-                            if (nextIndex >= 0) setCurrentIndex(nextIndex)
-                          })
-                          refreshWatchlistSignalsAfterAction(120)
+                          moveToPostWithGuard(item.id)
                         }}
-                        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${
-                          active ? 'bg-white' : 'bg-white/50 hover:bg-white'
+                        className={`min-w-0 rounded-[18px] border px-2.5 py-2.5 text-left transition ${
+                          active
+                            ? 'border-[#4f7cff] bg-white shadow-[0_10px_22px_rgba(79,124,255,0.16)] scale-[1.02]'
+                            : 'border-slate-100 bg-white/60 hover:bg-white'
                         }`}
                       >
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl text-[12px] font-black ${
-                            index === 0
-                              ? 'bg-rose-500 text-white shadow-[0_8px_18px_rgba(244,63,94,0.24)]'
-                              : index === 1
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="shrink-0 rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black text-white">
-                              {item.liveBadgeLabel ??
-                                item.emotionLabel ??
-                                '논쟁중'}
-                            </span>
-                            <span className="truncate text-[14px] font-black tracking-[-0.03em] text-slate-950">
-                              {item.title}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-slate-500">
-                            <span className="shrink-0">{item.category}</span>
-                            <span className="text-slate-300">·</span>
-                            <span className="truncate">{item.shortMetric}</span>
-                          </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                              active
+                                ? 'bg-[#4f7cff] text-white'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                          <span className="truncate text-[10px] font-black text-slate-500">
+                            {item.liveBadgeLabel}
+                          </span>
                         </div>
-                        <span className="shrink-0 text-[16px]">›</span>
+                        <div className="mt-1 line-clamp-2 text-[11px] font-black leading-[1.25] tracking-[-0.04em] text-slate-900">
+                          {item.title}
+                        </div>
                       </button>
                     )
                   })}
                 </div>
               </div>
-            ) : activeLiveTickerItem ? (
-              <button
-                type="button"
-                onClick={handleLiveTickerOpen}
-                className="mb-3 flex w-full items-center gap-3 rounded-[24px] border border-white/90 bg-white/92 px-4 py-3 text-left shadow-[0_12px_28px_rgba(79,124,255,0.10)]"
-              >
-                <span className="rounded-full bg-[#4f7cff] px-3 py-1 text-[11px] font-black text-white">
-                  LIVE
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-black text-slate-950">
-                  {activeLiveTickerItem.title}
-                </span>
-              </button>
             ) : null}
 
             {newPostNoticeCount > 0 ? (
@@ -10110,7 +10205,7 @@ ${shareUrl}`)
             ) : null}
 
             <div
-              key={`${currentPost?.id ?? 'empty'}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
+              key={`${currentPost.id}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
               ref={currentPostCardRef}
               tabIndex={-1}
               className={`relative overflow-hidden rounded-[34px] border bg-white p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
