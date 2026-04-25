@@ -6664,13 +6664,23 @@ export default function MatnyaApp() {
     if (!currentRawActorKey) return
 
     const targetCommentIds = myComments
-      .filter((item) => Number(item.newRepliesCount ?? 0) > 0)
       .map((item) => Number(item.commentId))
       .filter(Boolean)
 
     if (targetCommentIds.length === 0) return
 
     const seenAt = new Date().toISOString()
+
+    // 화면에서 먼저 즉시 읽음 처리한다.
+    // DB 반영이 살짝 늦어도 버튼을 누른 사용자는 바로 피드백을 받아야 한다.
+    setMyComments((prev) =>
+      prev.map((item) => ({
+        ...item,
+        hasNewReplies: false,
+        newRepliesCount: 0,
+      })),
+    )
+
     const { error } = await supabase.from('user_activity_reads').upsert(
       targetCommentIds.map((commentId) => ({
         actor_key: currentRawActorKey,
@@ -6683,11 +6693,14 @@ export default function MatnyaApp() {
 
     if (error) {
       console.error('내 댓글 전체 읽음 처리 실패', error)
+      showToast('읽음 처리 실패')
+      void fetchMyActivity(currentRawActorKey)
       return
     }
 
+    showToast('내 댓글 새 반응 전체 읽음')
     void fetchMyActivity(currentRawActorKey)
-  }, [currentRawActorKey, fetchMyActivity, myComments])
+  }, [currentRawActorKey, fetchMyActivity, myComments, showToast])
 
   const fetchDeletedItems = useCallback(async () => {
     const { data: deletedPostsData, error: deletedPostsError } = await supabase
