@@ -6560,7 +6560,7 @@ export default function MatnyaApp() {
       if (!currentActorUnifiedKey) return
 
       const prev = streakMap[streakType]
-      const nextRow: UserStreakRow = {
+      const optimisticRow: UserStreakRow = {
         streakType,
         currentCount: nextCount,
         bestCount: Math.max(prev?.bestCount ?? 0, nextCount),
@@ -6569,22 +6569,32 @@ export default function MatnyaApp() {
 
       setStreakMap((prevMap) => ({
         ...prevMap,
-        [streakType]: nextRow,
+        [streakType]: optimisticRow,
       }))
 
-      const { error } = await supabase.from('user_streaks').upsert(
-        {
-          actor_key: currentActorUnifiedKey,
-          streak_type: streakType,
-          current_count: nextRow.currentCount,
-          best_count: nextRow.bestCount,
-          last_action_at: nextRow.lastActionAt,
-        },
-        { onConflict: 'actor_key,streak_type' },
-      )
+      const { data, error } = await supabase.rpc('rpc_upsert_user_streak', {
+        p_actor_key: currentActorUnifiedKey,
+        p_streak_type: streakType,
+        p_next_count: nextCount,
+      })
 
       if (error) {
         console.error('streak 업데이트 실패', error)
+        return
+      }
+
+      if (data) {
+        const row = data as any
+
+        setStreakMap((prevMap) => ({
+          ...prevMap,
+          [streakType]: {
+            streakType,
+            currentCount: Number(row.current_count ?? nextCount),
+            bestCount: Number(row.best_count ?? optimisticRow.bestCount),
+            lastActionAt: row.last_action_at ?? optimisticRow.lastActionAt,
+          },
+        }))
       }
     },
     [currentActorUnifiedKey, streakMap],
@@ -6596,7 +6606,7 @@ export default function MatnyaApp() {
       const currentVoterKey = currentUserId ? null : voterKey
       if (!currentUserId && !currentVoterKey) return
 
-      const nextStats = normalizeStats({
+      const optimisticStats = normalizeStats({
         ...stats,
         user_id: currentUserId,
         voter_key: currentVoterKey,
@@ -6609,35 +6619,46 @@ export default function MatnyaApp() {
           stats.likes_received + Number(delta.likes_received ?? 0),
       })
 
-      const nextLevelInfo = getLevelInfo(nextStats.points)
-      nextStats.level = nextLevelInfo.level
+      optimisticStats.level = getLevelInfo(optimisticStats.points).level
+      setStats(optimisticStats)
 
-      setStats(nextStats)
+      const { data, error } = await supabase.rpc(
+        'rpc_increment_user_progress',
+        {
+          p_user_id: currentUserId,
+          p_voter_key: currentVoterKey,
+          p_points_delta: Number(delta.points ?? 0),
+          p_votes_delta: Number(delta.votes_count ?? 0),
+          p_comments_delta: Number(delta.comments_count ?? 0),
+          p_posts_delta: Number(delta.posts_count ?? 0),
+          p_likes_received_delta: Number(delta.likes_received ?? 0),
+        },
+      )
 
-      let query = supabase.from('user_stats').update({
-        points: nextStats.points,
-        level: nextStats.level,
-        votes_count: nextStats.votes_count,
-        comments_count: nextStats.comments_count,
-        posts_count: nextStats.posts_count,
-        likes_received: nextStats.likes_received,
-      })
-
-      query = currentUserId
-        ? query.eq('user_id', currentUserId)
-        : query.eq('voter_key', currentVoterKey)
-
-      const { error } = await query
       if (error) {
         console.error('포인트 업데이트 실패', error)
         return
       }
 
+      const returnedStats = data as
+        | Partial<UserStatsRow>
+        | Partial<UserStatsRow>[]
+        | null
+      const rpcStats = Array.isArray(returnedStats)
+        ? returnedStats[0]
+        : returnedStats
+
+      if (rpcStats) {
+        const nextStats = normalizeStats(rpcStats)
+        setStats(nextStats)
+        await awardBadgesFromStats(nextStats)
+      } else {
+        await awardBadgesFromStats(optimisticStats)
+      }
+
       if (rewardMessage) {
         showToast(rewardMessage)
       }
-
-      await awardBadgesFromStats(nextStats)
     },
     [authUser?.id, voterKey, stats, showToast, awardBadgesFromStats],
   )
