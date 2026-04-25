@@ -2134,7 +2134,7 @@ function ReportModal({
           </button>
           <button
             onClick={() => onSubmit(reason)}
-            className="rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
+            className="rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
           >
             신고 접수
           </button>
@@ -2169,7 +2169,7 @@ function AuthOptionalModal({
         <div className="space-y-2">
           <button
             onClick={onGoogleLogin}
-            className="w-full rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
+            className="w-full rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
           >
             구글로 시작
           </button>
@@ -2477,7 +2477,7 @@ function OutcomeWriteModal({
           </button>
           <button
             onClick={handleSubmit}
-            className="rounded-2xl bg-[#4f7cff] px-4 py-3 font-bold text-white"
+            className="rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
           >
             후기 등록
           </button>
@@ -4072,7 +4072,7 @@ function CommentModal({
                 onClick={() => void submitComment()}
                 aria-label="댓글 전송"
                 aria-disabled={!text.trim() || isSubmitting}
-                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-[0.98] ${text.trim() && !isSubmitting ? 'bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6f8fff_100%)] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]' : 'border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fb_100%)] text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]'}`}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-[0.98] ${text.trim() && !isSubmitting ? 'bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)]' : 'border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fb_100%)] text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]'}`}
               >
                 <Send className="h-[17px] w-[17px]" />
               </button>
@@ -4287,7 +4287,7 @@ function CreatePostModal({
         <div className="shrink-0 border-t border-slate-200 px-5 py-4">
           <button
             onClick={submit}
-            className="w-full rounded-2xl bg-[#4f7cff] px-4 py-4 font-bold text-white shadow-[0_16px_28px_rgba(79,124,255,0.24)]"
+            className="w-full rounded-2xl bg-slate-950 px-4 py-4 font-bold text-white shadow-[0_16px_28px_rgba(15,23,42,0.24)]"
           >
             글쓰기
           </button>
@@ -4724,7 +4724,7 @@ function ShareInboxModal({
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={() => onOpenItem(item)}
-                        className="rounded-[18px] bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_22px_rgba(79,124,255,0.16)]"
+                        className="rounded-[18px] bg-slate-950 text-white px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_22px_rgba(79,124,255,0.16)]"
                       >
                         결과 보기
                       </button>
@@ -10015,7 +10015,7 @@ ${shareUrl}`)
 
                     <button
                       onClick={openReportPost}
-                      className="hidden h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] sm:flex sm:h-10 sm:w-10"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
                       aria-label="신고"
                     >
                       <Flag className="h-5 w-5" />
@@ -10023,7 +10023,7 @@ ${shareUrl}`)
 
                     <button
                       onClick={() => setWriteOpen(true)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5b7cff_0%,#4268ff_100%)] text-white shadow-[0_14px_26px_rgba(79,124,255,0.30)] sm:h-10 sm:w-10"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_14px_26px_rgba(15,23,42,0.26)] transition active:scale-[0.96] sm:h-10 sm:w-10"
                       aria-label="글쓰기"
                     >
                       <Plus className="h-5 w-5" />
@@ -10538,7 +10538,7 @@ ${shareUrl}`)
                                     className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
                                       currentWatchlisted
                                         ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
-                                        : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)] text-slate-900'
+                                        : 'bg-slate-950 text-white text-slate-900'
                                     }`}
                                   >
                                     {currentWatchlisted
@@ -10838,7 +10838,7 @@ ${shareUrl}`)
                               <div className="grid grid-cols-2 gap-1.5">
                                 <button
                                   onClick={() => setShowOwnerShareResults(true)}
-                                  className={`rounded-[18px] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.16)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-[linear-gradient(135deg,#c7d2fe_0%,#93c5fd_100%)]'}`}
+                                  className={`rounded-[18px] px-4 py-3 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-slate-950 text-white'}`}
                                 >
                                   {ownerShareDelta > 0
                                     ? `결과 보기 +${ownerShareDelta}`
@@ -11151,7 +11151,7 @@ ${shareUrl}`)
 
                   <button
                     onClick={handleNextWithGuard}
-                    className="rounded-[18px] bg-[linear-gradient(135deg,#5b7cff_0%,#4f7cff_55%,#6d8fff_100%)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(79,124,255,0.22)]"
+                    className="rounded-[18px] bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition active:scale-[0.98]"
                   >
                     다음 글
                   </button>
