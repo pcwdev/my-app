@@ -2601,8 +2601,7 @@ function MyActivityModal({
   )
 
   const filteredMyPosts = postFilter === 'new' ? postsWithNew : myPosts
-  const filteredMyComments =
-    commentFilter === 'new' ? commentsWithNew : myComments
+  const filteredMyComments = commentFilter === 'new' ? commentsWithNew : myComments
 
   return (
     <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
@@ -2806,11 +2805,7 @@ function MyActivityModal({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
                   {[
-                    {
-                      key: 'new',
-                      label: '새 반응',
-                      count: postsWithNew.length,
-                    },
+                    { key: 'new', label: '새 반응', count: postsWithNew.length },
                     { key: 'all', label: '전체', count: myPosts.length },
                   ].map((item) => {
                     const active = postFilter === item.key
@@ -2827,9 +2822,7 @@ function MyActivityModal({
                         {item.label}
                         <span
                           className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                            active
-                              ? 'bg-white/20 text-white'
-                              : 'bg-white text-slate-500'
+                            active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
                           }`}
                         >
                           {item.count}
@@ -2855,20 +2848,14 @@ function MyActivityModal({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
                   {[
-                    {
-                      key: 'new',
-                      label: '새 반응',
-                      count: commentsWithNew.length,
-                    },
+                    { key: 'new', label: '새 반응', count: commentsWithNew.length },
                     { key: 'all', label: '전체', count: myComments.length },
                   ].map((item) => {
                     const active = commentFilter === item.key
                     return (
                       <button
                         key={item.key}
-                        onClick={() =>
-                          setCommentFilter(item.key as 'new' | 'all')
-                        }
+                        onClick={() => setCommentFilter(item.key as 'new' | 'all')}
                         className={`rounded-full px-3.5 py-2 text-[12px] font-bold transition ${
                           active
                             ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.22)]'
@@ -2878,9 +2865,7 @@ function MyActivityModal({
                         {item.label}
                         <span
                           className={`ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                            active
-                              ? 'bg-white/20 text-white'
-                              : 'bg-white text-slate-500'
+                            active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
                           }`}
                         >
                           {item.count}
@@ -2905,17 +2890,13 @@ function MyActivityModal({
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3.5 [webkit-overflow-scrolling:touch]">
           {tab === 'posts' && filteredMyPosts.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              {postFilter === 'new'
-                ? '아직 새 반응이 온 글이 없음'
-                : '아직 작성한 글이 없음'}
+              {postFilter === 'new' ? '아직 새 반응이 온 글이 없음' : '아직 작성한 글이 없음'}
             </div>
           ) : null}
 
           {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              {commentFilter === 'new'
-                ? '아직 새 반응이 온 댓글이 없음'
-                : '아직 작성한 댓글이 없음'}
+              {commentFilter === 'new' ? '아직 새 반응이 온 댓글이 없음' : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
 
@@ -2980,8 +2961,7 @@ function MyActivityModal({
                   ) : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">
-                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동
-                  이동
+                  새 소식을 누르면 먼저 보여주고, 확인한 글은 보관됨으로 자동 이동
                 </div>
               </div>
 
@@ -3276,6 +3256,7 @@ function CommentModal({
   currentActorKey,
   commentReactionMap,
   myCommentReactions,
+  initialHighlightCommentId,
   onReactComment,
   onExposeComments,
 }: {
@@ -3298,6 +3279,7 @@ function CommentModal({
   currentActorKey?: string | null
   commentReactionMap: Record<number, CommentReactionSummary>
   myCommentReactions: Record<string, boolean>
+  initialHighlightCommentId?: number | null
   onReactComment: (
     commentId: number,
     reactionType: CommentReactionType,
@@ -3666,6 +3648,30 @@ function CommentModal({
     [scrollCommentListToTop, sortedLeftRows, sortedRightRows],
   )
 
+  useEffect(() => {
+    if (!open || !post || !initialHighlightCommentId) return
+
+    const targetComment = (post.comments ?? []).find(
+      (comment) => !comment.hidden && comment.id === initialHighlightCommentId,
+    )
+
+    if (!targetComment) return
+
+    setActiveTab(targetComment.side)
+    setSortType('latest')
+    setVisibleCount(9999)
+    setPendingScrollId(targetComment.id)
+    setHighlightCommentId(targetComment.id)
+
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        setHighlightCommentId((prev) =>
+          prev === targetComment.id ? null : prev,
+        )
+      }, 3000)
+    }
+  }, [open, post, initialHighlightCommentId])
+
   const handleSortChange = useCallback(
     (nextSortType: 'best' | 'battle' | 'latest') => {
       setSortType(nextSortType)
@@ -4022,6 +4028,7 @@ function CommentModal({
         </div>
 
         <div className="shrink-0 border-t border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(246,249,255,0.9)_100%)] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+
           <div className="mx-auto max-w-md rounded-[22px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,250,255,0.92)_100%)] p-1.5 shadow-[0_12px_26px_rgba(15,23,42,0.09)] backdrop-blur-2xl">
             <div className="mb-1 text-[10px] font-semibold text-slate-400">
               반박 버튼 수는 바로 반영되고 내 활동에도 새 반박으로 잡힘
@@ -4918,6 +4925,7 @@ export default function MatnyaApp() {
 
   const [toast, setToast] = useState('')
   const [commentOpen, setCommentOpen] = useState(false)
+  const [commentInitialHighlightId, setCommentInitialHighlightId] = useState<number | null>(null)
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [activityInitialTab, setActivityInitialTab] = useState<
@@ -5844,6 +5852,8 @@ export default function MatnyaApp() {
 
     void fetchMyActivity(currentRawActorKey)
   }, [currentRawActorKey, fetchMyActivity, myComments])
+
+
 
   const fetchDeletedItems = useCallback(async () => {
     const { data: deletedPostsData, error: deletedPostsError } = await supabase
@@ -6825,9 +6835,9 @@ export default function MatnyaApp() {
     [currentActorUnifiedKey, refreshLightweightMetaNow],
   )
 
-  const refreshNewPostSignalsAfterAction = useCallback((delay = 140) => {
-    window.setTimeout(
-      async () => {
+  const refreshNewPostSignalsAfterAction = useCallback(
+    (delay = 140) => {
+      window.setTimeout(async () => {
         const { data, error } = await supabase
           .from('posts')
           .select('id')
@@ -6856,19 +6866,16 @@ export default function MatnyaApp() {
 
         if (latestTopId === previousTopId) return
 
-        const cutoffIndex = latestIds.findIndex(
-          (id: number) => id == previousTopId,
-        )
-        const unseenIds =
-          cutoffIndex >= 0 ? latestIds.slice(0, cutoffIndex) : latestIds
+        const cutoffIndex = latestIds.findIndex((id: number) => id == previousTopId)
+        const unseenIds = cutoffIndex >= 0 ? latestIds.slice(0, cutoffIndex) : latestIds
 
         if (unseenIds.length === 0) return
 
         setNewPostNoticeIds(unseenIds)
-      },
-      Math.max(80, delay),
-    )
-  }, [])
+      }, Math.max(80, delay))
+    },
+    [],
+  )
 
   const refreshWatchlistSignalsAfterAction = useCallback(
     (delay = 120) => {
@@ -6878,12 +6885,9 @@ export default function MatnyaApp() {
         requestLightweightMetaRefresh({ delay })
         refreshNewPostSignalsAfterAction(delay)
         if (currentRawActorKey) {
-          window.setTimeout(
-            () => {
-              void fetchMyActivity(currentRawActorKey)
-            },
-            Math.max(80, delay),
-          )
+          window.setTimeout(() => {
+            void fetchMyActivity(currentRawActorKey)
+          }, Math.max(80, delay))
         }
       }, 0)
     },
@@ -6896,26 +6900,25 @@ export default function MatnyaApp() {
     ],
   )
 
+
+
+
+
   const refreshPostCommentsAfterAction = useCallback(
     (postIds: Array<number | null | undefined>, delay = 120) => {
-      const uniquePostIds = [
-        ...new Set(
-          postIds
-            .map((id) => Number(id))
-            .filter((id) => Number.isFinite(id) && id > 0),
-        ),
-      ]
+      const uniquePostIds = [...new Set(
+        postIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      )]
 
       if (uniquePostIds.length === 0) return
 
-      window.setTimeout(
-        () => {
-          void Promise.all(
-            uniquePostIds.map((postId) => refreshCommentsForPost(postId)),
-          )
-        },
-        Math.max(60, delay),
-      )
+      window.setTimeout(() => {
+        void Promise.all(
+          uniquePostIds.map((postId) => refreshCommentsForPost(postId)),
+        )
+      }, Math.max(60, delay))
     },
     [refreshCommentsForPost],
   )
@@ -7496,6 +7499,7 @@ ${shareUrl}`)
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
+
   const currentTotalVotes = currentPost
     ? Number(currentPost.leftVotes ?? 0) + Number(currentPost.rightVotes ?? 0)
     : 0
@@ -7507,19 +7511,62 @@ ${shareUrl}`)
         ? currentPost.leftLabel
         : currentPost.rightLabel
     : '결과 대기'
-  const dopamineTopComments = useMemo(() => {
-    if (!currentPost) return [] as CommentItem[]
-    return [...currentPost.comments]
-      .filter((comment) => !comment.hidden && comment.text.trim().length > 0)
-      .sort((a, b) => {
-        const scoreA = Number(a.likes ?? 0) + (a.replyToCommentId ? 1 : 0)
-        const scoreB = Number(b.likes ?? 0) + (b.replyToCommentId ? 1 : 0)
-        return scoreB - scoreA
-      })
-      .slice(0, 2)
+  const dopamineCommentArena = useMemo(() => {
+    if (!currentPost) {
+      return {
+        topComment: null as CommentItem | null,
+        counterComment: null as CommentItem | null,
+      }
+    }
+
+    const visibleComments = [...currentPost.comments].filter(
+      (comment) => !comment.hidden && comment.text.trim().length > 0,
+    )
+
+    const scoreComment = (comment: CommentItem) =>
+      Number(comment.likes ?? 0) + (comment.replyToCommentId ? 2 : 0)
+
+    const topComment =
+      visibleComments
+        .sort((a, b) => {
+          const scoreDiff = scoreComment(b) - scoreComment(a)
+          if (scoreDiff !== 0) return scoreDiff
+          return b.id - a.id
+        })[0] ?? null
+
+    if (!topComment) {
+      return {
+        topComment: null as CommentItem | null,
+        counterComment: null as CommentItem | null,
+      }
+    }
+
+    const directReplies = visibleComments.filter(
+      (comment) => comment.replyToCommentId === topComment.id,
+    )
+    const oppositeSideComments = visibleComments.filter(
+      (comment) =>
+        comment.id !== topComment.id && comment.side !== topComment.side,
+    )
+
+    const counterComment =
+      [...directReplies, ...oppositeSideComments]
+        .filter((comment, index, arr) =>
+          arr.findIndex((item) => item.id === comment.id) === index,
+        )
+        .sort((a, b) => {
+          const scoreDiff = scoreComment(b) - scoreComment(a)
+          if (scoreDiff !== 0) return scoreDiff
+          return b.id - a.id
+        })[0] ?? null
+
+    return {
+      topComment,
+      counterComment,
+    }
   }, [currentPost])
-  const dopamineTopComment = dopamineTopComments[0] ?? null
-  const dopamineCounterComment = dopamineTopComments[1] ?? null
+  const dopamineTopComment = dopamineCommentArena.topComment
+  const dopamineCounterComment = dopamineCommentArena.counterComment
   const dopamineLiveEvents = useMemo(() => {
     if (!currentPost) return [] as string[]
     const events: string[] = []
@@ -7530,14 +7577,7 @@ ${shareUrl}`)
     if (latestOutcome) events.push('🔥 후기 떴다')
     if (events.length === 0) events.push('🔥 첫 판단 대기중')
     return events.slice(0, 3)
-  }, [
-    currentPost,
-    currentTension?.isFlipImminent,
-    currentMinorityLabel,
-    currentCommentCount,
-    currentWatchlisted,
-    latestOutcome,
-  ])
+  }, [currentPost, currentTension?.isFlipImminent, currentMinorityLabel, currentCommentCount, currentWatchlisted, latestOutcome])
   const dopamineResultTitle = currentMinorityLabel
     ? currentMinorityLabel.text
     : currentResultEmotion === '🔥 개싸움'
@@ -7550,7 +7590,7 @@ ${shareUrl}`)
             ? `지금은 ${currentWinnerLabel} 우세`
             : '선택하면 결과 열림'
   const dopamineResultHelper = votes[currentPost?.id ?? 0]
-    ? (currentMinorityLabel?.helper ?? currentTensionMeta.helper)
+    ? currentMinorityLabel?.helper ?? currentTensionMeta.helper
     : '먼저 고르면 사람들 생각이 바로 열림'
 
   useEffect(() => {
@@ -8023,8 +8063,7 @@ ${shareUrl}`)
         )
         const effectiveTension = tension ?? fallbackTension
         const tensionMeta = getTensionMeta(effectiveTension)
-        const totalVotes =
-          Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
+        const totalVotes = Number(item.leftVotes ?? 0) + Number(item.rightVotes ?? 0)
         const commentCount = Number(item.comments?.length ?? 0)
         const commentBurst = Number(hotMeta?.comment1h ?? 0)
         const voteBurst = Number(hotMeta?.vote1h ?? 0)
@@ -8832,9 +8871,7 @@ ${shareUrl}`)
   }
 
   const openNewestPostNotice = async () => {
-    const noticeIds = newPostNoticeIds.filter(
-      (id) => Number.isFinite(id) && id > 0,
-    )
+    const noticeIds = newPostNoticeIds.filter((id) => Number.isFinite(id) && id > 0)
     const newestPostId = noticeIds[0]
     if (!newestPostId) return
 
@@ -8845,23 +8882,21 @@ ${shareUrl}`)
     )
 
     if (missingIds.length > 0) {
-      const [
-        { data: postRows, error: postError },
-        { data: commentRows, error: commentsError },
-      ] = await Promise.all([
-        supabase
-          .from('posts')
-          .select('*')
-          .in('id', missingIds)
-          .neq('status', 'deleted')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('comments')
-          .select('*')
-          .in('post_id', missingIds)
-          .neq('status', 'deleted')
-          .order('created_at', { ascending: false }),
-      ])
+      const [{ data: postRows, error: postError }, { data: commentRows, error: commentsError }] =
+        await Promise.all([
+          supabase
+            .from('posts')
+            .select('*')
+            .in('id', missingIds)
+            .neq('status', 'deleted')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('comments')
+            .select('*')
+            .in('post_id', missingIds)
+            .neq('status', 'deleted')
+            .order('created_at', { ascending: false }),
+        ])
 
       if (postError) {
         console.error('새 글 이동용 게시글 조회 실패', postError)
@@ -8894,23 +8929,21 @@ ${shareUrl}`)
         hidden: Boolean(postRow.hidden ?? false),
         authorKey: postRow.author_key ?? null,
         views: Number(postRow.views ?? 0),
-        comments: (commentsByPostId.get(Number(postRow.id)) ?? []).map(
-          (comment: any) => ({
-            id: Number(comment.id),
-            author: comment.author,
-            authorKey: comment.author_key ?? null,
-            side: comment.side as Side,
-            text: comment.text,
-            likes: Number(comment.likes ?? 0),
-            reportCount: Number(comment.report_count ?? 0),
-            hidden: Boolean(comment.hidden ?? false),
-            createdAt: comment.created_at ?? null,
-            replyToCommentId:
-              comment.reply_to_comment_id != null
-                ? Number(comment.reply_to_comment_id)
-                : null,
-          }),
-        ),
+        comments: (commentsByPostId.get(Number(postRow.id)) ?? []).map((comment: any) => ({
+          id: Number(comment.id),
+          author: comment.author,
+          authorKey: comment.author_key ?? null,
+          side: comment.side as Side,
+          text: comment.text,
+          likes: Number(comment.likes ?? 0),
+          reportCount: Number(comment.report_count ?? 0),
+          hidden: Boolean(comment.hidden ?? false),
+          createdAt: comment.created_at ?? null,
+          replyToCommentId:
+            comment.reply_to_comment_id != null
+              ? Number(comment.reply_to_comment_id)
+              : null,
+        })),
       })) as PostItem[]
 
       const hydratedById = new Map<number, PostItem>()
@@ -8924,17 +8957,12 @@ ${shareUrl}`)
           .filter(Boolean) as PostItem[]
 
         const existingNoticePosts = noticeIds
-          .map((postId) =>
-            prev.find((post) => Number(post.id) === Number(postId)),
-          )
+          .map((postId) => prev.find((post) => Number(post.id) === Number(postId)))
           .filter(Boolean) as PostItem[]
 
-        const prepended =
-          orderedHydrated.length > 0 ? orderedHydrated : existingNoticePosts
+        const prepended = orderedHydrated.length > 0 ? orderedHydrated : existingNoticePosts
         const prependedIds = new Set(prepended.map((post) => Number(post.id)))
-        const remaining = prev.filter(
-          (post) => !prependedIds.has(Number(post.id)),
-        )
+        const remaining = prev.filter((post) => !prependedIds.has(Number(post.id)))
         return [...prepended, ...remaining]
       })
     }
@@ -10029,1456 +10057,1444 @@ ${shareUrl}`)
       <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900">
         <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col overflow-x-hidden bg-transparent">
           <header className="sticky top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3">
-            <div className="overflow-hidden rounded-[24px] border border-white/80 bg-white/94 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:rounded-[32px] sm:shadow-[0_18px_48px_rgba(15,23,42,0.09)]">
-              <div className="relative px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4">
-                <div className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-[#dbe7ff] blur-2xl" />
-                <div className="pointer-events-none absolute -left-10 top-8 h-28 w-28 rounded-full bg-rose-100/70 blur-2xl" />
+          <div className="overflow-hidden rounded-[24px] border border-white/80 bg-white/94 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:rounded-[32px] sm:shadow-[0_18px_48px_rgba(15,23,42,0.09)]">
+            <div className="relative px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4">
+              <div className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-[#dbe7ff] blur-2xl" />
+              <div className="pointer-events-none absolute -left-10 top-8 h-28 w-28 rounded-full bg-rose-100/70 blur-2xl" />
 
-                <div className="relative flex items-start justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      requestCurrentPostFocus()
-                      refreshWatchlistSignalsAfterAction(120)
-                    }}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="text-[31px] leading-none font-black tracking-[-0.08em] text-slate-950 sm:text-[44px]">
-                        맞냐
-                      </div>
-                      <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[9px] font-black tracking-[0.12em] text-white shadow-[0_8px_18px_rgba(15,23,42,0.20)] sm:px-2.5 sm:py-1 sm:text-[10px]">
-                        LIVE
-                      </span>
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-extrabold tracking-[-0.03em] text-slate-500 sm:mt-1 sm:text-[13px]">
-                      오늘 가장 많이 갈리는 이야기
-                    </div>
-                  </button>
-
-                  <div className="flex shrink-0 items-center gap-1.5 self-start">
-                    <button
-                      onClick={openWatchlistActivity}
-                      className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
-                    >
-                      <span className="text-xs">
-                        {getLevelTheme(levelInfo.level).icon}
-                      </span>
-                      <span className="text-[11px] font-black sm:text-xs">
-                        Lv.{levelInfo.level}
-                      </span>
-                      {unreadActivityBadgeCount > 0 ? (
-                        <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                      ) : null}
-                    </button>
-
-                    {isAdmin && (
-                      <button
-                        onClick={() => void handleAdminToggle()}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                          adminMode
-                            ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
-                            : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
-                        }`}
-                      >
-                        <Shield className="h-5 w-5" />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={openReportPost}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
-                      aria-label="신고"
-                    >
-                      <Flag className="h-5 w-5" />
-                    </button>
-
-                    <button
-                      onClick={() => setWriteOpen(true)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_14px_26px_rgba(15,23,42,0.26)] transition active:scale-[0.96] sm:h-10 sm:w-10"
-                      aria-label="글쓰기"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative mt-2 hidden grid-cols-3 gap-1.5 sm:mt-4 sm:grid">
-                  <div className="rounded-2xl border border-rose-100 bg-rose-50/80 px-3 py-2 text-center">
-                    <div className="text-[10px] font-black text-rose-500">
-                      LIVE
-                    </div>
-                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
-                      갈리는 판{' '}
-                      {liveOperationStats.brawl || liveOperationStats.hot || 1}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-center">
-                    <div className="text-[10px] font-black text-amber-600">
-                      FLIP
-                    </div>
-                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
-                      역전 신호 {liveOperationStats.flip || 'ON'}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2 text-center">
-                    <div className="text-[10px] font-black text-blue-600">
-                      COMMENT
-                    </div>
-                    <div className="mt-0.5 text-[12px] font-black text-slate-950">
-                      댓글 붙는 중
-                    </div>
-                  </div>
-                </div>
-
-                <div className="relative mt-2 grid grid-cols-3 gap-1 rounded-[18px] border border-slate-200/70 bg-slate-100/80 p-1 sm:mt-4 sm:gap-1.5 sm:rounded-[22px] sm:p-1.5">
-                  {(
-                    [
-                      { value: '추천', label: '🔥 HOT' },
-                      { value: '최신', label: '⚡ 방금' },
-                      { value: '인기', label: '🥊 개싸움' },
-                    ] as const
-                  ).map((item) => (
-                    <button
-                      key={item.value}
-                      onClick={() => {
-                        requestCurrentPostFocus()
-                        runKakaoSafeTransition(() => {
-                          setTab(item.value)
-                          setCurrentIndex(0)
-                        })
-                        refreshWatchlistSignalsAfterAction(120)
-                      }}
-                      className={`rounded-[14px] px-1.5 py-2 text-[12px] font-black tracking-[-0.03em] transition sm:rounded-[17px] sm:px-2 sm:py-2.5 sm:text-[13px] ${
-                        tab === item.value
-                          ? 'bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]'
-                          : 'bg-white/80 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="px-3 pb-28 pt-1.5 sm:px-4 sm:pb-32 sm:pt-2">
-            {activeLiveTickerItem ? (
-              <div className="mb-2 overflow-hidden rounded-[22px] border border-white/90 bg-[radial-gradient(circle_at_top_left,rgba(79,124,255,0.14),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fbff_44%,#fff7f7_100%)] shadow-[0_12px_30px_rgba(79,124,255,0.12)] sm:mb-3 sm:rounded-[30px] sm:shadow-[0_22px_52px_rgba(79,124,255,0.14)]">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100/80 px-3 py-2 sm:px-4 sm:py-3">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)]">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-80" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
-                    </span>
-                    LIVE
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleLiveTickerOpen}
-                    className="rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-black text-rose-600 shadow-[0_8px_18px_rgba(244,63,94,0.08)] sm:px-3 sm:text-[11px]"
-                  >
-                    지금 보기
-                  </button>
-                </div>
-
+              <div className="relative flex items-start justify-between gap-3">
                 <button
                   type="button"
-                  onClick={handleLiveTickerOpen}
-                  className="block w-full px-3 py-2.5 text-left transition hover:bg-white/60 sm:px-4 sm:py-4"
+                  onClick={() => {
+                    requestCurrentPostFocus()
+                    refreshWatchlistSignalsAfterAction(120)
+                  }}
+                  className="min-w-0 flex-1 text-left"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_100%)] text-[12px] font-black text-white shadow-[0_10px_22px_rgba(244,63,94,0.24)] sm:h-12 sm:w-12 sm:rounded-[22px] sm:text-[15px] sm:shadow-[0_12px_28px_rgba(244,63,94,0.28)]">
-                      {activeLiveTickerItem.rank}
+                  <div className="flex items-center gap-2">
+                    <div className="text-[31px] leading-none font-black tracking-[-0.08em] text-slate-950 sm:text-[44px]">
+                      맞냐
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="shrink-0 rounded-full bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] px-2.5 py-1 text-[10px] font-black text-white">
-                          {activeLiveTickerItem.liveBadgeLabel ?? '실시간 논쟁'}
-                        </span>
-                        <span className="truncate text-[11px] font-black tracking-[0.12em] text-slate-400">
-                          {activeLiveTickerItem.category}
-                        </span>
-                      </div>
-                      <div className="mt-1 line-clamp-1 text-[14px] font-black leading-[1.25] tracking-[-0.05em] text-slate-950 sm:mt-2 sm:line-clamp-2 sm:text-[18px]">
-                        {activeLiveTickerItem.title}
-                      </div>
-                      <div className="mt-1 text-[11px] font-bold text-slate-500 sm:mt-2 sm:text-[12px]">
-                        {activeLiveTickerItem.shortMetric}
-                      </div>
-                    </div>
-                    <div className="hidden shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 sm:block">
-                      이동 ›
-                    </div>
+                    <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[9px] font-black tracking-[0.12em] text-white shadow-[0_8px_18px_rgba(15,23,42,0.20)] sm:px-2.5 sm:py-1 sm:text-[10px]">
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-extrabold tracking-[-0.03em] text-slate-500 sm:mt-1 sm:text-[13px]">
+                    오늘 가장 많이 갈리는 이야기
                   </div>
                 </button>
 
-                <div className="hidden grid-cols-3 gap-1.5 border-t border-slate-100/80 p-2 sm:grid">
-                  {liveTickerItems.slice(0, 3).map((item, index) => {
-                    const active = index === liveTickerIndex
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setLiveTickerIndex(index)
-                          requestCurrentPostFocus()
-                          moveToPostWithGuard(item.id)
-                        }}
-                        className={`min-w-0 rounded-[18px] border px-2.5 py-2.5 text-left transition ${
-                          active
-                            ? 'border-[#4f7cff] bg-white shadow-[0_10px_22px_rgba(79,124,255,0.16)] scale-[1.02]'
-                            : 'border-slate-100 bg-white/60 hover:bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
-                              active
-                                ? 'bg-[#4f7cff] text-white'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            {index + 1}
-                          </span>
-                          <span className="truncate text-[10px] font-black text-slate-500">
-                            {item.liveBadgeLabel}
-                          </span>
-                        </div>
-                        <div className="mt-1 line-clamp-2 text-[11px] font-black leading-[1.25] tracking-[-0.04em] text-slate-900">
-                          {item.title}
-                        </div>
-                      </button>
-                    )
-                  })}
+                <div className="flex shrink-0 items-center gap-1.5 self-start">
+                  <button
+                    onClick={openWatchlistActivity}
+                    className={`relative flex h-9 min-w-[42px] items-center justify-center gap-1 rounded-full border px-2 text-slate-900 sm:h-10 sm:min-w-[48px] sm:px-3 ${getLevelTheme(levelInfo.level).chipClass}`}
+                  >
+                    <span className="text-xs">
+                      {getLevelTheme(levelInfo.level).icon}
+                    </span>
+                    <span className="text-[11px] font-black sm:text-xs">Lv.{levelInfo.level}</span>
+                    {unreadActivityBadgeCount > 0 ? (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                    ) : null}
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => void handleAdminToggle()}
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                        adminMode
+                          ? 'bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.24)]'
+                          : 'border border-slate-200 bg-white text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)]'
+                      }`}
+                    >
+                      <Shield className="h-5 w-5" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={openReportPost}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
+                    aria-label="신고"
+                  >
+                    <Flag className="h-5 w-5" />
+                  </button>
+
+                  <button
+                    onClick={() => setWriteOpen(true)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_14px_26px_rgba(15,23,42,0.26)] transition active:scale-[0.96] sm:h-10 sm:w-10"
+                    aria-label="글쓰기"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
-            ) : null}
 
-            {newPostNoticeCount > 0 ? (
+              <div className="relative mt-2 hidden grid-cols-3 gap-1.5 sm:mt-4 sm:grid">
+                <div className="rounded-2xl border border-rose-100 bg-rose-50/80 px-3 py-2 text-center">
+                  <div className="text-[10px] font-black text-rose-500">LIVE</div>
+                  <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                    갈리는 판 {liveOperationStats.brawl || liveOperationStats.hot || 1}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-center">
+                  <div className="text-[10px] font-black text-amber-600">FLIP</div>
+                  <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                    역전 신호 {liveOperationStats.flip || 'ON'}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2 text-center">
+                  <div className="text-[10px] font-black text-blue-600">COMMENT</div>
+                  <div className="mt-0.5 text-[12px] font-black text-slate-950">
+                    댓글 붙는 중
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative mt-2 grid grid-cols-3 gap-1 rounded-[18px] border border-slate-200/70 bg-slate-100/80 p-1 sm:mt-4 sm:gap-1.5 sm:rounded-[22px] sm:p-1.5">
+                {([
+                  { value: '추천', label: '🔥 HOT' },
+                  { value: '최신', label: '⚡ 방금' },
+                  { value: '인기', label: '🥊 개싸움' },
+                ] as const).map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => {
+                      requestCurrentPostFocus()
+                      runKakaoSafeTransition(() => {
+                        setTab(item.value)
+                        setCurrentIndex(0)
+                      })
+                      refreshWatchlistSignalsAfterAction(120)
+                    }}
+                    className={`rounded-[14px] px-1.5 py-2 text-[12px] font-black tracking-[-0.03em] transition sm:rounded-[17px] sm:px-2 sm:py-2.5 sm:text-[13px] ${
+                      tab === item.value
+                        ? 'bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]'
+                        : 'bg-white/80 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="px-3 pb-28 pt-1.5 sm:px-4 sm:pb-32 sm:pt-2">
+          {activeLiveTickerItem ? (
+            <div className="mb-2 overflow-hidden rounded-[22px] border border-white/90 bg-[radial-gradient(circle_at_top_left,rgba(79,124,255,0.14),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fbff_44%,#fff7f7_100%)] shadow-[0_12px_30px_rgba(79,124,255,0.12)] sm:mb-3 sm:rounded-[30px] sm:shadow-[0_22px_52px_rgba(79,124,255,0.14)]">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100/80 px-3 py-2 sm:px-4 sm:py-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-80" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+                  </span>
+                  LIVE
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLiveTickerOpen}
+                  className="rounded-full border border-rose-100 bg-white px-2.5 py-1 text-[10px] font-black text-rose-600 shadow-[0_8px_18px_rgba(244,63,94,0.08)] sm:px-3 sm:text-[11px]"
+                >
+                  지금 보기
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => void openNewestPostNotice()}
-                className="mb-3 flex w-full items-center justify-between gap-3 rounded-[24px] border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-4 py-3 text-left shadow-[0_14px_32px_rgba(244,63,94,0.12)]"
+                onClick={handleLiveTickerOpen}
+                className="block w-full px-3 py-2.5 text-left transition hover:bg-white/60 sm:px-4 sm:py-4"
               >
-                <div className="min-w-0">
-                  <div className="text-[11px] font-extrabold tracking-[0.18em] text-rose-500">
-                    NEW
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#fb7185_0%,#ef4444_100%)] text-[12px] font-black text-white shadow-[0_10px_22px_rgba(244,63,94,0.24)] sm:h-12 sm:w-12 sm:rounded-[22px] sm:text-[15px] sm:shadow-[0_12px_28px_rgba(244,63,94,0.28)]">
+                    {activeLiveTickerItem.rank}
                   </div>
-                  <div className="mt-1 text-sm font-black text-slate-900">
-                    새 글 {newPostNoticeCount}개 올라옴
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="shrink-0 rounded-full bg-[linear-gradient(135deg,#111827_0%,#334155_100%)] px-2.5 py-1 text-[10px] font-black text-white">
+                        {activeLiveTickerItem.liveBadgeLabel ?? '실시간 논쟁'}
+                      </span>
+                      <span className="truncate text-[11px] font-black tracking-[0.12em] text-slate-400">
+                        {activeLiveTickerItem.category}
+                      </span>
+                    </div>
+                    <div className="mt-1 line-clamp-1 text-[14px] font-black leading-[1.25] tracking-[-0.05em] text-slate-950 sm:mt-2 sm:line-clamp-2 sm:text-[18px]">
+                      {activeLiveTickerItem.title}
+                    </div>
+                    <div className="mt-1 text-[11px] font-bold text-slate-500 sm:mt-2 sm:text-[12px]">
+                      {activeLiveTickerItem.shortMetric}
+                    </div>
                   </div>
-                </div>
-                <div className="shrink-0 rounded-full border border-rose-100 bg-white px-3 py-1 text-[11px] font-black text-rose-600">
-                  보러가기
+                  <div className="hidden shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 sm:block">
+                    이동 ›
+                  </div>
                 </div>
               </button>
-            ) : null}
 
-            <div
-              key={`${currentPost.id}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
-              ref={currentPostCardRef}
-              tabIndex={-1}
-              className={`relative overflow-hidden rounded-[26px] border bg-white p-4 sm:rounded-[34px] sm:p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
-            >
-              <div className="relative mb-4 flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.04em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.20)]">
-                  <span>🔥 오늘의 판</span>
-                </div>
-                <div className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-black text-blue-700">
-                  선택하면 결과 공개
-                </div>
-              </div>
-
-              <div className="relative mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
-                    {currentPost.category}
-                  </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
-                    {currentPost.ageGroup}
-                  </span>
-                </div>
-
-                {adminMode && (
-                  <div className="flex gap-2">
+              <div className="hidden grid-cols-3 gap-1.5 border-t border-slate-100/80 p-2 sm:grid">
+                {liveTickerItems.slice(0, 3).map((item, index) => {
+                  const active = index === liveTickerIndex
+                  return (
                     <button
-                      onClick={async () => {
-                        await fetchDeletedItems()
-                        setDeletedOpen(true)
-                      }}
-                      className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
-                    >
-                      복구 관리
-                    </button>
-
-                    {currentPost.hidden && (
-                      <>
-                        <button
-                          onClick={() => void adminRestorePost()}
-                          className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
-                        >
-                          숨김 해제
-                        </button>
-                        <button
-                          onClick={() => void adminDeletePost()}
-                          className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-slate-900"
-                        >
-                          삭제
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-[24px] border border-transparent bg-transparent p-0 shadow-none">
-                <div className="hidden">today issue</div>
-                <h1 className="mt-4 text-[29px] font-black leading-[1.16] tracking-[-0.055em] text-slate-950">
-                  {currentPost.hidden && !adminMode
-                    ? '신고 누적으로 숨겨진 글'
-                    : currentPost.title}
-                </h1>
-                <p className="mt-3 whitespace-pre-line text-[15px] font-medium leading-7 tracking-[-0.025em] text-slate-600">
-                  {currentPost.hidden && !adminMode
-                    ? '관리자 확인 전까지 숨김 처리됩니다.'
-                    : currentPost.content}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {isSharedVisitor && (
-                    <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                      {votes[currentPost.id]
-                        ? '✨ 친구랑 결과 보는 중'
-                        : '🔥 친구가 보낸 맞냐 · 선택하면 바로 결과 공개'}
-                    </div>
-                  )}
-                  {isSharedOwnerViewingPost && (
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold transition-all duration-300 ${sharePulse ? 'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#d1fae5_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.18)] -translate-y-0.5' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
-                    >
-                      <span>
-                        {shareResponseTotal > 0
-                          ? `⚡ 친구 응답 ${shareResponseTotal}개 도착`
-                          : '📨 친구 응답 기다리는 중'}
-                      </span>
-                      {ownerShareDelta > 0 ? (
-                        <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 shadow-sm">
-                          +{ownerShareDelta}
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
-                  {isOwnCurrentPost && (
-                    <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
-                      ✍️ 내가 쓴 글 · 첫 반응 기다리는 중
-                    </div>
-                  )}
-                  {!isOwnCurrentPost && revisitMeta && (
-                    <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-bold text-slate-600">
-                      👀 {revisitMeta.label}
-                    </div>
-                  )}
-                  {currentHotBadge ? (
-                    <div
-                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${currentHotBadge.toneClass}`}
-                    >
-                      {currentHotBadge.label}
-                    </div>
-                  ) : null}
-                  {currentTurningPointLabel ? (
-                    <div className="inline-flex rounded-full border border-[#dbe7ff] bg-[#eff4ff] px-3 py-1 text-[11px] font-bold text-[#315fdc]">
-                      {currentTurningPointLabel}
-                      {currentTurningPoint?.createdAt
-                        ? ` · ${formatRelativeShort(currentTurningPoint.createdAt)}`
-                        : ''}
-                    </div>
-                  ) : null}
-                  {currentTension?.isFlipImminent ? (
-                    <div
-                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
-                    >
-                      {currentTensionMeta.label}
-                    </div>
-                  ) : null}
-                  {latestOutcome ? (
-                    <div
-                      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getOutcomeTone(latestOutcome.outcomeType)}`}
-                    >
-                      {getOutcomeLabel(latestOutcome.outcomeType)}
-                    </div>
-                  ) : null}
-                </div>
-                {currentHotMeta
-                  ? (() => {
-                      const signalCards = [
-                        currentHotMeta.vote1h >= 3
-                          ? {
-                              key: 'vote1h',
-                              label: '최근 참여',
-                              value: `${currentHotMeta.vote1h}명`,
-                              toneClass:
-                                'border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] text-rose-500',
-                            }
-                          : null,
-                        currentHotMeta.comment1h >= 2
-                          ? {
-                              key: 'comment1h',
-                              label: '붙는 댓글',
-                              value: `${currentHotMeta.comment1h}개`,
-                              toneClass:
-                                'border-violet-100 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] text-violet-500',
-                            }
-                          : null,
-                        currentHotMeta.share24h >= 1
-                          ? {
-                              key: 'share24h',
-                              label: '퍼지는 중',
-                              value: `${currentHotMeta.share24h}건`,
-                              toneClass:
-                                'border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)] text-amber-500',
-                            }
-                          : null,
-                      ].filter(Boolean) as Array<{
-                        key: string
-                        label: string
-                        value: string
-                        toneClass: string
-                      }>
-
-                      const quietSignal =
-                        currentHotMeta.vote1h <= 2 &&
-                        currentHotMeta.comment1h <= 1 &&
-                        currentHotMeta.share24h === 0
-
-                      if (quietSignal) {
-                        return (
-                          <div className="mt-3 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3 py-2.5 text-[11px] shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                            <div className="font-bold text-slate-600">
-                              반응 올라오는 중
-                            </div>
-                            <div className="mt-1 text-slate-400">
-                              댓글이나 공유가 붙기 시작하면 여기서 바로 보여줌
-                            </div>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <div
-                          className={`mt-3 grid gap-2 text-center text-[11px] ${signalCards.length === 1 ? 'grid-cols-1' : signalCards.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
-                        >
-                          {signalCards.map((item) => (
-                            <div
-                              key={item.key}
-                              className={`rounded-2xl border px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)] ${item.toneClass}`}
-                            >
-                              <div>{item.label}</div>
-                              <div className="mt-1 text-sm font-black text-slate-900">
-                                {item.value}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()
-                  : null}
-              </div>
-
-              {(!currentPost.hidden || adminMode) && (
-                <div className="mt-4 space-y-3">
-                  <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
-                          선택의 순간
-                        </div>
-                        <div className="mt-1 text-[19px] font-black tracking-[-0.04em] text-slate-950">
-                          {votes[currentPost.id]
-                            ? dopamineResultTitle
-                            : '내 생각은 어느 쪽에 가까워?'}
-                        </div>
-                      </div>
-                      <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
-                        {votes[currentPost.id] ? '분위기 공개' : '선택 전'}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {dopamineLiveEvents.slice(0, 3).map((event) => (
-                        <div
-                          key={event}
-                          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]"
-                        >
-                          {event}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-semibold leading-5 text-slate-600">
-                      {dopamineResultHelper}
-                    </div>
-                  </div>
-                  <VoteOption
-                    active={votes[currentPost.id] === 'left'}
-                    label={currentPost.leftLabel}
-                    value={displayedPercent.left}
-                    showValue={!!votes[currentPost.id]}
-                    previewTitle={currentPreVoteSignalTitle}
-                    previewHelper={currentPreVoteSignalHelper}
-                    onClick={() => void handleVote('left')}
-                    disabled={isVoting}
-                  />
-                  <div className="flex items-center gap-3 px-1">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">
-                      또는
-                    </div>
-                    <div className="h-px flex-1 bg-slate-200" />
-                  </div>
-                  <VoteOption
-                    active={votes[currentPost.id] === 'right'}
-                    label={currentPost.rightLabel}
-                    value={displayedPercent.right}
-                    showValue={!!votes[currentPost.id]}
-                    previewTitle={currentPreVoteSignalTitle}
-                    previewHelper={currentPreVoteSignalHelper}
-                    onClick={() => void handleVote('right')}
-                    disabled={isVoting}
-                  />
-
-                  {votes[currentPost.id] ? (
-                    <div className="space-y-4">
-                      {(currentResultEmotion ||
-                        currentMinorityLabel ||
-                        currentTensionMeta ||
-                        votes[currentPost.id]) && (
-                        <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {currentTensionMeta ? (
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
-                              >
-                                {currentTensionMeta.label}
-                              </div>
-                            ) : null}
-                            {currentResultEmotion ? (
-                              <div className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700">
-                                {currentResultEmotion}
-                              </div>
-                            ) : null}
-                            {currentMinorityLabel ? (
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentMinorityLabel.toneClass}`}
-                              >
-                                {currentMinorityLabel.text}
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {votes[currentPost.id] ? (
-                            <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                              <div className="flex items-end justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                    LIVE RESULT
-                                  </div>
-                                  <div className="mt-1 text-base font-black text-slate-900">
-                                    지금 사람들 반응
-                                  </div>
-                                </div>
-                                <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">
-                                  결과 보기
-                                </div>
-                              </div>
-                              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                <div className="text-base font-black text-slate-900">
-                                  {liveResultPercentText}
-                                </div>
-                                <div className="mt-1 text-[12px] text-slate-500">
-                                  사람들이 계속 들어오고 있어서 결과는 조금씩
-                                  달라질 수 있음
-                                </div>
-                              </div>
-
-                              <div className="mt-3 text-[13px] font-semibold text-slate-600">
-                                {currentTension?.isFlipImminent
-                                  ? currentTensionMeta.helper
-                                  : currentMinorityLabel
-                                    ? currentMinorityLabel.helper
-                                    : currentResultEmotion === '🔥 개싸움'
-                                      ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
-                                      : currentResultEmotion === '👀 팽팽'
-                                        ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
-                                        : currentResultEmotion ===
-                                            '⚡ 기우는 중'
-                                          ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
-                                          : currentTensionMeta
-                                            ? currentTensionMeta.helper
-                                            : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
-                              </div>
-
-                              {!latestOutcome ? (
-                                <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                                        WATCHLIST
-                                      </div>
-                                      <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
-                                        👀 이 글 결말이 궁금함?
-                                      </div>
-                                      <div className="mt-1 text-[12px] leading-5 text-slate-600">
-                                        {currentWatchlisted
-                                          ? authUser?.id
-                                            ? '내 활동 > 결말궁금 에서 계속 확인 가능'
-                                            : '이 기기에는 저장됨 · 로그인하면 계속 이어볼 수 있음'
-                                          : '후기 올라오면 빨간불로 바로 알려줌'}
-                                      </div>
-                                    </div>
-                                    {currentWatchUnread ? (
-                                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                                        새 후기
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <button
-                                    onClick={() =>
-                                      void toggleCurrentPostWatchlist()
-                                    }
-                                    className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
-                                      currentWatchlisted
-                                        ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
-                                        : 'bg-slate-950 text-white'
-                                    }`}
-                                  >
-                                    {currentWatchlisted
-                                      ? '결말궁금 저장됨 ✓'
-                                      : '결말궁금 저장'}
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-
-                      <div className="rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="text-[11px] font-black tracking-[0.16em] text-rose-500">
-                              COMMENT ARENA
-                            </div>
-                            <div className="mt-1 text-[16px] font-black tracking-[-0.03em] text-slate-950">
-                              댓글 구경이 진짜 본게임
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              markPostMeaningful(currentPost)
-                              setCommentOpen(true)
-                            }}
-                            className="rounded-full bg-slate-950 px-3 py-2 text-[12px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]"
-                          >
-                            댓글 보기
-                          </button>
-                        </div>
-
-                        <div className="mt-3 space-y-2">
-                          {dopamineTopComment ? (
-                            <button
-                              onClick={() => {
-                                markPostMeaningful(currentPost)
-                                setCommentOpen(true)
-                              }}
-                              className="w-full rounded-2xl border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(244,63,94,0.08)]"
-                            >
-                              <div className="text-[11px] font-black tracking-[0.14em] text-rose-500">
-                                🔥 가장 뜨거운 댓글
-                              </div>
-                              <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
-                                “{dopamineTopComment.text}”
-                              </div>
-                              <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                공감 {dopamineTopComment.likes} · 바로 반박하러
-                                가기
-                              </div>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                markPostMeaningful(currentPost)
-                                setCommentOpen(true)
-                              }}
-                              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
-                            >
-                              <div className="text-[11px] font-black tracking-[0.14em] text-slate-400">
-                                FIRST COMMENT
-                              </div>
-                              <div className="mt-1 text-[14px] font-black text-slate-900">
-                                첫 댓글 달면 이 판 분위기 바로 바뀜
-                              </div>
-                            </button>
-                          )}
-
-                          {dopamineCounterComment ? (
-                            <button
-                              onClick={() => {
-                                markPostMeaningful(currentPost)
-                                setCommentOpen(true)
-                              }}
-                              className="w-full rounded-2xl border border-blue-100 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(59,130,246,0.08)]"
-                            >
-                              <div className="text-[11px] font-black tracking-[0.14em] text-blue-500">
-                                🥊 베스트 반박
-                              </div>
-                              <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
-                                “{dopamineCounterComment.text}”
-                              </div>
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                          DRAMA SIGNAL
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {currentFlipDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
-                              >
-                                {currentFlipDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentFlipDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                          {currentShadowDrama ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div
-                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
-                              >
-                                {currentShadowDrama.text}
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                {currentShadowDrama.helper}
-                              </div>
-                            </div>
-                          ) : null}
-                          {currentChoicePathTop && choicePathNextPost ? (
-                            <button
-                              onClick={() =>
-                                moveToPostWithGuard(choicePathNextPost.id)
-                              }
-                              className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
-                            >
-                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                                SAME SIDE NEXT
-                              </div>
-                              <div className="mt-1 text-sm font-black text-slate-900">
-                                너처럼 고른 사람들 다음으로 이 글 봄
-                              </div>
-                              <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
-                                {choicePathNextPost.title}
-                              </div>
-                              <div className="mt-1 text-[12px] text-slate-500">
-                                같은 선택 흐름에서 {currentChoicePathTop.count}
-                                번 이어짐
-                              </div>
-                            </button>
-                          ) : null}
-                          {!currentFlipDrama &&
-                          !currentShadowDrama &&
-                          !(currentChoicePathTop && choicePathNextPost) ? (
-                            <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
-                              <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-black text-slate-600">
-                                지금은 조용한 판
-                              </div>
-                              <div className="mt-2 text-[13px] font-semibold text-slate-600">
-                                아직 크게 흔들린 신호는 없지만 댓글이나 다음
-                                반응에서 다시 붙을 수 있음.
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                        <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                          QUICK REACTION
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          {QUICK_REACTION_ORDER.map((reactionType) => {
-                            const meta = POST_REACTION_META[reactionType]
-                            const count = Number(
-                              currentPostReactionSummary[reactionType] ?? 0,
-                            )
-                            const active =
-                              !!myPostReactions[
-                                `${currentPost.id}:${reactionType}`
-                              ]
-                            return (
-                              <button
-                                key={reactionType}
-                                onClick={() => void reactToPost(reactionType)}
-                                className={`rounded-2xl border px-3 py-3 text-[13px] font-bold shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition active:scale-[0.98] ${active ? meta.activeClass : meta.idleClass}`}
-                              >
-                                <div className="flex items-center justify-center gap-1">
-                                  <span>{meta.label}</span>
-                                </div>
-                                <div className="mt-1 text-[11px] font-semibold opacity-80">
-                                  {count > 0 ? `${count}명` : '첫 반응'}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-
-                        {latestOutcome ? (
-                          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                  {getOutcomeLabel(latestOutcome.outcomeType)}
-                                </div>
-                                {currentWatchUnread ? (
-                                  <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">
-                                    새 후기
-                                  </span>
-                                ) : null}
-                              </div>
-                              {canWriteOutcome ? (
-                                <button
-                                  onClick={() => setOutcomeModalOpen(true)}
-                                  className="rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]"
-                                >
-                                  {canAdminWriteOutcome
-                                    ? '관리자 후기 등록'
-                                    : '후기 추가'}
-                                </button>
-                              ) : null}
-                            </div>
-                            <div className="mt-1">
-                              {latestOutcome.summary || '작성자 후기가 등록됨'}
-                            </div>
-                          </div>
-                        ) : latestOutcome ? (
-                          <button
-                            onClick={() => void toggleCurrentPostWatchlist()}
-                            className="mt-3 w-full rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf7_0%,#fff7db_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(250,204,21,0.12)]"
-                          >
-                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
-                              OUTCOME TEASER
-                            </div>
-                            <div className="mt-1 text-sm font-bold text-slate-900">
-                              후기 도착 · 저장하면 결말까지 공개
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500">
-                              지금은 일부만 열려 있음. 결말궁금에 넣으면 이 글의
-                              이후 상황까지 바로 확인 가능
-                            </div>
-                          </button>
-                        ) : canWriteOutcome ? (
-                          <button
-                            onClick={() => setOutcomeModalOpen(true)}
-                            className="mt-3 w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
-                          >
-                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
-                              AUTHOR UPDATE
-                            </div>
-                            <div className="mt-1 text-sm font-bold text-slate-900">
-                              {outcomeActionLabel}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500">
-                              이 글의 이후 상황이나 결말을 짧게 등록할 수 있음
-                            </div>
-                          </button>
-                        ) : null}
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          if (choicePathNextPost) {
-                            moveToPostWithGuard(choicePathNextPost.id)
-                            return
-                          }
-                          if (queuedNextPost?.post) {
-                            moveToPostWithGuard(queuedNextPost.post.id)
-                            return
-                          }
-                          handleNextWithGuard()
-                        }}
-                        className="w-full rounded-[24px] border border-slate-900 bg-slate-950 px-4 py-3.5 text-center text-white transition-all shadow-[0_16px_30px_rgba(15,23,42,0.22)]"
-                      >
-                        <div className="text-xs font-black text-white/70">
-                          NEXT DOPAMINE · {nextRecommendationReason}
-                        </div>
-                        <div className="mt-1 text-base font-black text-white">
-                          {nextRecommendationTitle}
-                        </div>
-                        <div className="mt-1 text-xs font-semibold text-white/60">
-                          {nextRecommendationHelper}
-                        </div>
-                      </button>
-
-                      {shouldRenderKakaoHeavyBlocks &&
-                        controversialPosts.length > 0 && (
-                          <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                            <div className="mb-3 text-sm font-bold text-slate-900">
-                              지금 들어가면 바로 갈릴 논쟁 TOP3
-                            </div>
-                            <div className="space-y-2">
-                              {controversialPosts.map((item) => (
-                                <button
-                                  key={item.id}
-                                  onClick={() => moveToPostWithGuard(item.id)}
-                                  className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
-                                >
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {item.title}
-                                  </div>
-                                  <div className="mt-1 text-xs text-slate-500">
-                                    {item.total}명 참여 · 의견 팽팽
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {shouldRenderKakaoHeavyBlocks && !isViewingSharedPost ? (
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            onClick={() => void shareCurrentPost()}
-                            className="rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
-                          >
-                            친구한테 보내기
-                          </button>
-                          <button
-                            onClick={openShareInbox}
-                            className="relative rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.10)]"
-                          >
-                            보낸 공유함
-                            {shareInboxUnreadCount > 0 ? (
-                              <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(16,185,129,0.24)]">
-                                {shareInboxUnreadCount}
-                              </span>
-                            ) : shareInboxItems.length > 0 ? (
-                              <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(15,23,42,0.18)]">
-                                {shareInboxItems.length}
-                              </span>
-                            ) : null}
-                          </button>
-                        </div>
-                      ) : null}
-
-                      {isViewingSharedPost ? (
-                        <div
-                          className={`rounded-[24px] p-4 ${isSharedOwnerViewingPost ? 'border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_26px_rgba(79,124,255,0.10)]' : 'border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] shadow-[0_12px_26px_rgba(245,158,11,0.10)]'}`}
-                        >
-                          <div className="flex items-start justify-between gap-3 sm:gap-4">
-                            <div className="min-w-0 flex-1 pr-1">
-                              <div
-                                className={`text-[11px] font-extrabold tracking-[0.18em] ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-600'}`}
-                              >
-                                {isSharedOwnerViewingPost
-                                  ? 'LIVE SHARE'
-                                  : 'FRIEND REACTION'}
-                              </div>
-                              <div className="mt-1 text-[17px] leading-[1.32] font-black tracking-[-0.02em] text-slate-900 sm:text-[18px]">
-                                {isSharedOwnerViewingPost
-                                  ? shareResponseTotal > 0
-                                    ? '친구 반응이 실시간으로 들어오는 중'
-                                    : '친구 응답 기다리는 중'
-                                  : '친구들 반응 모아보기'}
-                              </div>
-                            </div>
-                            <div
-                              className={`shrink-0 whitespace-nowrap rounded-full border bg-white/95 px-4 py-2 text-[12px] font-extrabold leading-none shadow-[0_8px_18px_rgba(15,23,42,0.06)] ${isSharedOwnerViewingPost ? 'border-[#d6e4ff] text-[#4f7cff]' : 'border-amber-200 text-amber-700'}`}
-                            >
-                              {isSharedOwnerViewingPost
-                                ? '실시간 반영'
-                                : '익명 집계'}
-                            </div>
-                          </div>
-
-                          {isSharedOwnerViewingPost &&
-                          !showOwnerShareResults ? (
-                            <div className="mt-3 space-y-3">
-                              <div
-                                className={`rounded-2xl border px-4 py-3.5 text-[15px] leading-7 font-semibold transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
-                              >
-                                {shareResponseTotal === 0
-                                  ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
-                                  : ownerShareDelta > 0
-                                    ? `방금 친구 응답 +${ownerShareDelta}. 지금 보면 판이 더 재밌음.`
-                                    : shareResponseTotal === 1
-                                      ? '첫 반응 도착. 한 명 더 모이면 진짜 갈리는지 보이기 시작함.'
-                                      : shareResponseTotal === 2
-                                        ? '지금부터 재밌는 구간. 한 명만 더 오면 분위기가 선명해짐.'
-                                        : `친구 응답 ${shareResponseTotal}개 도착. 결과 보면 어디로 기우는지 바로 보임.`}
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-1.5">
-                                <button
-                                  onClick={() => setShowOwnerShareResults(true)}
-                                  className={`rounded-[18px] px-4 py-3 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-slate-950 text-white'}`}
-                                >
-                                  {ownerShareDelta > 0
-                                    ? `결과 보기 +${ownerShareDelta}`
-                                    : '결과 보기'}
-                                </button>
-                                <button
-                                  onClick={() => void shareCurrentPost()}
-                                  className="rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
-                                >
-                                  친구 더 보내기
-                                </button>
-                              </div>
-                              {nextHookPost ? (
-                                <button
-                                  onClick={handleNextWithGuard}
-                                  className="w-full rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
-                                >
-                                  <div className="text-[11px] font-extrabold tracking-[0.16em] text-slate-400">
-                                    NEXT HOOK
-                                  </div>
-                                  <div className="mt-1 line-clamp-1 text-sm font-black text-slate-900">
-                                    {nextHookPost.title}
-                                  </div>
-                                  <div className="mt-1 text-[12px] text-slate-500">
-                                    결과 보기 전에 다른 논쟁 하나 더 보면 더
-                                    오래 머물게 됨
-                                  </div>
-                                </button>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <>
-                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                    전체 결과
-                                  </div>
-                                  <div className="text-[11px] font-bold text-slate-500">
-                                    {currentPost.leftVotes +
-                                      currentPost.rightVotes}
-                                    명 참여
-                                  </div>
-                                </div>
-                                <div className="mt-3 grid grid-cols-2 gap-2">
-                                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
-                                    <div className="text-[11px] text-slate-400">
-                                      전체 {currentPost.leftLabel}
-                                    </div>
-                                    <div className="mt-1 text-lg font-black text-slate-900">
-                                      {currentPost.leftVotes}명
-                                    </div>
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                      <div
-                                        className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
-                                        style={{
-                                          width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).left, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
-                                    <div className="text-[11px] text-slate-400">
-                                      전체 {currentPost.rightLabel}
-                                    </div>
-                                    <div className="mt-1 text-lg font-black text-slate-900">
-                                      {currentPost.rightVotes}명
-                                    </div>
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                      <div
-                                        className="h-full rounded-full bg-[#facc15] transition-all duration-500"
-                                        style={{
-                                          width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).right, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
-                                    친구 결과
-                                  </div>
-                                  <div
-                                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${shareTensionMeta.toneClass}`}
-                                  >
-                                    {shareTensionMeta.label}
-                                  </div>
-                                </div>
-                                <div className="mt-3 grid grid-cols-2 gap-2">
-                                  <div
-                                    className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
-                                  >
-                                    <div className="text-[11px] text-slate-400">
-                                      친구들 {currentPost.leftLabel}
-                                    </div>
-                                    <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
-                                      <span>{shareStats.left}명</span>
-                                      {sharePulse &&
-                                      shareStats.left > 0 &&
-                                      shareStats.left >= shareStats.right ? (
-                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
-                                          HOT
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                      <div
-                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
-                                        style={{
-                                          width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.left / shareResponseTotal) * 100))}%`,
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div
-                                    className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
-                                  >
-                                    <div className="text-[11px] text-slate-400">
-                                      친구들 {currentPost.rightLabel}
-                                    </div>
-                                    <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
-                                      <span>{shareStats.right}명</span>
-                                      {sharePulse &&
-                                      shareStats.right > 0 &&
-                                      shareStats.right > shareStats.left ? (
-                                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
-                                          HOT
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                      <div
-                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
-                                        style={{
-                                          width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                  <div className="text-[11px] text-slate-400">
-                                    내 선택
-                                  </div>
-                                  <div className="mt-1 text-sm font-black text-slate-900">
-                                    {ownerChoiceInsight.ownerLabel}
-                                  </div>
-                                  <div
-                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${ownerChoiceInsight.relationTone}`}
-                                  >
-                                    {ownerChoiceInsight.relationLabel}
-                                  </div>
-                                </div>
-                                <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                  <div className="text-[11px] text-slate-400">
-                                    전체 흐름
-                                  </div>
-                                  <div className="mt-1 text-sm font-black text-slate-900">
-                                    {currentPost.leftVotes ===
-                                    currentPost.rightVotes
-                                      ? '전체 의견 팽팽'
-                                      : currentPost.leftVotes >
-                                          currentPost.rightVotes
-                                        ? `${currentPost.leftLabel} 우세`
-                                        : `${currentPost.rightLabel} 우세`}
-                                  </div>
-                                  <div
-                                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${getShareTensionMeta(currentPost.leftVotes, currentPost.rightVotes).toneClass}`}
-                                  >
-                                    {
-                                      getShareTensionMeta(
-                                        currentPost.leftVotes,
-                                        currentPost.rightVotes,
-                                      ).label
-                                    }
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
-                                익명 전체 흐름 먼저 보고, 친구들 반응이 얼마나
-                                다른지도 같이 보는 판임 ·{' '}
-                                {ownerChoiceInsight.helper}
-                              </div>
-
-                              {nextHookPost ? (
-                                <button
-                                  onClick={handleNextWithGuard}
-                                  className="mt-3 w-full rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
-                                >
-                                  <div className="text-[11px] font-extrabold tracking-[0.16em] text-[#4f7cff]">
-                                    NEXT HOOK
-                                  </div>
-                                  <div className="mt-1 text-sm font-black text-slate-900">
-                                    이 판 본 사람은 이것도 많이 눌러봄
-                                  </div>
-                                  <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
-                                    {nextHookPost.title}
-                                  </div>
-                                </button>
-                              ) : null}
-
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                {isSharedOwnerViewingPost ? (
-                                  <button
-                                    onClick={() =>
-                                      setShowOwnerShareResults(false)
-                                    }
-                                    className="rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
-                                  >
-                                    결과 접기
-                                  </button>
-                                ) : null}
-                                <button
-                                  onClick={() => void shareCurrentPost()}
-                                  className={`${isSharedOwnerViewingPost ? '' : 'col-span-2 '}rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]`}
-                                >
-                                  친구 더 보내기
-                                </button>
-                              </div>
-
-                              {isSharedOwnerViewingPost ? (
-                                <button
-                                  onClick={openShareInbox}
-                                  className="mt-2.5 w-full rounded-[18px] border border-[#dbe7ff] bg-white/90 px-4 py-3 text-sm font-black text-[#4f7cff] shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
-                                >
-                                  보낸 공유함에서 다른 논쟁도 보기
-                                </button>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              <div className="mt-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.06)]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${getLevelTheme(levelInfo.level).chipClass}`}
-                  >
-                    {getLevelTheme(levelInfo.level).icon} Lv.{levelInfo.level}{' '}
-                    {levelInfo.label}
-                  </span>
-                  {featuredBadge ? (
-                    (() => {
-                      const badgeTheme = getBadgeTheme(featuredBadge)
-                      return (
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
-                        >
-                          {badgeTheme.icon} {featuredBadge}
-                        </span>
-                      )
-                    })()
-                  ) : (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                      ✨ 첫 뱃지 도전중
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 text-[12px] leading-5 text-slate-600">
-                  활동할수록 레벨이 오르고, 행동에 따라 뱃지가 쌓임.
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-slate-200 pt-3">
-                <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <BarChart3 className="h-4 w-4" />
-                      {currentPost.leftVotes + currentPost.rightVotes}
-                    </div>
-
-                    <button
+                      key={item.id}
+                      type="button"
                       onClick={() => {
-                        markPostMeaningful(currentPost)
-                        setCommentOpen(true)
+                        setLiveTickerIndex(index)
+                        requestCurrentPostFocus()
+                        moveToPostWithGuard(item.id)
                       }}
-                      className="flex items-center gap-1"
+                      className={`min-w-0 rounded-[18px] border px-2.5 py-2.5 text-left transition ${
+                        active
+                          ? 'border-[#4f7cff] bg-white shadow-[0_10px_22px_rgba(79,124,255,0.16)] scale-[1.02]'
+                          : 'border-slate-100 bg-white/60 hover:bg-white'
+                      }`}
                     >
-                      <MessageCircle className="h-4 w-4" />
-                      {currentPost.comments.length}
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                            active
+                              ? 'bg-[#4f7cff] text-white'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {index + 1}
+                        </span>
+                        <span className="truncate text-[10px] font-black text-slate-500">
+                          {item.liveBadgeLabel}
+                        </span>
+                      </div>
+                      <div className="mt-1 line-clamp-2 text-[11px] font-black leading-[1.25] tracking-[-0.04em] text-slate-900">
+                        {item.title}
+                      </div>
                     </button>
-                  </div>
-
-                  <div>조회 {currentPost.views}</div>
-                </div>
-              </div>
-            </div>
-          </main>
-
-          {!isModalOpen && (
-            <div className="fixed bottom-3 left-0 right-0 z-[9999] px-4">
-              <div className="mx-auto max-w-[392px] rounded-[24px] border border-white/90 bg-white/92 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_14px_28px_rgba(148,163,184,0.18),0_2px_8px_rgba(15,23,42,0.04)]">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={prev}
-                    className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-                  >
-                    이전 글
-                  </button>
-
-                  <button
-                    onClick={handleNextWithGuard}
-                    className="rounded-[18px] bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition active:scale-[0.98]"
-                  >
-                    다음 글
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {toast ? (
-            <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
-              <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)]">
-                {toast}
+                  )
+                })}
               </div>
             </div>
           ) : null}
 
-          <CommentModal
-            post={currentPost}
-            open={commentOpen}
-            onClose={() => {
-              setCommentOpen(false)
-              requestLightweightMetaRefresh()
-            }}
-            onAddComment={(text, side, replyToCommentId) =>
-              void addComment(text, side, replyToCommentId ?? null)
-            }
-            onOpenReportComment={openReportComment}
-            adminMode={adminMode}
-            onAdminRestoreComment={(commentId) =>
-              void adminRestoreComment(commentId)
-            }
-            onAdminDeleteComment={(commentId) =>
-              void adminDeleteComment(commentId)
-            }
-            guestName={profile?.anonymous_name ?? guestName}
-            featuredBadge={featuredBadge}
-            currentUserLevel={stats.level}
-            authorMetaMap={authorMetaMap}
-            currentActorKey={authUser?.id ?? voterKey}
-            commentReactionMap={commentReactionMap}
-            myCommentReactions={myCommentReactions}
-            onReactComment={(commentId, reactionType) =>
-              void reactToComment(commentId, reactionType)
-            }
-            onExposeComments={() => {
-              // result flow 제거: 댓글은 그냥 바로 보여주기만 함
-            }}
-          />
+          {newPostNoticeCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => void openNewestPostNotice()}
+              className="mb-3 flex w-full items-center justify-between gap-3 rounded-[24px] border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-4 py-3 text-left shadow-[0_14px_32px_rgba(244,63,94,0.12)]"
+            >
+              <div className="min-w-0">
+                <div className="text-[11px] font-extrabold tracking-[0.18em] text-rose-500">NEW</div>
+                <div className="mt-1 text-sm font-black text-slate-900">
+                  새 글 {newPostNoticeCount}개 올라옴
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full border border-rose-100 bg-white px-3 py-1 text-[11px] font-black text-rose-600">
+                보러가기
+              </div>
+            </button>
+          ) : null}
 
-          <CreatePostModal
-            open={writeOpen}
-            onClose={() => setWriteOpen(false)}
-            onCreate={(input) => void createPost(input)}
-            guestName={profile?.anonymous_name ?? guestName}
-          />
+          <div
+            key={`${currentPost.id}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
+            ref={currentPostCardRef}
+            tabIndex={-1}
+            className={`relative overflow-hidden rounded-[26px] border bg-white p-4 sm:rounded-[34px] sm:p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
+          >
+            <div className="relative mb-4 flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.04em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.20)]">
+                <span>🔥 오늘의 판</span>
+              </div>
+              <div className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-black text-blue-700">
+                선택하면 결과 공개
+              </div>
+            </div>
 
-          <MyActivityModal
-            open={activityOpen}
-            onClose={() => {
-              setActivityOpen(false)
-              refreshWatchlistSignalsAfterAction(80)
-            }}
-            myPosts={myPosts}
-            myComments={myComments}
-            watchlistItems={watchlistItems}
-            unreadWatchlistCount={unreadWatchlistCount}
-            initialTab={activityInitialTab}
-            onOpenPost={openPostDirect}
-            onOpenWatchlistItem={openWatchlistItemDirect}
-            onOpenComment={openCommentDirect}
-            onLogout={() => void handleLogout()}
-            onLogin={() => void handleGoogleLogin()}
-            onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
-            onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
-            onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
-            profile={profile}
-            stats={stats}
-            badges={badges}
-          />
+            <div className="relative mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
+                  {currentPost.category}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">
+                  {currentPost.ageGroup}
+                </span>
+              </div>
 
-          <DeletedItemsModal
-            open={deletedOpen}
-            onClose={() => setDeletedOpen(false)}
-            deletedPosts={deletedPosts}
-            deletedComments={deletedComments}
-            onRestorePost={(postId) => void adminRestoreDeletedPost(postId)}
-            onRestoreComment={(commentId) =>
-              void adminRestoreDeletedComment(commentId)
-            }
-          />
+              {adminMode && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      await fetchDeletedItems()
+                      setDeletedOpen(true)
+                    }}
+                    className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
+                  >
+                    복구 관리
+                  </button>
 
-          <ShareInboxModal
-            open={shareInboxOpen}
-            onClose={() => setShareInboxOpen(false)}
-            items={shareInboxItems}
-            loading={shareInboxLoading}
-            onOpenItem={(item) => void openOwnerShareSession(item)}
-            onReshare={(item) => void reshareFromInbox(item)}
-          />
+                  {currentPost.hidden && (
+                    <>
+                      <button
+                        onClick={() => void adminRestorePost()}
+                        className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
+                      >
+                        숨김 해제
+                      </button>
+                      <button
+                        onClick={() => void adminDeletePost()}
+                        className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-slate-900"
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
-          <AuthOptionalModal
-            open={authOpen}
-            onClose={() => setAuthOpen(false)}
-            onGoogleLogin={() => void handleGoogleLogin()}
-          />
+            <div className="rounded-[24px] border border-transparent bg-transparent p-0 shadow-none">
+              <div className="hidden">today issue</div>
+              <h1 className="mt-4 text-[29px] font-black leading-[1.16] tracking-[-0.055em] text-slate-950">
+                {currentPost.hidden && !adminMode
+                  ? '신고 누적으로 숨겨진 글'
+                  : currentPost.title}
+              </h1>
+              <p className="mt-3 whitespace-pre-line text-[15px] font-medium leading-7 tracking-[-0.025em] text-slate-600">
+                {currentPost.hidden && !adminMode
+                  ? '관리자 확인 전까지 숨김 처리됩니다.'
+                  : currentPost.content}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {isSharedVisitor && (
+                  <div className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                    {votes[currentPost.id]
+                      ? '✨ 친구랑 결과 보는 중'
+                      : '🔥 친구가 보낸 맞냐 · 선택하면 바로 결과 공개'}
+                  </div>
+                )}
+                {isSharedOwnerViewingPost && (
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold transition-all duration-300 ${sharePulse ? 'border-emerald-300 bg-[linear-gradient(135deg,#ecfdf5_0%,#d1fae5_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.18)] -translate-y-0.5' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
+                  >
+                    <span>
+                      {shareResponseTotal > 0
+                        ? `⚡ 친구 응답 ${shareResponseTotal}개 도착`
+                        : '📨 친구 응답 기다리는 중'}
+                    </span>
+                    {ownerShareDelta > 0 ? (
+                      <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 shadow-sm">
+                        +{ownerShareDelta}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+                {isOwnCurrentPost && (
+                  <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
+                    ✍️ 내가 쓴 글 · 첫 반응 기다리는 중
+                  </div>
+                )}
+                {!isOwnCurrentPost && revisitMeta && (
+                  <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-bold text-slate-600">
+                    👀 {revisitMeta.label}
+                  </div>
+                )}
+                {currentHotBadge ? (
+                  <div
+                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold ${currentHotBadge.toneClass}`}
+                  >
+                    {currentHotBadge.label}
+                  </div>
+                ) : null}
+                {currentTurningPointLabel ? (
+                  <div className="inline-flex rounded-full border border-[#dbe7ff] bg-[#eff4ff] px-3 py-1 text-[11px] font-bold text-[#315fdc]">
+                    {currentTurningPointLabel}
+                    {currentTurningPoint?.createdAt
+                      ? ` · ${formatRelativeShort(currentTurningPoint.createdAt)}`
+                      : ''}
+                  </div>
+                ) : null}
+                {currentTension?.isFlipImminent ? (
+                  <div
+                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
+                  >
+                    {currentTensionMeta.label}
+                  </div>
+                ) : null}
+                {latestOutcome ? (
+                  <div
+                    className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${getOutcomeTone(latestOutcome.outcomeType)}`}
+                  >
+                    {getOutcomeLabel(latestOutcome.outcomeType)}
+                  </div>
+                ) : null}
+              </div>
+              {currentHotMeta
+                ? (() => {
+                    const signalCards = [
+                      currentHotMeta.vote1h >= 3
+                        ? {
+                            key: 'vote1h',
+                            label: '최근 참여',
+                            value: `${currentHotMeta.vote1h}명`,
+                            toneClass:
+                              'border-rose-100 bg-[linear-gradient(180deg,#fff1f2_0%,#ffffff_100%)] text-rose-500',
+                          }
+                        : null,
+                      currentHotMeta.comment1h >= 2
+                        ? {
+                            key: 'comment1h',
+                            label: '붙는 댓글',
+                            value: `${currentHotMeta.comment1h}개`,
+                            toneClass:
+                              'border-violet-100 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] text-violet-500',
+                          }
+                        : null,
+                      currentHotMeta.share24h >= 1
+                        ? {
+                            key: 'share24h',
+                            label: '퍼지는 중',
+                            value: `${currentHotMeta.share24h}건`,
+                            toneClass:
+                              'border-amber-100 bg-[linear-gradient(180deg,#fffbeb_0%,#ffffff_100%)] text-amber-500',
+                          }
+                        : null,
+                    ].filter(Boolean) as Array<{
+                      key: string
+                      label: string
+                      value: string
+                      toneClass: string
+                    }>
 
-          <OutcomeWriteModal
-            open={outcomeModalOpen}
-            onClose={() => setOutcomeModalOpen(false)}
-            onSubmit={(outcomeType, summary) =>
-              void submitOutcome(outcomeType, summary)
-            }
-            postTitle={currentPost?.title ?? '후기 등록'}
-            initialType="author_followup"
-          />
+                    const quietSignal =
+                      currentHotMeta.vote1h <= 2 &&
+                      currentHotMeta.comment1h <= 1 &&
+                      currentHotMeta.share24h === 0
 
-          <ReportModal
-            open={reportModal.open}
-            onClose={() =>
-              setReportModal({
-                open: false,
-                type: null,
-                id: null,
-                label: '',
-              })
-            }
-            onSubmit={(reason) => void submitReport(reason)}
-            targetLabel={reportModal.label}
-          />
-        </div>
+                    if (quietSignal) {
+                      return (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3 py-2.5 text-[11px] shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                          <div className="font-bold text-slate-600">
+                            반응 올라오는 중
+                          </div>
+                          <div className="mt-1 text-slate-400">
+                            댓글이나 공유가 붙기 시작하면 여기서 바로 보여줌
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div
+                        className={`mt-3 grid gap-2 text-center text-[11px] ${signalCards.length === 1 ? 'grid-cols-1' : signalCards.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                      >
+                        {signalCards.map((item) => (
+                          <div
+                            key={item.key}
+                            className={`rounded-2xl border px-2.5 py-2 shadow-[0_4px_12px_rgba(15,23,42,0.04)] ${item.toneClass}`}
+                          >
+                            <div>{item.label}</div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              {item.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()
+                : null}
+            </div>
+
+            {(!currentPost.hidden || adminMode) && (
+              <div className="mt-4 space-y-3">
+                <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+                        선택의 순간
+                      </div>
+                      <div className="mt-1 text-[19px] font-black tracking-[-0.04em] text-slate-950">
+                        {votes[currentPost.id] ? dopamineResultTitle : '내 생각은 어느 쪽에 가까워?'}
+                      </div>
+                    </div>
+                    <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+                      {votes[currentPost.id] ? '분위기 공개' : '선택 전'}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {dopamineLiveEvents.slice(0, 3).map((event) => (
+                      <div
+                        key={event}
+                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]"
+                      >
+                        {event}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-semibold leading-5 text-slate-600">
+                    {dopamineResultHelper}
+                  </div>
+                </div>
+                <VoteOption
+                  active={votes[currentPost.id] === 'left'}
+                  label={currentPost.leftLabel}
+                  value={displayedPercent.left}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
+                  onClick={() => void handleVote('left')}
+                  disabled={isVoting}
+                />
+                <div className="flex items-center gap-3 px-1">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">
+                    또는
+                  </div>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <VoteOption
+                  active={votes[currentPost.id] === 'right'}
+                  label={currentPost.rightLabel}
+                  value={displayedPercent.right}
+                  showValue={!!votes[currentPost.id]}
+                  previewTitle={currentPreVoteSignalTitle}
+                  previewHelper={currentPreVoteSignalHelper}
+                  onClick={() => void handleVote('right')}
+                  disabled={isVoting}
+                />
+
+                {votes[currentPost.id] ? (
+                  <div className="space-y-4">
+                    {(currentResultEmotion ||
+                      currentMinorityLabel ||
+                      currentTensionMeta ||
+                      votes[currentPost.id]) && (
+                      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {currentTensionMeta ? (
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentTensionMeta.toneClass}`}
+                            >
+                              {currentTensionMeta.label}
+                            </div>
+                          ) : null}
+                          {currentResultEmotion ? (
+                            <div className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700">
+                              {currentResultEmotion}
+                            </div>
+                          ) : null}
+                          {currentMinorityLabel ? (
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentMinorityLabel.toneClass}`}
+                            >
+                              {currentMinorityLabel.text}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {votes[currentPost.id] ? (
+                          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                            <div className="flex items-end justify-between gap-3">
+                              <div>
+                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                  LIVE RESULT
+                                </div>
+                                <div className="mt-1 text-base font-black text-slate-900">
+                                  지금 사람들 반응
+                                </div>
+                              </div>
+                              <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">
+                                결과 보기
+                              </div>
+                            </div>
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                              <div className="text-base font-black text-slate-900">
+                                {liveResultPercentText}
+                              </div>
+                              <div className="mt-1 text-[12px] text-slate-500">
+                                사람들이 계속 들어오고 있어서 결과는 조금씩
+                                달라질 수 있음
+                              </div>
+                            </div>
+
+                            <div className="mt-3 text-[13px] font-semibold text-slate-600">
+                              {currentTension?.isFlipImminent
+                                ? currentTensionMeta.helper
+                                : currentMinorityLabel
+                                  ? currentMinorityLabel.helper
+                                  : currentResultEmotion === '🔥 개싸움'
+                                    ? '지금 들어온 사람도 바로 갈릴 가능성이 높음.'
+                                    : currentResultEmotion === '👀 팽팽'
+                                      ? '한두 표만 더 들어와도 분위기가 바뀔 수 있음.'
+                                      : currentResultEmotion === '⚡ 기우는 중'
+                                        ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
+                                        : currentTensionMeta
+                                          ? currentTensionMeta.helper
+                                          : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                            </div>
+
+                            {!latestOutcome ? (
+                              <div className="mt-3 rounded-[22px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 shadow-[0_10px_20px_rgba(79,124,255,0.10)]">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                                      WATCHLIST
+                                    </div>
+                                    <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
+                                      👀 이 글 결말이 궁금함?
+                                    </div>
+                                    <div className="mt-1 text-[12px] leading-5 text-slate-600">
+                                      {currentWatchlisted
+                                        ? authUser?.id
+                                          ? '내 활동 > 결말궁금 에서 계속 확인 가능'
+                                          : '이 기기에는 저장됨 · 로그인하면 계속 이어볼 수 있음'
+                                        : '후기 올라오면 빨간불로 바로 알려줌'}
+                                    </div>
+                                  </div>
+                                  {currentWatchUnread ? (
+                                    <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                                      새 후기
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    void toggleCurrentPostWatchlist()
+                                  }
+                                  className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
+                                    currentWatchlisted
+                                      ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+                                      : 'bg-slate-950 text-white'
+                                  }`}
+                                >
+                                  {currentWatchlisted
+                                    ? '결말궁금 저장됨 ✓'
+                                    : '결말궁금 저장'}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div className="rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-[11px] font-black tracking-[0.16em] text-rose-500">
+                            COMMENT ARENA
+                          </div>
+                          <div className="mt-1 text-[16px] font-black tracking-[-0.03em] text-slate-950">
+                            댓글 구경이 진짜 본게임
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            markPostMeaningful(currentPost)
+                            setCommentOpen(true)
+                          }}
+                          className="rounded-full bg-slate-950 px-3 py-2 text-[12px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]"
+                        >
+                          댓글 보기
+                        </button>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {dopamineTopComment ? (
+                          <button
+                            onClick={() => {
+                              markPostMeaningful(currentPost)
+                              setCommentInitialHighlightId(dopamineTopComment.id)
+                              setCommentOpen(true)
+                            }}
+                            className="w-full rounded-2xl border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(244,63,94,0.08)]"
+                          >
+                            <div className="text-[11px] font-black tracking-[0.14em] text-rose-500">
+                              🔥 가장 뜨거운 댓글
+                            </div>
+                            <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
+                              “{dopamineTopComment.text}”
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold text-slate-500">
+                              공감 {dopamineTopComment.likes} · 바로 반박하러 가기
+                            </div>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              markPostMeaningful(currentPost)
+                              setCommentInitialHighlightId(null)
+                              setCommentOpen(true)
+                            }}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                          >
+                            <div className="text-[11px] font-black tracking-[0.14em] text-slate-400">
+                              FIRST COMMENT
+                            </div>
+                            <div className="mt-1 text-[14px] font-black text-slate-900">
+                              첫 댓글 달면 이 판 분위기 바로 바뀜
+                            </div>
+                          </button>
+                        )}
+
+                        {dopamineCounterComment ? (
+                          <button
+                            onClick={() => {
+                              markPostMeaningful(currentPost)
+                              setCommentInitialHighlightId(dopamineCounterComment.id)
+                              setCommentOpen(true)
+                            }}
+                            className="w-full rounded-2xl border border-blue-100 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(59,130,246,0.08)]"
+                          >
+                            <div className="text-[11px] font-black tracking-[0.14em] text-blue-500">
+                              🥊 베스트 반박
+                            </div>
+                            <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
+                              “{dopamineCounterComment.text}”
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold text-slate-500">
+                              반대편 의견으로 바로 이동
+                            </div>
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                      <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                        DRAMA SIGNAL
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {currentFlipDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentFlipDrama.toneClass}`}
+                            >
+                              {currentFlipDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentFlipDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentShadowDrama ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black ${currentShadowDrama.toneClass}`}
+                            >
+                              {currentShadowDrama.text}
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              {currentShadowDrama.helper}
+                            </div>
+                          </div>
+                        ) : null}
+                        {currentChoicePathTop && choicePathNextPost ? (
+                          <button
+                            onClick={() =>
+                              moveToPostWithGuard(choicePathNextPost.id)
+                            }
+                            className="w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-3 py-3 text-left"
+                          >
+                            <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                              SAME SIDE NEXT
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              너처럼 고른 사람들 다음으로 이 글 봄
+                            </div>
+                            <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                              {choicePathNextPost.title}
+                            </div>
+                            <div className="mt-1 text-[12px] text-slate-500">
+                              같은 선택 흐름에서 {currentChoicePathTop.count}번
+                              이어짐
+                            </div>
+                          </button>
+                        ) : null}
+                        {!currentFlipDrama &&
+                        !currentShadowDrama &&
+                        !(currentChoicePathTop && choicePathNextPost) ? (
+                          <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3">
+                            <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500 text-[11px] font-black text-slate-600">
+                              지금은 조용한 판
+                            </div>
+                            <div className="mt-2 text-[13px] font-semibold text-slate-600">
+                              아직 크게 흔들린 신호는 없지만 댓글이나 다음
+                              반응에서 다시 붙을 수 있음.
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                      <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                        QUICK REACTION
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {QUICK_REACTION_ORDER.map((reactionType) => {
+                          const meta = POST_REACTION_META[reactionType]
+                          const count = Number(
+                            currentPostReactionSummary[reactionType] ?? 0,
+                          )
+                          const active =
+                            !!myPostReactions[
+                              `${currentPost.id}:${reactionType}`
+                            ]
+                          return (
+                            <button
+                              key={reactionType}
+                              onClick={() => void reactToPost(reactionType)}
+                              className={`rounded-2xl border px-3 py-3 text-[13px] font-bold shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition active:scale-[0.98] ${active ? meta.activeClass : meta.idleClass}`}
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span>{meta.label}</span>
+                              </div>
+                              <div className="mt-1 text-[11px] font-semibold opacity-80">
+                                {count > 0 ? `${count}명` : '첫 반응'}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {latestOutcome ? (
+                        <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 text-[13px] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                {getOutcomeLabel(latestOutcome.outcomeType)}
+                              </div>
+                              {currentWatchUnread ? (
+                                <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">
+                                  새 후기
+                                </span>
+                              ) : null}
+                            </div>
+                            {canWriteOutcome ? (
+                              <button
+                                onClick={() => setOutcomeModalOpen(true)}
+                                className="rounded-full border border-[#dbe7ff] bg-[#f4f8ff] px-2.5 py-1 text-[11px] font-bold text-[#4f7cff]"
+                              >
+                                {canAdminWriteOutcome
+                                  ? '관리자 후기 등록'
+                                  : '후기 추가'}
+                              </button>
+                            ) : null}
+                          </div>
+                          <div className="mt-1">
+                            {latestOutcome.summary || '작성자 후기가 등록됨'}
+                          </div>
+                        </div>
+                      ) : latestOutcome ? (
+                        <button
+                          onClick={() => void toggleCurrentPostWatchlist()}
+                          className="mt-3 w-full rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fffdf7_0%,#fff7db_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(250,204,21,0.12)]"
+                        >
+                          <div className="text-[11px] font-extrabold tracking-[0.14em] text-amber-600">
+                            OUTCOME TEASER
+                          </div>
+                          <div className="mt-1 text-sm font-bold text-slate-900">
+                            후기 도착 · 저장하면 결말까지 공개
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            지금은 일부만 열려 있음. 결말궁금에 넣으면 이 글의
+                            이후 상황까지 바로 확인 가능
+                          </div>
+                        </button>
+                      ) : canWriteOutcome ? (
+                        <button
+                          onClick={() => setOutcomeModalOpen(true)}
+                          className="mt-3 w-full rounded-2xl border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
+                        >
+                          <div className="text-[11px] font-extrabold tracking-[0.14em] text-[#4f7cff]">
+                            AUTHOR UPDATE
+                          </div>
+                          <div className="mt-1 text-sm font-bold text-slate-900">
+                            {outcomeActionLabel}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            이 글의 이후 상황이나 결말을 짧게 등록할 수 있음
+                          </div>
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (choicePathNextPost) {
+                          moveToPostWithGuard(choicePathNextPost.id)
+                          return
+                        }
+                        if (queuedNextPost?.post) {
+                          moveToPostWithGuard(queuedNextPost.post.id)
+                          return
+                        }
+                        handleNextWithGuard()
+                      }}
+                      className="w-full rounded-[24px] border border-slate-900 bg-slate-950 px-4 py-3.5 text-center text-white transition-all shadow-[0_16px_30px_rgba(15,23,42,0.22)]"
+                    >
+                      <div className="text-xs font-black text-white/70">
+                        NEXT DOPAMINE · {nextRecommendationReason}
+                      </div>
+                      <div className="mt-1 text-base font-black text-white">
+                        {nextRecommendationTitle}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-white/60">
+                        {nextRecommendationHelper}
+                      </div>
+                    </button>
+
+                    {shouldRenderKakaoHeavyBlocks &&
+                      controversialPosts.length > 0 && (
+                        <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                          <div className="mb-3 text-sm font-bold text-slate-900">
+                            지금 들어가면 바로 갈릴 논쟁 TOP3
+                          </div>
+                          <div className="space-y-2">
+                            {controversialPosts.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => moveToPostWithGuard(item.id)}
+                                className="w-full rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-slate-50"
+                              >
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.total}명 참여 · 의견 팽팽
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {shouldRenderKakaoHeavyBlocks && !isViewingSharedPost ? (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          onClick={() => void shareCurrentPost()}
+                          className="rounded-[20px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                        >
+                          친구한테 보내기
+                        </button>
+                        <button
+                          onClick={openShareInbox}
+                          className="relative rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(79,124,255,0.10)]"
+                        >
+                          보낸 공유함
+                          {shareInboxUnreadCount > 0 ? (
+                            <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(16,185,129,0.24)]">
+                              {shareInboxUnreadCount}
+                            </span>
+                          ) : shareInboxItems.length > 0 ? (
+                            <span className="absolute right-2 top-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-[0_8px_16px_rgba(15,23,42,0.18)]">
+                              {shareInboxItems.length}
+                            </span>
+                          ) : null}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {isViewingSharedPost ? (
+                      <div
+                        className={`rounded-[24px] p-4 ${isSharedOwnerViewingPost ? 'border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] shadow-[0_12px_26px_rgba(79,124,255,0.10)]' : 'border border-[#f5e3a3] bg-[linear-gradient(180deg,#fffdf5_0%,#fff7db_100%)] shadow-[0_12px_26px_rgba(245,158,11,0.10)]'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 sm:gap-4">
+                          <div className="min-w-0 flex-1 pr-1">
+                            <div
+                              className={`text-[11px] font-extrabold tracking-[0.18em] ${isSharedOwnerViewingPost ? 'text-[#4f7cff]' : 'text-amber-600'}`}
+                            >
+                              {isSharedOwnerViewingPost
+                                ? 'LIVE SHARE'
+                                : 'FRIEND REACTION'}
+                            </div>
+                            <div className="mt-1 text-[17px] leading-[1.32] font-black tracking-[-0.02em] text-slate-900 sm:text-[18px]">
+                              {isSharedOwnerViewingPost
+                                ? shareResponseTotal > 0
+                                  ? '친구 반응이 실시간으로 들어오는 중'
+                                  : '친구 응답 기다리는 중'
+                                : '친구들 반응 모아보기'}
+                            </div>
+                          </div>
+                          <div
+                            className={`shrink-0 whitespace-nowrap rounded-full border bg-white/95 px-4 py-2 text-[12px] font-extrabold leading-none shadow-[0_8px_18px_rgba(15,23,42,0.06)] ${isSharedOwnerViewingPost ? 'border-[#d6e4ff] text-[#4f7cff]' : 'border-amber-200 text-amber-700'}`}
+                          >
+                            {isSharedOwnerViewingPost
+                              ? '실시간 반영'
+                              : '익명 집계'}
+                          </div>
+                        </div>
+
+                        {isSharedOwnerViewingPost && !showOwnerShareResults ? (
+                          <div className="mt-3 space-y-3">
+                            <div
+                              className={`rounded-2xl border px-4 py-3.5 text-[15px] leading-7 font-semibold transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_100%)] text-rose-600 shadow-[0_12px_26px_rgba(16,185,129,0.10)]' : 'border-slate-200/80 bg-white text-slate-700'}`}
+                            >
+                              {shareResponseTotal === 0
+                                ? '아직 친구 반응 없음. 링크를 더 보내서 첫 응답을 받아봐.'
+                                : ownerShareDelta > 0
+                                  ? `방금 친구 응답 +${ownerShareDelta}. 지금 보면 판이 더 재밌음.`
+                                  : shareResponseTotal === 1
+                                    ? '첫 반응 도착. 한 명 더 모이면 진짜 갈리는지 보이기 시작함.'
+                                    : shareResponseTotal === 2
+                                      ? '지금부터 재밌는 구간. 한 명만 더 오면 분위기가 선명해짐.'
+                                      : `친구 응답 ${shareResponseTotal}개 도착. 결과 보면 어디로 기우는지 바로 보임.`}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <button
+                                onClick={() => setShowOwnerShareResults(true)}
+                                className={`rounded-[18px] px-4 py-3 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition-all duration-300 ${sharePulse ? 'scale-[1.02] bg-[linear-gradient(135deg,#bbf7d0_0%,#86efac_48%,#4ade80_100%)]' : 'bg-slate-950 text-white'}`}
+                              >
+                                {ownerShareDelta > 0
+                                  ? `결과 보기 +${ownerShareDelta}`
+                                  : '결과 보기'}
+                              </button>
+                              <button
+                                onClick={() => void shareCurrentPost()}
+                                className="rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]"
+                              >
+                                친구 더 보내기
+                              </button>
+                            </div>
+                            {nextHookPost ? (
+                              <button
+                                onClick={handleNextWithGuard}
+                                className="w-full rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                              >
+                                <div className="text-[11px] font-extrabold tracking-[0.16em] text-slate-400">
+                                  NEXT HOOK
+                                </div>
+                                <div className="mt-1 line-clamp-1 text-sm font-black text-slate-900">
+                                  {nextHookPost.title}
+                                </div>
+                                <div className="mt-1 text-[12px] text-slate-500">
+                                  결과 보기 전에 다른 논쟁 하나 더 보면 더 오래
+                                  머물게 됨
+                                </div>
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                  전체 결과
+                                </div>
+                                <div className="text-[11px] font-bold text-slate-500">
+                                  {currentPost.leftVotes +
+                                    currentPost.rightVotes}
+                                  명 참여
+                                </div>
+                              </div>
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                                  <div className="text-[11px] text-slate-400">
+                                    전체 {currentPost.leftLabel}
+                                  </div>
+                                  <div className="mt-1 text-lg font-black text-slate-900">
+                                    {currentPost.leftVotes}명
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className="h-full rounded-full bg-[#4f7cff] transition-all duration-500"
+                                      style={{
+                                        width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).left, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-center">
+                                  <div className="text-[11px] text-slate-400">
+                                    전체 {currentPost.rightLabel}
+                                  </div>
+                                  <div className="mt-1 text-lg font-black text-slate-900">
+                                    {currentPost.rightVotes}명
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                                      style={{
+                                        width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).right, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
+                                  친구 결과
+                                </div>
+                                <div
+                                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${shareTensionMeta.toneClass}`}
+                                >
+                                  {shareTensionMeta.label}
+                                </div>
+                              </div>
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <div
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                >
+                                  <div className="text-[11px] text-slate-400">
+                                    친구들 {currentPost.leftLabel}
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
+                                    <span>{shareStats.left}명</span>
+                                    {sharePulse &&
+                                    shareStats.left > 0 &&
+                                    shareStats.left >= shareStats.right ? (
+                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                        HOT
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                      style={{
+                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.left / shareResponseTotal) * 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div
+                                  className={`rounded-2xl border px-3 py-3 text-center transition-all duration-300 ${sharePulse ? 'border-rose-100 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] shadow-[0_14px_26px_rgba(16,185,129,0.12)] scale-[1.02]' : 'border-slate-200/80 bg-slate-50/80'}`}
+                                >
+                                  <div className="text-[11px] text-slate-400">
+                                    친구들 {currentPost.rightLabel}
+                                  </div>
+                                  <div className="mt-1 flex items-center justify-center gap-1 text-lg font-black text-slate-900">
+                                    <span>{shareStats.right}명</span>
+                                    {sharePulse &&
+                                    shareStats.right > 0 &&
+                                    shareStats.right > shareStats.left ? (
+                                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
+                                        HOT
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                      style={{
+                                        width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                <div className="text-[11px] text-slate-400">
+                                  내 선택
+                                </div>
+                                <div className="mt-1 text-sm font-black text-slate-900">
+                                  {ownerChoiceInsight.ownerLabel}
+                                </div>
+                                <div
+                                  className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${ownerChoiceInsight.relationTone}`}
+                                >
+                                  {ownerChoiceInsight.relationLabel}
+                                </div>
+                              </div>
+                              <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                                <div className="text-[11px] text-slate-400">
+                                  전체 흐름
+                                </div>
+                                <div className="mt-1 text-sm font-black text-slate-900">
+                                  {currentPost.leftVotes ===
+                                  currentPost.rightVotes
+                                    ? '전체 의견 팽팽'
+                                    : currentPost.leftVotes >
+                                        currentPost.rightVotes
+                                      ? `${currentPost.leftLabel} 우세`
+                                      : `${currentPost.rightLabel} 우세`}
+                                </div>
+                                <div
+                                  className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${getShareTensionMeta(currentPost.leftVotes, currentPost.rightVotes).toneClass}`}
+                                >
+                                  {
+                                    getShareTensionMeta(
+                                      currentPost.leftVotes,
+                                      currentPost.rightVotes,
+                                    ).label
+                                  }
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-xs text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
+                              익명 전체 흐름 먼저 보고, 친구들 반응이 얼마나
+                              다른지도 같이 보는 판임 ·{' '}
+                              {ownerChoiceInsight.helper}
+                            </div>
+
+                            {nextHookPost ? (
+                              <button
+                                onClick={handleNextWithGuard}
+                                className="mt-3 w-full rounded-[20px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] px-4 py-3 text-left shadow-[0_10px_24px_rgba(79,124,255,0.10)]"
+                              >
+                                <div className="text-[11px] font-extrabold tracking-[0.16em] text-[#4f7cff]">
+                                  NEXT HOOK
+                                </div>
+                                <div className="mt-1 text-sm font-black text-slate-900">
+                                  이 판 본 사람은 이것도 많이 눌러봄
+                                </div>
+                                <div className="mt-1 line-clamp-1 text-[13px] text-slate-600">
+                                  {nextHookPost.title}
+                                </div>
+                              </button>
+                            ) : null}
+
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              {isSharedOwnerViewingPost ? (
+                                <button
+                                  onClick={() =>
+                                    setShowOwnerShareResults(false)
+                                  }
+                                  className="rounded-[18px] border border-slate-200/80 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                                >
+                                  결과 접기
+                                </button>
+                              ) : null}
+                              <button
+                                onClick={() => void shareCurrentPost()}
+                                className={`${isSharedOwnerViewingPost ? '' : 'col-span-2 '}rounded-[18px] bg-[linear-gradient(135deg,#fde047_0%,#facc15_100%)] px-4 py-3 text-sm font-black text-slate-900 shadow-[0_12px_24px_rgba(250,204,21,0.24)]`}
+                              >
+                                친구 더 보내기
+                              </button>
+                            </div>
+
+                            {isSharedOwnerViewingPost ? (
+                              <button
+                                onClick={openShareInbox}
+                                className="mt-2.5 w-full rounded-[18px] border border-[#dbe7ff] bg-white/90 px-4 py-3 text-sm font-black text-[#4f7cff] shadow-[0_8px_18px_rgba(79,124,255,0.08)]"
+                              >
+                                보낸 공유함에서 다른 논쟁도 보기
+                              </button>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <div className="mt-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-3.5 py-3 shadow-[0_10px_20px_rgba(15,23,42,0.06)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${getLevelTheme(levelInfo.level).chipClass}`}
+                >
+                  {getLevelTheme(levelInfo.level).icon} Lv.{levelInfo.level}{' '}
+                  {levelInfo.label}
+                </span>
+                {featuredBadge ? (
+                  (() => {
+                    const badgeTheme = getBadgeTheme(featuredBadge)
+                    return (
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${badgeTheme.pillClass}`}
+                      >
+                        {badgeTheme.icon} {featuredBadge}
+                      </span>
+                    )
+                  })()
+                ) : (
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                    ✨ 첫 뱃지 도전중
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 text-[12px] leading-5 text-slate-600">
+                활동할수록 레벨이 오르고, 행동에 따라 뱃지가 쌓임.
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-slate-200 pt-3">
+              <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <BarChart3 className="h-4 w-4" />
+                    {currentPost.leftVotes + currentPost.rightVotes}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      markPostMeaningful(currentPost)
+                      setCommentOpen(true)
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {currentPost.comments.length}
+                  </button>
+                </div>
+
+                <div>조회 {currentPost.views}</div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {!isModalOpen && (
+          <div className="fixed bottom-3 left-0 right-0 z-[9999] px-4">
+            <div className="mx-auto max-w-[392px] rounded-[24px] border border-white/90 bg-white/92 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl shadow-[0_14px_28px_rgba(148,163,184,0.18),0_2px_8px_rgba(15,23,42,0.04)]">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={prev}
+                  className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                >
+                  이전 글
+                </button>
+
+                <button
+                  onClick={handleNextWithGuard}
+                  className="rounded-[18px] bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-[0_14px_26px_rgba(15,23,42,0.24)] transition active:scale-[0.98]"
+                >
+                  다음 글
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toast ? (
+          <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
+            <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)]">
+              {toast}
+            </div>
+          </div>
+        ) : null}
+
+        <CommentModal
+          post={currentPost}
+          open={commentOpen}
+          onClose={() => {
+            setCommentOpen(false)
+            setCommentInitialHighlightId(null)
+            requestLightweightMetaRefresh()
+          }}
+          onAddComment={(text, side, replyToCommentId) =>
+            void addComment(text, side, replyToCommentId ?? null)
+          }
+          onOpenReportComment={openReportComment}
+          adminMode={adminMode}
+          onAdminRestoreComment={(commentId) =>
+            void adminRestoreComment(commentId)
+          }
+          onAdminDeleteComment={(commentId) =>
+            void adminDeleteComment(commentId)
+          }
+          guestName={profile?.anonymous_name ?? guestName}
+          featuredBadge={featuredBadge}
+          currentUserLevel={stats.level}
+          authorMetaMap={authorMetaMap}
+          currentActorKey={authUser?.id ?? voterKey}
+          commentReactionMap={commentReactionMap}
+          myCommentReactions={myCommentReactions}
+          initialHighlightCommentId={commentInitialHighlightId}
+          onReactComment={(commentId, reactionType) =>
+            void reactToComment(commentId, reactionType)
+          }
+          onExposeComments={() => {
+            // result flow 제거: 댓글은 그냥 바로 보여주기만 함
+          }}
+        />
+
+        <CreatePostModal
+          open={writeOpen}
+          onClose={() => setWriteOpen(false)}
+          onCreate={(input) => void createPost(input)}
+          guestName={profile?.anonymous_name ?? guestName}
+        />
+
+        <MyActivityModal
+          open={activityOpen}
+          onClose={() => {
+            setActivityOpen(false)
+            refreshWatchlistSignalsAfterAction(80)
+          }}
+          myPosts={myPosts}
+          myComments={myComments}
+          watchlistItems={watchlistItems}
+          unreadWatchlistCount={unreadWatchlistCount}
+          initialTab={activityInitialTab}
+          onOpenPost={openPostDirect}
+          onOpenWatchlistItem={openWatchlistItemDirect}
+          onOpenComment={openCommentDirect}
+          onLogout={() => void handleLogout()}
+          onLogin={() => void handleGoogleLogin()}
+          onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
+          onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
+          onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
+          profile={profile}
+          stats={stats}
+          badges={badges}
+        />
+
+        <DeletedItemsModal
+          open={deletedOpen}
+          onClose={() => setDeletedOpen(false)}
+          deletedPosts={deletedPosts}
+          deletedComments={deletedComments}
+          onRestorePost={(postId) => void adminRestoreDeletedPost(postId)}
+          onRestoreComment={(commentId) =>
+            void adminRestoreDeletedComment(commentId)
+          }
+        />
+
+        <ShareInboxModal
+          open={shareInboxOpen}
+          onClose={() => setShareInboxOpen(false)}
+          items={shareInboxItems}
+          loading={shareInboxLoading}
+          onOpenItem={(item) => void openOwnerShareSession(item)}
+          onReshare={(item) => void reshareFromInbox(item)}
+        />
+
+        <AuthOptionalModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onGoogleLogin={() => void handleGoogleLogin()}
+        />
+
+        <OutcomeWriteModal
+          open={outcomeModalOpen}
+          onClose={() => setOutcomeModalOpen(false)}
+          onSubmit={(outcomeType, summary) =>
+            void submitOutcome(outcomeType, summary)
+          }
+          postTitle={currentPost?.title ?? '후기 등록'}
+          initialType="author_followup"
+        />
+
+        <ReportModal
+          open={reportModal.open}
+          onClose={() =>
+            setReportModal({
+              open: false,
+              type: null,
+              id: null,
+              label: '',
+            })
+          }
+          onSubmit={(reason) => void submitReport(reason)}
+          targetLabel={reportModal.label}
+        />
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.10),_transparent_30%),linear-gradient(180deg,#f5f7fb_0%,#eef2f7_100%)] text-slate-900 flex items-center justify-center px-6 text-center">
       <div>
         <div className="text-lg font-bold">표시할 글이 없음</div>
-        <div className="mt-2 text-sm text-slate-500">
-          새 글을 작성하거나 데이터를 다시 불러와줘
-        </div>
+        <div className="mt-2 text-sm text-slate-500">새 글을 작성하거나 데이터를 다시 불러와줘</div>
       </div>
     </div>
   )
