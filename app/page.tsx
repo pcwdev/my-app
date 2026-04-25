@@ -2028,8 +2028,8 @@ const VoteOption = React.memo(function VoteOption({
   label,
   value,
   showValue = false,
-  previewTitle = '지금 반응이 쌓이는 중',
-  previewHelper = '선택하면 분위기 공개',
+  previewTitle = '의견이 갈리는 중',
+  previewHelper = '선택하면 현재 분위기가 열림',
   onClick,
   disabled = false,
 }: {
@@ -2046,39 +2046,54 @@ const VoteOption = React.memo(function VoteOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-[22px] border px-4 py-3 text-left transition-all duration-200 ${
+      className={`group relative w-full overflow-hidden rounded-[26px] border px-4 py-4 text-left transition-all duration-200 ${
         active
-          ? 'border-[#cfe0ff] bg-[linear-gradient(180deg,#f7faff_0%,#eaf1ff_100%)] shadow-[0_14px_26px_rgba(79,124,255,0.14)]'
-          : 'border-slate-200/80 bg-white shadow-[0_7px_16px_rgba(15,23,42,0.04)]'
-      } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:bg-slate-50'}`}
+          ? 'border-slate-950 bg-[linear-gradient(180deg,#ffffff_0%,#f7f7f8_100%)] shadow-[0_18px_36px_rgba(15,23,42,0.14)]'
+          : 'border-slate-200/90 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.05)]'
+      } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)]'}`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className={`inline-flex rounded-xl px-2.5 py-1 text-[12px] font-bold ${
-            active ? 'bg-[#4f7cff] text-white' : 'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {label}
-        </span>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-slate-950 opacity-0 transition-opacity duration-200 group-hover:opacity-60" />
+      {active ? (
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-slate-950" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+            내 판단
+          </div>
+          <div className="mt-1 text-[17px] font-black leading-snug tracking-[-0.03em] text-slate-950">
+            {label}
+          </div>
+        </div>
+
         {showValue ? (
-          <span className="text-[17px] font-extrabold text-slate-900">
-            {value}%
-          </span>
+          <div className="shrink-0 text-right">
+            <div className="text-[22px] font-black leading-none text-slate-950">
+              {value}%
+            </div>
+            <div className="mt-1 text-[10px] font-bold text-slate-400">
+              현재 선택
+            </div>
+          </div>
         ) : (
-          <span className="text-[12px] font-bold text-slate-500">
-            {previewTitle}
-          </span>
+          <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600">
+            고르기
+          </div>
         )}
       </div>
+
       {showValue ? (
-        <div className="mt-2 h-1.5 w-full rounded-full border border-slate-200 bg-white shadow-[0_4px_10px_rgba(15,23,42,0.04)]">
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full rounded-full bg-[#4f7cff] transition-all duration-150 shadow-[0_4px_12px_rgba(79,124,255,0.28)]"
+            className="h-full rounded-full bg-slate-950 transition-all duration-300"
             style={{ width: `${value}%` }}
           />
         </div>
       ) : (
-        <div className="mt-2 text-[12px] font-semibold text-slate-500">
+        <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-semibold leading-5 text-slate-500">
+          <span className="font-black text-slate-700">{previewTitle}</span>
+          <span className="mx-1 text-slate-300">·</span>
           {previewHelper}
         </div>
       )}
@@ -10471,34 +10486,34 @@ ${shareUrl}`)
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-4 space-y-2.5">
-                  <div className="overflow-hidden rounded-[26px] border border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.12),transparent_38%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_16px_36px_rgba(15,23,42,0.08)]">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-[11px] font-black tracking-[0.16em] text-rose-500">
-                          JUDGEMENT SLOT
+                <div className="mt-4 space-y-3">
+                  <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
+                          선택의 순간
                         </div>
-                        <div className="mt-1 text-[18px] font-black tracking-[-0.04em] text-slate-950">
+                        <div className="mt-1 text-[19px] font-black tracking-[-0.04em] text-slate-950">
                           {votes[currentPost.id]
                             ? dopamineResultTitle
-                            : '3초 안에 골라봐'}
+                            : '내 생각은 어느 쪽에 가까워?'}
                         </div>
                       </div>
-                      <div className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]">
-                        {votes[currentPost.id] ? '결과 열림' : '선택 대기'}
+                      <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+                        {votes[currentPost.id] ? '분위기 공개' : '선택 전'}
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-1.5">
-                      {dopamineLiveEvents.map((event) => (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {dopamineLiveEvents.slice(0, 3).map((event) => (
                         <div
                           key={event}
-                          className="rounded-2xl border border-white/80 bg-white/85 px-2 py-2 text-center text-[10px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]"
                         >
                           {event}
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-bold text-slate-600">
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-semibold leading-5 text-slate-600">
                       {dopamineResultHelper}
                     </div>
                   </div>
@@ -10512,6 +10527,13 @@ ${shareUrl}`)
                     onClick={() => void handleVote('left')}
                     disabled={isVoting}
                   />
+                  <div className="flex items-center gap-3 px-1">
+                    <div className="h-px flex-1 bg-slate-200" />
+                    <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">
+                      또는
+                    </div>
+                    <div className="h-px flex-1 bg-slate-200" />
+                  </div>
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
                     label={currentPost.rightLabel}
