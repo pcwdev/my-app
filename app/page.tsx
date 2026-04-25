@@ -1986,6 +1986,25 @@ function getRawActorKey(userId?: string | null, voterKey?: string | null) {
   return null
 }
 
+function normalizeNotificationActorKey(key?: string | null) {
+  const safe = String(key ?? '').trim()
+  if (!safe) return null
+  if (safe.startsWith('voter:') || safe.startsWith('user:')) return safe
+  if (safe.startsWith('vk_')) return `voter:${safe}`
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(safe)
+  ) {
+    return `user:${safe}`
+  }
+  return safe
+}
+
+function buildNotificationDedupeKey(
+  parts: Array<string | number | null | undefined>,
+) {
+  return parts.map((part) => String(part ?? '')).join(':')
+}
+
 function getOutcomeTone(outcomeType: PostOutcomeItem['outcomeType']) {
   switch (outcomeType) {
     case 'resolved':
@@ -10265,6 +10284,75 @@ ${shareUrl}`)
       createdAt: inserted.created_at ?? null,
     }
 
+    try {
+      const [watchersRes, votersRes] = await Promise.all([
+        supabase
+          .from('post_watchlist')
+          .select('actor_key')
+          .eq('post_id', currentPost.id),
+        supabase
+          .from('votes')
+          .select('voter_key')
+          .eq('post_id', currentPost.id),
+      ])
+
+      if (watchersRes.error) {
+        console.error('후기 알림 대상 조회 실패', watchersRes.error)
+      }
+      if (votersRes.error) {
+        console.error('후기 투표자 알림 대상 조회 실패', votersRes.error)
+      }
+
+      const currentNotificationActorKey = normalizeNotificationActorKey(
+        currentActorUnifiedKey ?? currentActorKey ?? null,
+      )
+      const targetKeySet = new Set<string>()
+
+      ;(watchersRes.data ?? []).forEach((row: any) => {
+        const key = normalizeNotificationActorKey(row.actor_key)
+        if (key && key !== currentNotificationActorKey) targetKeySet.add(key)
+      })
+      ;(votersRes.data ?? []).forEach((row: any) => {
+        const key = normalizeNotificationActorKey(row.voter_key)
+        if (key && key !== currentNotificationActorKey) targetKeySet.add(key)
+      })
+
+      const outcomeNotificationPayloads = Array.from(targetKeySet).map(
+        (key) => ({
+          target_actor_key: key,
+          type: 'result_open',
+          reference_post_id: currentPost.id,
+          reference_comment_id: null,
+          title: '🎯 결말 공개됨',
+          message: '그때 네 선택, 맞았을까? 지금 확인해봐.',
+          dedupe_key: buildNotificationDedupeKey([
+            'result_open',
+            currentPost.id,
+            nextItem.id,
+            key,
+          ]),
+          is_read: false,
+        }),
+      )
+
+      if (outcomeNotificationPayloads.length > 0) {
+        const { error: outcomeNotificationError } = await supabase
+          .from('notification_events')
+          .upsert(outcomeNotificationPayloads, {
+            onConflict: 'dedupe_key',
+            ignoreDuplicates: true,
+          })
+
+        if (outcomeNotificationError) {
+          console.error('후기 알림 생성 실패', outcomeNotificationError)
+        } else {
+          void loadNotificationEvents()
+        }
+      }
+    } catch (notificationError) {
+      console.error('후기 알림 처리 실패', notificationError)
+    }
+
     setPostOutcomeMap((prev) => {
       const prevItems = prev[currentPost.id] ?? []
       return {
@@ -10558,6 +10646,78 @@ ${shareUrl}`)
         inserted.reply_to_comment_id != null
           ? Number(inserted.reply_to_comment_id)
           : null,
+    }
+
+    const postOwnerNotificationKey = normalizeNotificationActorKey(
+      currentPost.authorKey ?? null,
+    )
+    const replyTargetComment = replyToCommentId
+      ? currentPost.comments.find(
+          (comment) => Number(comment.id) === Number(replyToCommentId),
+        )
+      : null
+    const replyOwnerNotificationKey = normalizeNotificationActorKey(
+      replyTargetComment?.authorKey ?? null,
+    )
+    const currentNotificationActorKey = normalizeNotificationActorKey(
+      currentActorUnifiedKey ?? currentActorKey ?? null,
+    )
+
+    const notificationPayloads = [] as Array<Record<string, any>>
+
+    if (
+      replyToCommentId &&
+      replyOwnerNotificationKey &&
+      replyOwnerNotificationKey !== currentNotificationActorKey
+    ) {
+      notificationPayloads.push({
+        target_actor_key: replyOwnerNotificationKey,
+        type: 'reply_attack',
+        reference_post_id: targetPostId,
+        reference_comment_id: newComment.id,
+        title: '⚔️ 네 댓글에 반박 달림',
+        message: '방금 누가 네 의견에 반박했어. 흐름 확인해봐.',
+        dedupe_key: buildNotificationDedupeKey([
+          'reply_attack',
+          targetPostId,
+          replyToCommentId,
+          newComment.id,
+        ]),
+        is_read: false,
+      })
+    } else if (
+      postOwnerNotificationKey &&
+      postOwnerNotificationKey !== currentNotificationActorKey
+    ) {
+      notificationPayloads.push({
+        target_actor_key: postOwnerNotificationKey,
+        type: 'post_comment',
+        reference_post_id: targetPostId,
+        reference_comment_id: newComment.id,
+        title: '💬 네 글에 댓글 달림',
+        message: '방금 누가 네 논쟁에 의견을 남김. 지금 흐름 확인해봐.',
+        dedupe_key: buildNotificationDedupeKey([
+          'post_comment',
+          targetPostId,
+          newComment.id,
+        ]),
+        is_read: false,
+      })
+    }
+
+    if (notificationPayloads.length > 0) {
+      const { error: notificationError } = await supabase
+        .from('notification_events')
+        .upsert(notificationPayloads, {
+          onConflict: 'dedupe_key',
+          ignoreDuplicates: true,
+        })
+
+      if (notificationError) {
+        console.error('댓글 알림 생성 실패', notificationError)
+      } else {
+        void loadNotificationEvents()
+      }
     }
 
     setPosts((prev) =>
