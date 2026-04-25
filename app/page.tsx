@@ -2967,6 +2967,9 @@ function MyActivityModal({
   myComments,
   watchlistItems,
   unreadWatchlistCount,
+  notificationItems,
+  notificationLoading,
+  unreadNotificationCount,
   initialTab = 'posts',
   onOpenPost,
   onOpenWatchlistItem,
@@ -2976,6 +2979,8 @@ function MyActivityModal({
   onMarkAllPostsSeen,
   onMarkAllCommentsSeen,
   onMarkAllWatchlistSeen,
+  onOpenNotificationItem,
+  onMarkAllNotificationsRead,
   profile,
   stats,
   badges,
@@ -2986,7 +2991,10 @@ function MyActivityModal({
   myComments: MyCommentItem[]
   watchlistItems: WatchlistItem[]
   unreadWatchlistCount: number
-  initialTab?: 'posts' | 'comments' | 'watchlist'
+  notificationItems: NotificationEventRow[]
+  notificationLoading: boolean
+  unreadNotificationCount: number
+  initialTab?: 'posts' | 'comments' | 'watchlist' | 'notifications'
   onOpenPost: (postId: number, markSeenPostId?: number) => void
   onOpenWatchlistItem: (item: WatchlistItem) => void
   onOpenComment: (postId: number, commentId?: number) => void
@@ -2995,11 +3003,15 @@ function MyActivityModal({
   onMarkAllPostsSeen: () => void
   onMarkAllCommentsSeen: () => void
   onMarkAllWatchlistSeen: () => void
+  onOpenNotificationItem: (item: NotificationEventRow) => void
+  onMarkAllNotificationsRead: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
   badges: string[]
 }) {
-  const [tab, setTab] = useState<'posts' | 'comments' | 'watchlist'>(initialTab)
+  const [tab, setTab] = useState<
+    'posts' | 'comments' | 'watchlist' | 'notifications'
+  >(initialTab)
   const [profileExpanded, setProfileExpanded] = useState(false)
   const [watchlistFilter, setWatchlistFilter] =
     useState<WatchlistItem['watchStatus']>('updated')
@@ -3026,6 +3038,7 @@ function MyActivityModal({
     { label: '글', value: stats.posts_count },
     { label: '댓글', value: stats.comments_count },
     { label: '궁금', value: watchlistItems.length },
+    { label: '알림', value: unreadNotificationCount },
   ]
 
   const unreadMyPostCount = myPosts.filter(
@@ -3069,7 +3082,7 @@ function MyActivityModal({
           <div>
             <div className="text-lg font-bold">내 활동</div>
             <div className="text-sm text-slate-500">
-              내 글, 댓글, 저장한 글 모아보기
+              내 글, 댓글, 저장한 글, 실시간 알림 모아보기
             </div>
           </div>
           <button
@@ -3114,7 +3127,7 @@ function MyActivityModal({
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
               {summaryStats.map((item) => (
                 <div
                   key={item.label}
@@ -3257,6 +3270,21 @@ function MyActivityModal({
                 </span>
               ) : null}
             </button>
+            <button
+              onClick={() => setTab('notifications')}
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold shadow-sm ${
+                tab === 'notifications'
+                  ? 'bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.26)]'
+                  : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              알림
+              {unreadNotificationCount > 0 ? (
+                <span className="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {unreadNotificationCount}
+                </span>
+              ) : null}
+            </button>
           </div>
 
           {tab === 'posts' ? (
@@ -3376,6 +3404,92 @@ function MyActivityModal({
                 : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
+
+          {tab === 'notifications' ? (
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-black text-slate-950">
+                    실시간 알림
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-bold text-slate-500">
+                    반박, 뒤집힘, 결말 공개를 여기서 확인
+                  </div>
+                </div>
+                {unreadNotificationCount > 0 ? (
+                  <button
+                    onClick={onMarkAllNotificationsRead}
+                    className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                  >
+                    전체 읽음
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {tab === 'notifications' && notificationLoading ? (
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm font-bold text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              알림 불러오는 중
+            </div>
+          ) : null}
+
+          {tab === 'notifications' &&
+          !notificationLoading &&
+          notificationItems.length === 0 ? (
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              아직 새 알림이 없음
+            </div>
+          ) : null}
+
+          {tab === 'notifications' &&
+            !notificationLoading &&
+            notificationItems.map((item) => {
+              const meta = getNotificationMeta(item.type)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onOpenNotificationItem(item)}
+                  className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
+                    item.is_read
+                      ? 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
+                      : 'border-rose-200 bg-rose-50/90'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-base ${meta.toneClass}`}
+                    >
+                      {meta.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${meta.toneClass}`}
+                        >
+                          {meta.label}
+                        </span>
+                        {!item.is_read ? (
+                          <span className="h-2 w-2 rounded-full bg-rose-500" />
+                        ) : null}
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {formatRelativeShort(item.created_at)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm font-black tracking-[-0.03em] text-slate-950">
+                        {item.title}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                        {item.message}
+                      </div>
+                      <div className="mt-2 text-[11px] font-black text-rose-600">
+                        눌러서 바로 확인
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
 
           {tab === 'watchlist' && (
             <>
@@ -5473,7 +5587,7 @@ export default function MatnyaApp() {
   const [writeOpen, setWriteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [activityInitialTab, setActivityInitialTab] = useState<
-    'posts' | 'comments' | 'watchlist'
+    'posts' | 'comments' | 'watchlist' | 'notifications'
   >('posts')
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
@@ -9865,6 +9979,7 @@ ${shareUrl}`)
   const openNotificationItem = (item: NotificationEventRow) => {
     void markNotificationRead(item.id)
     setNotificationOpen(false)
+    setActivityOpen(false)
 
     if (item.reference_post_id) {
       openPostDirect(Number(item.reference_post_id))
@@ -10032,8 +10147,11 @@ ${shareUrl}`)
   }
 
   const openWatchlistActivity = () => {
-    setActivityInitialTab('watchlist')
+    setActivityInitialTab(
+      unreadNotificationCount > 0 ? 'notifications' : 'watchlist',
+    )
     setActivityOpen(true)
+    void loadNotificationEvents()
     requestLightweightMetaRefresh()
   }
 
@@ -10322,8 +10440,8 @@ ${shareUrl}`)
           type: 'result_open',
           reference_post_id: currentPost.id,
           reference_comment_id: null,
-          title: '🎯 결말 공개됨',
-          message: '그때 네 선택, 맞았을까? 지금 확인해봐.',
+          title: '👀 결국 이렇게 됨',
+          message: '네가 궁금해하던 그 글 결말 공개됨. 지금 확인해봐.',
           dedupe_key: buildNotificationDedupeKey([
             'result_open',
             currentPost.id,
@@ -10674,8 +10792,8 @@ ${shareUrl}`)
         type: 'reply_attack',
         reference_post_id: targetPostId,
         reference_comment_id: newComment.id,
-        title: '⚔️ 네 댓글에 반박 달림',
-        message: '방금 누가 네 의견에 반박했어. 흐름 확인해봐.',
+        title: '🔥 네 댓글에 제대로 반박 붙음',
+        message: '방금 누가 네 의견에 붙었어. 지금 안 보면 흐름 놓침.',
         dedupe_key: buildNotificationDedupeKey([
           'reply_attack',
           targetPostId,
@@ -10693,8 +10811,8 @@ ${shareUrl}`)
         type: 'post_comment',
         reference_post_id: targetPostId,
         reference_comment_id: newComment.id,
-        title: '💬 네 글에 댓글 달림',
-        message: '방금 누가 네 논쟁에 의견을 남김. 지금 흐름 확인해봐.',
+        title: '💬 네 글에 새 의견 붙음',
+        message: '방금 누가 네 논쟁에 들어왔어. 판 분위기 확인해봐.',
         dedupe_key: buildNotificationDedupeKey([
           'post_comment',
           targetPostId,
@@ -12669,6 +12787,9 @@ ${shareUrl}`)
             myComments={myComments}
             watchlistItems={watchlistItems}
             unreadWatchlistCount={unreadWatchlistCount}
+            notificationItems={notificationItems}
+            notificationLoading={notificationLoading}
+            unreadNotificationCount={unreadNotificationCount}
             initialTab={activityInitialTab}
             onOpenPost={openPostDirect}
             onOpenWatchlistItem={openWatchlistItemDirect}
@@ -12678,6 +12799,8 @@ ${shareUrl}`)
             onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
             onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
             onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
+            onOpenNotificationItem={openNotificationItem}
+            onMarkAllNotificationsRead={() => void markAllNotificationsRead()}
             profile={profile}
             stats={stats}
             badges={badges}
