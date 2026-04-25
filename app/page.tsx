@@ -3,13 +3,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
+  Bell,
+  Eye,
   Flag,
   Flame,
+  Target,
   MessageCircle,
   MoreHorizontal,
   Plus,
   Send,
   Shield,
+  Trophy,
   User,
   X,
 } from 'lucide-react'
@@ -226,6 +230,31 @@ type InquiryRow = {
   admin_note: string | null
   created_at: string | null
   resolved_at: string | null
+}
+
+type NotificationType =
+  | 'new_post'
+  | 'post_comment'
+  | 'reply_attack'
+  | 'vote_flip'
+  | 'minority_alert'
+  | 'comment_battle'
+  | 'result_open'
+  | 'friend_opposite'
+  | 'best_comment'
+  | 'hot_entry'
+
+type NotificationEventRow = {
+  id: number
+  target_actor_key: string
+  target_user_id?: string | null
+  type: NotificationType
+  reference_post_id: number | null
+  reference_comment_id: number | null
+  title: string
+  message: string
+  is_read: boolean
+  created_at: string | null
 }
 
 type MyPostItem = {
@@ -5199,6 +5228,71 @@ function ShareInboxModal({
   )
 }
 
+function getNotificationMeta(type: NotificationType) {
+  switch (type) {
+    case 'vote_flip':
+      return {
+        icon: '🔥',
+        label: '역전',
+        toneClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      }
+    case 'minority_alert':
+      return {
+        icon: '👀',
+        label: '소수',
+        toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      }
+    case 'comment_battle':
+      return {
+        icon: '💥',
+        label: '댓글전쟁',
+        toneClass: 'border-orange-200 bg-orange-50 text-orange-700',
+      }
+    case 'result_open':
+      return {
+        icon: '🎯',
+        label: '결말',
+        toneClass: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      }
+    case 'reply_attack':
+      return {
+        icon: '⚔️',
+        label: '반박',
+        toneClass: 'border-red-200 bg-red-50 text-red-700',
+      }
+    case 'post_comment':
+      return {
+        icon: '💬',
+        label: '댓글',
+        toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
+      }
+    case 'best_comment':
+      return {
+        icon: '🏆',
+        label: '베스트',
+        toneClass: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+      }
+    case 'hot_entry':
+      return {
+        icon: '🚀',
+        label: 'HOT',
+        toneClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+      }
+    case 'friend_opposite':
+      return {
+        icon: '😏',
+        label: '친구반대',
+        toneClass: 'border-violet-200 bg-violet-50 text-violet-700',
+      }
+    default:
+      return {
+        icon: '✨',
+        label: '새소식',
+        toneClass: 'border-slate-200 bg-slate-50 text-slate-700',
+      }
+  }
+}
+
 export default function MatnyaApp() {
   const [posts, setPosts] = useState<PostItem[]>([])
   const postsRef = useRef<PostItem[]>([])
@@ -5383,6 +5477,11 @@ export default function MatnyaApp() {
   const [inquiryAdminOpen, setInquiryAdminOpen] = useState(false)
   const [inquiryAdminItems, setInquiryAdminItems] = useState<InquiryRow[]>([])
   const [inquiryAdminLoading, setInquiryAdminLoading] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [notificationItems, setNotificationItems] = useState<
+    NotificationEventRow[]
+  >([])
+  const [notificationLoading, setNotificationLoading] = useState(false)
 
   const isAdmin = profile?.role === 'admin'
 
@@ -5396,6 +5495,92 @@ export default function MatnyaApp() {
     const timer = setTimeout(() => setToast(''), 1400)
     return () => clearTimeout(timer)
   }, [])
+
+  const unreadNotificationCount = useMemo(
+    () => notificationItems.filter((item) => !item.is_read).length,
+    [notificationItems],
+  )
+
+  const loadNotificationEvents = useCallback(async () => {
+    if (!currentActorUnifiedKey) {
+      setNotificationItems([])
+      return
+    }
+
+    setNotificationLoading(true)
+    const actorKeys = [currentActorUnifiedKey, currentRawActorKey].filter(
+      Boolean,
+    ) as string[]
+
+    const { data, error } = await supabase
+      .from('notification_events')
+      .select(
+        'id, target_actor_key, target_user_id, type, reference_post_id, reference_comment_id, title, message, is_read, created_at',
+      )
+      .in('target_actor_key', actorKeys)
+      .order('created_at', { ascending: false })
+      .limit(40)
+
+    if (error) {
+      console.error('알림 조회 실패', error)
+      setNotificationLoading(false)
+      return
+    }
+
+    setNotificationItems((data ?? []) as NotificationEventRow[])
+    setNotificationLoading(false)
+  }, [currentActorUnifiedKey, currentRawActorKey])
+
+  const markNotificationRead = useCallback(async (id: number) => {
+    setNotificationItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, is_read: true } : item)),
+    )
+
+    const { error } = await supabase
+      .from('notification_events')
+      .update({ is_read: true })
+      .eq('id', id)
+
+    if (error) {
+      console.error('알림 읽음 처리 실패', error)
+    }
+  }, [])
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!currentActorUnifiedKey) return
+
+    setNotificationItems((prev) =>
+      prev.map((item) => ({ ...item, is_read: true })),
+    )
+
+    const actorKeys = [currentActorUnifiedKey, currentRawActorKey].filter(
+      Boolean,
+    ) as string[]
+
+    const { error } = await supabase
+      .from('notification_events')
+      .update({ is_read: true })
+      .in('target_actor_key', actorKeys)
+      .eq('is_read', false)
+
+    if (error) {
+      console.error('알림 전체 읽음 처리 실패', error)
+    }
+  }, [currentActorUnifiedKey, currentRawActorKey])
+
+  useEffect(() => {
+    void loadNotificationEvents()
+  }, [loadNotificationEvents])
+
+  useEffect(() => {
+    if (!currentActorUnifiedKey) return
+
+    const timer = setInterval(() => {
+      void loadNotificationEvents()
+    }, 20000)
+
+    return () => clearInterval(timer)
+  }, [currentActorUnifiedKey, loadNotificationEvents])
 
   const submitInquiry = useCallback(
     async (input: {
@@ -9659,6 +9844,20 @@ ${shareUrl}`)
     }
   }
 
+  const openNotificationItem = (item: NotificationEventRow) => {
+    void markNotificationRead(item.id)
+    setNotificationOpen(false)
+
+    if (item.reference_post_id) {
+      openPostDirect(Number(item.reference_post_id))
+    }
+
+    if (item.reference_comment_id) {
+      setCommentInitialHighlightId(Number(item.reference_comment_id))
+      setCommentOpen(true)
+    }
+  }
+
   const openWatchlistItemDirect = (item: WatchlistItem) => {
     openPostDirect(item.postId)
     if (item.latestOutcomeCreatedAt) {
@@ -10852,7 +11051,8 @@ ${shareUrl}`)
     authOpen ||
     shareInboxOpen ||
     inquiryOpen ||
-    inquiryAdminOpen
+    inquiryAdminOpen ||
+    notificationOpen
 
   if (loading) {
     return (
@@ -10932,6 +11132,25 @@ ${shareUrl}`)
                       </span>
                       {unreadActivityBadgeCount > 0 ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                      ) : null}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setNotificationOpen(true)
+                        void loadNotificationEvents()
+                      }}
+                      className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
+                      aria-label="알림"
+                      title="알림"
+                    >
+                      <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                      {unreadNotificationCount > 0 ? (
+                        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                          {unreadNotificationCount > 9
+                            ? '9+'
+                            : unreadNotificationCount}
+                        </span>
                       ) : null}
                     </button>
 
@@ -12355,6 +12574,99 @@ ${shareUrl}`)
             postTitle={currentPost?.title ?? '후기 등록'}
             initialType="author_followup"
           />
+
+          {notificationOpen ? (
+            <div
+              className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/40 px-3 pt-20 backdrop-blur-sm"
+              onClick={() => setNotificationOpen(false)}
+            >
+              <div
+                className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.25)]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
+                  <div>
+                    <div className="text-lg font-black tracking-[-0.03em] text-slate-950">
+                      실시간 알림
+                    </div>
+                    <div className="mt-0.5 text-xs font-bold text-slate-500">
+                      뒤집힘, 반박, 결말 공개를 여기서 확인
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {unreadNotificationCount > 0 ? (
+                      <button
+                        onClick={() => void markAllNotificationsRead()}
+                        className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-600"
+                      >
+                        모두 읽음
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={() => setNotificationOpen(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white"
+                      aria-label="알림 닫기"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[62vh] overflow-y-auto px-3 py-3">
+                  {notificationLoading ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                      알림 불러오는 중
+                    </div>
+                  ) : notificationItems.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                      아직 새 알림이 없음
+                    </div>
+                  ) : (
+                    notificationItems.map((item) => {
+                      const meta = getNotificationMeta(item.type)
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openNotificationItem(item)}
+                          className={`mb-2 w-full rounded-[22px] border px-4 py-3 text-left transition active:scale-[0.99] ${
+                            item.is_read
+                              ? 'border-slate-100 bg-white text-slate-500'
+                              : 'border-rose-100 bg-rose-50/80 text-slate-950 shadow-[0_10px_26px_rgba(244,63,94,0.08)]'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-base ${meta.toneClass}`}
+                            >
+                              {meta.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${meta.toneClass}`}
+                                >
+                                  {meta.label}
+                                </span>
+                                {!item.is_read ? (
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                ) : null}
+                              </div>
+                              <div className="mt-1 text-sm font-black tracking-[-0.03em] text-slate-950">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                                {item.message}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <InquiryCenterModal
             key={inquiryModalKey}
