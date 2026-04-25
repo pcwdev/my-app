@@ -6679,10 +6679,15 @@ export default function MatnyaApp() {
   const markAllMyPostsSeen = useCallback(async () => {
     if (!currentRawActorKey) return
 
-    const targetPostIds = myPosts
-      .filter((item) => Number(item.newCommentsCount ?? 0) > 0)
-      .map((item) => Number(item.postId))
-      .filter(Boolean)
+    // 내글 탭은 무조건 "내가 쓴 글(post)" 기준으로만 읽음 처리한다.
+    // 내댓글 탭과 대상 목록을 섞지 않는다.
+    const targetPostIds = [
+      ...new Set(
+        myPosts
+          .map((item) => Number(item.postId))
+          .filter((postId) => Number.isFinite(postId) && postId > 0),
+      ),
+    ]
 
     if (targetPostIds.length === 0) return
 
@@ -6702,20 +6707,29 @@ export default function MatnyaApp() {
       return
     }
 
+    // DB 반영 후 화면도 즉시 제거한다. fetch가 늦어도 빨간점이 남지 않게 한다.
+    setMyPosts((prev) =>
+      prev.map((item) => ({
+        ...item,
+        hasNewComments: false,
+        newCommentsCount: 0,
+      })),
+    )
+
     void fetchMyActivity(currentRawActorKey)
   }, [currentRawActorKey, fetchMyActivity, myPosts])
 
   const markAllMyCommentsSeen = useCallback(async () => {
     if (!currentRawActorKey) return
 
-    // 내댓글은 대댓글이 아니라 "내가 댓글 단 글의 새 댓글"을 보는 구조다.
-    // 따라서 내글 탭과 똑같이 post 단위로 읽음 처리해야 한다.
+    // 현재 버전은 대댓글 기능이 없으므로 내댓글 탭도
+    // "내가 댓글 단 원글(post)에 새 댓글이 붙었는지"를 본다.
+    // 단, 내글 탭 목록과 섞지 않고 내댓글이 속한 postId만 읽음 처리한다.
     const targetPostIds = [
       ...new Set(
         myComments
-          .filter((item) => Number(item.newRepliesCount ?? 0) > 0)
           .map((item) => Number(item.postId))
-          .filter(Boolean),
+          .filter((postId) => Number.isFinite(postId) && postId > 0),
       ),
     ]
 
@@ -6736,6 +6750,15 @@ export default function MatnyaApp() {
       console.error('내 댓글 전체 읽음 처리 실패', error)
       return
     }
+
+    // 내댓글 탭만 즉시 제거한다. 같은 post를 보는 내글 탭은 fetchMyActivity로 동기화된다.
+    setMyComments((prev) =>
+      prev.map((item) => ({
+        ...item,
+        hasNewReplies: false,
+        newRepliesCount: 0,
+      })),
+    )
 
     void fetchMyActivity(currentRawActorKey)
   }, [currentRawActorKey, fetchMyActivity, myComments])
