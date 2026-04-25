@@ -6619,9 +6619,12 @@ export default function MatnyaApp() {
           ? new Date(row.created_at).getTime()
           : 0
         const seenTime = seenAt ? new Date(seenAt).getTime() : 0
-        const isOtherUser = !actorLookupKeys.includes(
-          String(row.reactor_key ?? ''),
-        )
+        const reactorLookupKey =
+          normalizeNotificationActorKey(row.reactor_key) ??
+          String(row.reactor_key ?? '')
+        const isOtherUser =
+          !actorLookupKeys.includes(String(row.reactor_key ?? '')) &&
+          !actorLookupKeys.includes(reactorLookupKey)
         totalReplyCountMap.set(
           commentId,
           Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
@@ -6668,6 +6671,47 @@ export default function MatnyaApp() {
     [currentActorUnifiedKey, currentRawActorKey],
   )
 
+  const saveActivityReads = useCallback(
+    async (
+      rows: Array<{
+        actor_key: string
+        target_type: 'post' | 'comment'
+        target_id: number
+        last_seen_at: string
+      }>,
+    ) => {
+      if (rows.length === 0) return { error: null as any }
+
+      const upsertRes = await supabase
+        .from('user_activity_reads')
+        .upsert(rows, {
+          onConflict: 'actor_key,target_type,target_id',
+        })
+
+      if (!upsertRes.error) return { error: null as any }
+
+      console.warn(
+        '활동 읽음 upsert 실패, delete/insert 방식으로 재시도',
+        upsertRes.error,
+      )
+
+      for (const row of rows) {
+        const deleteRes = await supabase
+          .from('user_activity_reads')
+          .delete()
+          .eq('actor_key', row.actor_key)
+          .eq('target_type', row.target_type)
+          .eq('target_id', row.target_id)
+
+        if (deleteRes.error) return { error: deleteRes.error }
+      }
+
+      const insertRes = await supabase.from('user_activity_reads').insert(rows)
+      return { error: insertRes.error }
+    },
+    [],
+  )
+
   const markAllMyPostsSeen = useCallback(async () => {
     const readActorKeys = Array.from(
       new Set(
@@ -6681,47 +6725,61 @@ export default function MatnyaApp() {
     const targetPostIds = [
       ...new Set(
         myPosts
+          .filter(
+            (item) =>
+              Number(item.newCommentsCount ?? 0) > 0 || item.hasNewComments,
+          )
           .map((item) => Number(item.postId))
           .filter((postId) => Number.isFinite(postId) && postId > 0),
       ),
     ]
 
-    if (targetPostIds.length === 0) return
+    if (targetPostIds.length === 0) {
+      showToast('읽을 새 반응이 없음')
+      return
+    }
 
     const seenAt = new Date().toISOString()
+    const prevMyPosts = myPosts
+
     setMyPosts((prev) =>
-      prev.map((item) => ({
-        ...item,
-        hasNewComments: false,
-        newCommentsCount: 0,
+      prev.map((item) =>
+        targetPostIds.includes(Number(item.postId))
+          ? {
+              ...item,
+              hasNewComments: false,
+              newCommentsCount: 0,
+            }
+          : item,
+      ),
+    )
+
+    const rows = readActorKeys.flatMap((actorKey) =>
+      targetPostIds.map((postId) => ({
+        actor_key: actorKey,
+        target_type: 'post' as const,
+        target_id: postId,
+        last_seen_at: seenAt,
       })),
     )
 
-    const { error } = await supabase.from('user_activity_reads').upsert(
-      readActorKeys.flatMap((actorKey) =>
-        targetPostIds.map((postId) => ({
-          actor_key: actorKey,
-          target_type: 'post',
-          target_id: postId,
-          last_seen_at: seenAt,
-        })),
-      ),
-      { onConflict: 'actor_key,target_type,target_id' },
-    )
+    const { error } = await saveActivityReads(rows)
 
     if (error) {
       console.error('내 글 전체 읽음 처리 실패', error)
+      setMyPosts(prevMyPosts)
       showToast('전체 읽음 처리 실패')
       return
     }
 
     showToast('내 글 새 반응 읽음 처리됨')
-    void fetchMyActivity(readActorKeys[0])
+    await fetchMyActivity(readActorKeys[0])
   }, [
     currentActorUnifiedKey,
     currentRawActorKey,
     fetchMyActivity,
     myPosts,
+    saveActivityReads,
     showToast,
   ])
 
@@ -6738,47 +6796,61 @@ export default function MatnyaApp() {
     const targetCommentIds = [
       ...new Set(
         myComments
+          .filter(
+            (item) =>
+              Number(item.newRepliesCount ?? 0) > 0 || item.hasNewReplies,
+          )
           .map((item) => Number(item.commentId))
           .filter((commentId) => Number.isFinite(commentId) && commentId > 0),
       ),
     ]
 
-    if (targetCommentIds.length === 0) return
+    if (targetCommentIds.length === 0) {
+      showToast('읽을 새 반응이 없음')
+      return
+    }
 
     const seenAt = new Date().toISOString()
+    const prevMyComments = myComments
+
     setMyComments((prev) =>
-      prev.map((item) => ({
-        ...item,
-        hasNewReplies: false,
-        newRepliesCount: 0,
+      prev.map((item) =>
+        targetCommentIds.includes(Number(item.commentId))
+          ? {
+              ...item,
+              hasNewReplies: false,
+              newRepliesCount: 0,
+            }
+          : item,
+      ),
+    )
+
+    const rows = readActorKeys.flatMap((actorKey) =>
+      targetCommentIds.map((commentId) => ({
+        actor_key: actorKey,
+        target_type: 'comment' as const,
+        target_id: commentId,
+        last_seen_at: seenAt,
       })),
     )
 
-    const { error } = await supabase.from('user_activity_reads').upsert(
-      readActorKeys.flatMap((actorKey) =>
-        targetCommentIds.map((commentId) => ({
-          actor_key: actorKey,
-          target_type: 'comment',
-          target_id: commentId,
-          last_seen_at: seenAt,
-        })),
-      ),
-      { onConflict: 'actor_key,target_type,target_id' },
-    )
+    const { error } = await saveActivityReads(rows)
 
     if (error) {
       console.error('내 댓글 전체 읽음 처리 실패', error)
+      setMyComments(prevMyComments)
       showToast('전체 읽음 처리 실패')
       return
     }
 
     showToast('내 댓글 새 반응 읽음 처리됨')
-    void fetchMyActivity(readActorKeys[0])
+    await fetchMyActivity(readActorKeys[0])
   }, [
     currentActorUnifiedKey,
     currentRawActorKey,
     fetchMyActivity,
     myComments,
+    saveActivityReads,
     showToast,
   ])
 
