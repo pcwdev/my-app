@@ -7481,6 +7481,63 @@ ${shareUrl}`)
     ? `${currentChoicePathTop?.count ?? 0}번 이어서 눌린 흐름임`
     : '지금 가장 오래 보게 만들 다음 판으로 이동'
 
+  const currentTotalVotes = currentPost
+    ? Number(currentPost.leftVotes ?? 0) + Number(currentPost.rightVotes ?? 0)
+    : 0
+  const currentCommentCount = currentPost?.comments.length ?? 0
+  const currentWinnerLabel = currentPost
+    ? currentPost.leftVotes === currentPost.rightVotes
+      ? '아직 반반'
+      : currentPost.leftVotes > currentPost.rightVotes
+        ? currentPost.leftLabel
+        : currentPost.rightLabel
+    : '결과 대기'
+  const dopamineTopComments = useMemo(() => {
+    if (!currentPost) return [] as CommentItem[]
+    return [...currentPost.comments]
+      .filter((comment) => !comment.hidden && comment.text.trim().length > 0)
+      .sort((a, b) => {
+        const scoreA = Number(a.likes ?? 0) + (a.replyToCommentId ? 1 : 0)
+        const scoreB = Number(b.likes ?? 0) + (b.replyToCommentId ? 1 : 0)
+        return scoreB - scoreA
+      })
+      .slice(0, 2)
+  }, [currentPost])
+  const dopamineTopComment = dopamineTopComments[0] ?? null
+  const dopamineCounterComment = dopamineTopComments[1] ?? null
+  const dopamineLiveEvents = useMemo(() => {
+    if (!currentPost) return [] as string[]
+    const events: string[] = []
+    if (currentTension?.isFlipImminent) events.push('⚡ 한 표면 뒤집힘')
+    if (currentMinorityLabel) events.push(`${currentMinorityLabel.text} 감지`)
+    if (currentCommentCount > 0) events.push('💬 댓글 구경 시작')
+    if (currentWatchlisted) events.push('👀 결말 저장됨')
+    if (latestOutcome) events.push('🔥 후기 떴다')
+    if (events.length === 0) events.push('🔥 첫 판단 대기중')
+    return events.slice(0, 3)
+  }, [
+    currentPost,
+    currentTension?.isFlipImminent,
+    currentMinorityLabel,
+    currentCommentCount,
+    currentWatchlisted,
+    latestOutcome,
+  ])
+  const dopamineResultTitle = currentMinorityLabel
+    ? currentMinorityLabel.text
+    : currentResultEmotion === '🔥 개싸움'
+      ? '🔥 완전 갈리는 중'
+      : currentResultEmotion === '👀 팽팽'
+        ? '👀 아직 안 끝난 판'
+        : currentResultEmotion === '⚡ 기우는 중'
+          ? '⚡ 흐름 기우는 중'
+          : votes[currentPost?.id ?? 0]
+            ? `지금은 ${currentWinnerLabel} 우세`
+            : '선택하면 결과 열림'
+  const dopamineResultHelper = votes[currentPost?.id ?? 0]
+    ? (currentMinorityLabel?.helper ?? currentTensionMeta.helper)
+    : '먼저 고르면 사람들 생각이 바로 열림'
+
   useEffect(() => {
     if (!currentPost?.id || !votes[currentPost.id] || !currentActorUnifiedKey)
       return
@@ -10415,6 +10472,36 @@ ${shareUrl}`)
 
               {(!currentPost.hidden || adminMode) && (
                 <div className="mt-4 space-y-2.5">
+                  <div className="overflow-hidden rounded-[26px] border border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.12),transparent_38%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3.5 shadow-[0_16px_36px_rgba(15,23,42,0.08)]">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[11px] font-black tracking-[0.16em] text-rose-500">
+                          JUDGEMENT SLOT
+                        </div>
+                        <div className="mt-1 text-[18px] font-black tracking-[-0.04em] text-slate-950">
+                          {votes[currentPost.id]
+                            ? dopamineResultTitle
+                            : '3초 안에 골라봐'}
+                        </div>
+                      </div>
+                      <div className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]">
+                        {votes[currentPost.id] ? '결과 열림' : '선택 대기'}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-1.5">
+                      {dopamineLiveEvents.map((event) => (
+                        <div
+                          key={event}
+                          className="rounded-2xl border border-white/80 bg-white/85 px-2 py-2 text-center text-[10px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                        >
+                          {event}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-bold text-slate-600">
+                      {dopamineResultHelper}
+                    </div>
+                  </div>
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
                     label={currentPost.leftLabel}
@@ -10538,7 +10625,7 @@ ${shareUrl}`)
                                     className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-black shadow-[0_10px_18px_rgba(79,124,255,0.14)] transition ${
                                       currentWatchlisted
                                         ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
-                                        : 'bg-slate-950 text-white text-slate-900'
+                                        : 'bg-slate-950 text-white'
                                     }`}
                                   >
                                     {currentWatchlisted
@@ -10551,6 +10638,83 @@ ${shareUrl}`)
                           ) : null}
                         </div>
                       )}
+
+                      <div className="rounded-[26px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-[11px] font-black tracking-[0.16em] text-rose-500">
+                              COMMENT ARENA
+                            </div>
+                            <div className="mt-1 text-[16px] font-black tracking-[-0.03em] text-slate-950">
+                              댓글 구경이 진짜 본게임
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              markPostMeaningful(currentPost)
+                              setCommentOpen(true)
+                            }}
+                            className="rounded-full bg-slate-950 px-3 py-2 text-[12px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]"
+                          >
+                            댓글 보기
+                          </button>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {dopamineTopComment ? (
+                            <button
+                              onClick={() => {
+                                markPostMeaningful(currentPost)
+                                setCommentOpen(true)
+                              }}
+                              className="w-full rounded-2xl border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(244,63,94,0.08)]"
+                            >
+                              <div className="text-[11px] font-black tracking-[0.14em] text-rose-500">
+                                🔥 가장 뜨거운 댓글
+                              </div>
+                              <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
+                                “{dopamineTopComment.text}”
+                              </div>
+                              <div className="mt-1 text-[11px] font-bold text-slate-500">
+                                공감 {dopamineTopComment.likes} · 바로 반박하러
+                                가기
+                              </div>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                markPostMeaningful(currentPost)
+                                setCommentOpen(true)
+                              }}
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)]"
+                            >
+                              <div className="text-[11px] font-black tracking-[0.14em] text-slate-400">
+                                FIRST COMMENT
+                              </div>
+                              <div className="mt-1 text-[14px] font-black text-slate-900">
+                                첫 댓글 달면 이 판 분위기 바로 바뀜
+                              </div>
+                            </button>
+                          )}
+
+                          {dopamineCounterComment ? (
+                            <button
+                              onClick={() => {
+                                markPostMeaningful(currentPost)
+                                setCommentOpen(true)
+                              }}
+                              className="w-full rounded-2xl border border-blue-100 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-3 py-3 text-left shadow-[0_8px_18px_rgba(59,130,246,0.08)]"
+                            >
+                              <div className="text-[11px] font-black tracking-[0.14em] text-blue-500">
+                                🥊 베스트 반박
+                              </div>
+                              <div className="mt-1 line-clamp-2 text-[14px] font-black leading-5 text-slate-900">
+                                “{dopamineCounterComment.text}”
+                              </div>
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
 
                       <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="text-[11px] font-extrabold tracking-[0.14em] text-slate-400">
@@ -10724,15 +10888,15 @@ ${shareUrl}`)
                           }
                           handleNextWithGuard()
                         }}
-                        className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-center transition-all shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                        className="w-full rounded-[24px] border border-slate-900 bg-slate-950 px-4 py-3.5 text-center text-white transition-all shadow-[0_16px_30px_rgba(15,23,42,0.22)]"
                       >
-                        <div className="text-xs font-bold text-[#4f7cff]">
-                          {nextRecommendationReason}
+                        <div className="text-xs font-black text-white/70">
+                          NEXT DOPAMINE · {nextRecommendationReason}
                         </div>
-                        <div className="mt-1 text-base font-bold text-slate-900">
+                        <div className="mt-1 text-base font-black text-white">
                           {nextRecommendationTitle}
                         </div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className="mt-1 text-xs font-semibold text-white/60">
                           {nextRecommendationHelper}
                         </div>
                       </button>
