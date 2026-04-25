@@ -7541,6 +7541,8 @@ ${shareUrl}`)
       return {
         topComment: null as CommentItem | null,
         counterComment: null as CommentItem | null,
+        topCommentScore: 0,
+        counterCommentScore: 0,
       }
     }
 
@@ -7548,20 +7550,53 @@ ${shareUrl}`)
       (comment) => !comment.hidden && comment.text.trim().length > 0,
     )
 
-    const scoreComment = (comment: CommentItem) =>
-      Number(comment.likes ?? 0) + (comment.replyToCommentId ? 2 : 0)
+    const getCommentReactionScore = (comment: CommentItem) => {
+      const summary =
+        commentReactionMap[comment.id] ?? EMPTY_COMMENT_REACTION_SUMMARY
 
-    const topComment =
-      visibleComments.sort((a, b) => {
-        const scoreDiff = scoreComment(b) - scoreComment(a)
-        if (scoreDiff !== 0) return scoreDiff
-        return b.id - a.id
-      })[0] ?? null
+      // 댓글 모달의 '공감' 버튼은 comment.likes가 아니라
+      // comment_reactions.relatable에 저장된다.
+      // 그래서 아레나의 '가장 뜨거운 댓글'도 likes만 보면 안 되고
+      // 실제 반응 테이블 기준 점수를 함께 봐야 한다.
+      const supportiveTotal =
+        Number(comment.likes ?? 0) +
+        Number(summary.relatable ?? 0) +
+        Number(summary.agree ?? 0) +
+        Number(summary.wow ?? 0)
+
+      const conflictTotal =
+        Number(summary.disagree ?? 0) + Number(summary.absurd ?? 0)
+
+      return {
+        supportiveTotal,
+        conflictTotal,
+        total: supportiveTotal + conflictTotal,
+      }
+    }
+
+    const sortByHotScore = (a: CommentItem, b: CommentItem) => {
+      const aScore = getCommentReactionScore(a)
+      const bScore = getCommentReactionScore(b)
+
+      if (bScore.supportiveTotal !== aScore.supportiveTotal) {
+        return bScore.supportiveTotal - aScore.supportiveTotal
+      }
+
+      if (bScore.total !== aScore.total) {
+        return bScore.total - aScore.total
+      }
+
+      return b.id - a.id
+    }
+
+    const topComment = [...visibleComments].sort(sortByHotScore)[0] ?? null
 
     if (!topComment) {
       return {
         topComment: null as CommentItem | null,
         counterComment: null as CommentItem | null,
+        topCommentScore: 0,
+        counterCommentScore: 0,
       }
     }
 
@@ -7569,23 +7604,23 @@ ${shareUrl}`)
       (comment) => comment.replyToCommentId === topComment.id,
     )
 
-    // 베스트 반박은 '반대편 댓글'을 임의로 고르지 않는다.
-    // 실제 replyToCommentId로 연결된 댓글만 반박으로 인정한다.
-    // 그래야 클릭 시 전혀 다른 댓글로 이동하지 않는다.
-    const counterComment =
-      directReplies.sort((a, b) => {
-        const scoreDiff = scoreComment(b) - scoreComment(a)
-        if (scoreDiff !== 0) return scoreDiff
-        return b.id - a.id
-      })[0] ?? null
+    // 베스트 반박은 실제 replyToCommentId로 연결된 댓글만 인정한다.
+    // 반대편 댓글을 임의로 고르지 않는다.
+    const counterComment = [...directReplies].sort(sortByHotScore)[0] ?? null
 
     return {
       topComment,
       counterComment,
+      topCommentScore: getCommentReactionScore(topComment).supportiveTotal,
+      counterCommentScore: counterComment
+        ? getCommentReactionScore(counterComment).supportiveTotal
+        : 0,
     }
-  }, [currentPost])
+  }, [currentPost, commentReactionMap])
   const dopamineTopComment = dopamineCommentArena.topComment
   const dopamineCounterComment = dopamineCommentArena.counterComment
+  const dopamineTopCommentScore = dopamineCommentArena.topCommentScore
+  const dopamineCounterCommentScore = dopamineCommentArena.counterCommentScore
   const dopamineLiveEvents = useMemo(() => {
     if (!currentPost) return [] as string[]
     const events: string[] = []
@@ -10767,7 +10802,7 @@ ${shareUrl}`)
                                 “{dopamineTopComment.text}”
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                공감 {dopamineTopComment.likes} · 바로 반박하러
+                                공감 {dopamineTopCommentScore} · 바로 반박하러
                                 가기
                               </div>
                             </button>
@@ -10807,7 +10842,8 @@ ${shareUrl}`)
                                 “{dopamineCounterComment.text}”
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                반대편 의견으로 바로 이동
+                                공감 {dopamineCounterCommentScore} · 연결된 반박
+                                보기
                               </div>
                             </button>
                           ) : null}
