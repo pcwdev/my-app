@@ -6585,6 +6585,23 @@ export default function MatnyaApp() {
       const currentVoterKey = currentUserId ? null : voterKey
       if (!currentUserId && !currentVoterKey) return
 
+      // 1) DB RPC가 있으면 DB 내부에서 먼저 뱃지 지급
+      //    없거나 실패해도 아래 클라이언트 fallback으로 한 번 더 처리한다.
+      const { error: rpcBadgeError } = await supabase.rpc(
+        'rpc_award_badges_from_stats',
+        {
+          p_user_id: currentUserId,
+          p_voter_key: currentVoterKey,
+        },
+      )
+
+      if (rpcBadgeError) {
+        console.warn(
+          '뱃지 RPC 지급 실패 · 클라이언트 fallback 실행',
+          rpcBadgeError,
+        )
+      }
+
       const latestBadges = await refreshBadges()
       const latestBadgeSet = new Set(latestBadges)
 
@@ -6595,10 +6612,14 @@ export default function MatnyaApp() {
       const newlyEarned = nextBadgeNames.filter(
         (name) => !latestBadgeSet.has(name),
       )
-      if (newlyEarned.length === 0) return
+
+      if (newlyEarned.length === 0) {
+        return
+      }
 
       const insertedBadges: string[] = []
 
+      // 2) fallback: 뱃지를 한 개씩 저장해서 중복 1개 때문에 전체 실패하지 않게 처리
       for (const badgeName of newlyEarned) {
         const { error } = await supabase.from('user_badges').insert({
           user_id: currentUserId,
@@ -6620,14 +6641,12 @@ export default function MatnyaApp() {
 
       const finalBadges = await refreshBadges()
 
-      if (insertedBadges.length > 0) {
-        setBadges((prev) => {
-          const merged = [...insertedBadges, ...finalBadges, ...prev]
-          return Array.from(new Set(merged))
-        })
+      setBadges((prev) => {
+        const merged = [...insertedBadges, ...finalBadges, ...prev]
+        return Array.from(new Set(merged))
+      })
 
-        insertedBadges.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
-      }
+      insertedBadges.forEach((badgeName) => showToast(`🏆 ${badgeName} 획득`))
     },
     [authUser?.id, voterKey, refreshBadges, showToast],
   )
@@ -6699,6 +6718,8 @@ export default function MatnyaApp() {
       optimisticStats.level = getLevelInfo(optimisticStats.points).level
       setStats(optimisticStats)
 
+      let finalStats: UserStatsRow | null = null
+
       const { data, error } = await supabase.rpc(
         'rpc_increment_user_progress',
         {
@@ -6712,32 +6733,133 @@ export default function MatnyaApp() {
         },
       )
 
-      if (error) {
-        console.error('포인트 업데이트 실패', error)
-        return
-      }
+      if (!error) {
+        const returnedStats = data as
+          | Partial<UserStatsRow>
+          | Partial<UserStatsRow>[]
+          | null
+        const rpcStats = Array.isArray(returnedStats)
+          ? returnedStats[0]
+          : returnedStats
 
-      const returnedStats = data as
-        | Partial<UserStatsRow>
-        | Partial<UserStatsRow>[]
-        | null
-      const rpcStats = Array.isArray(returnedStats)
-        ? returnedStats[0]
-        : returnedStats
-
-      if (rpcStats) {
-        const nextStats = normalizeStats(rpcStats)
-        setStats(nextStats)
-        await awardBadgesFromStats(nextStats)
+        if (rpcStats) {
+          finalStats = normalizeStats(rpcStats)
+        }
       } else {
-        await awardBadgesFromStats(optimisticStats)
+        console.warn(
+          '포인트 RPC 업데이트 실패 · 직접 저장 fallback 실행',
+          error,
+        )
       }
+
+      // RPC가 실패하거나 반환값이 없을 때 직접 저장 fallback.
+      // 운영 전에는 기능이 끊기지 않는 것이 중요하고, 운영 직전 RPC SQL을 안정화한 뒤 이 fallback을 잠그면 된다.
+      if (!finalStats) {
+        let existingStats: Partial<UserStatsRow> | null = null
+
+        let statsQuery = supabase
+          .from('user_stats')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        statsQuery = currentUserId
+          ? statsQuery.eq('user_id', currentUserId)
+          : statsQuery.eq('voter_key', currentVoterKey)
+
+        const { data: existingData, error: existingError } =
+          await statsQuery.maybeSingle()
+
+        if (existingError) {
+          console.error('user_stats 조회 실패', existingError)
+        } else {
+          existingStats = existingData as Partial<UserStatsRow> | null
+        }
+
+        const nextPayload = normalizeStats({
+          ...existingStats,
+          user_id: currentUserId,
+          voter_key: currentVoterKey,
+          points:
+            Number(existingStats?.points ?? stats.points ?? 0) +
+            Number(delta.points ?? 0),
+          votes_count:
+            Number(existingStats?.votes_count ?? stats.votes_count ?? 0) +
+            Number(delta.votes_count ?? 0),
+          comments_count:
+            Number(existingStats?.comments_count ?? stats.comments_count ?? 0) +
+            Number(delta.comments_count ?? 0),
+          posts_count:
+            Number(existingStats?.posts_count ?? stats.posts_count ?? 0) +
+            Number(delta.posts_count ?? 0),
+          likes_received:
+            Number(existingStats?.likes_received ?? stats.likes_received ?? 0) +
+            Number(delta.likes_received ?? 0),
+        })
+
+        nextPayload.level = getLevelInfo(nextPayload.points).level
+
+        if (existingStats?.id) {
+          const { data: updatedStats, error: updateError } = await supabase
+            .from('user_stats')
+            .update({
+              points: nextPayload.points,
+              level: nextPayload.level,
+              votes_count: nextPayload.votes_count,
+              comments_count: nextPayload.comments_count,
+              posts_count: nextPayload.posts_count,
+              likes_received: nextPayload.likes_received,
+            })
+            .eq('id', existingStats.id)
+            .select()
+            .single()
+
+          if (updateError) {
+            console.error('user_stats fallback 업데이트 실패', updateError)
+          } else {
+            finalStats = normalizeStats(updatedStats as Partial<UserStatsRow>)
+          }
+        } else {
+          const { data: insertedStats, error: insertError } = await supabase
+            .from('user_stats')
+            .insert({
+              user_id: currentUserId,
+              voter_key: currentVoterKey,
+              points: nextPayload.points,
+              level: nextPayload.level,
+              votes_count: nextPayload.votes_count,
+              comments_count: nextPayload.comments_count,
+              posts_count: nextPayload.posts_count,
+              likes_received: nextPayload.likes_received,
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            console.error('user_stats fallback 생성 실패', insertError)
+          } else {
+            finalStats = normalizeStats(insertedStats as Partial<UserStatsRow>)
+          }
+        }
+      }
+
+      const nextStats = finalStats ?? optimisticStats
+      setStats(nextStats)
+      await awardBadgesFromStats(nextStats)
+      await refreshBadges()
 
       if (rewardMessage) {
         showToast(rewardMessage)
       }
     },
-    [authUser?.id, voterKey, stats, showToast, awardBadgesFromStats],
+    [
+      authUser?.id,
+      voterKey,
+      stats,
+      showToast,
+      awardBadgesFromStats,
+      refreshBadges,
+    ],
   )
 
   const loadAuthorMeta = useCallback(async () => {
