@@ -3381,6 +3381,7 @@ function MyActivityModal({
                 </div>
                 {unreadMyPostCount > 0 ? (
                   <button
+                    type="button"
                     onClick={onMarkAllPostsSeen}
                     className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
                   >
@@ -3432,6 +3433,7 @@ function MyActivityModal({
                 </div>
                 {unreadMyCommentCount > 0 ? (
                   <button
+                    type="button"
                     onClick={onMarkAllCommentsSeen}
                     className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
                   >
@@ -6456,183 +6458,225 @@ export default function MatnyaApp() {
     [loadActorReactionSelections, loadReactionAndOutcomeData],
   )
 
-  const fetchMyActivity = useCallback(async (actorKey: string) => {
-    if (!actorKey) return
+  const fetchMyActivity = useCallback(
+    async (actorKey: string) => {
+      if (!actorKey) return
 
-    console.groupCollapsed('[matnya] fetchMyActivity')
-    console.log('actorKey', actorKey)
-
-    const [myPostsRes, myCommentsRes] = await Promise.all([
-      supabase
-        .from('posts')
-        .select('id, title, category, age_group, created_at')
-        .eq('author_key', actorKey)
-        .neq('status', 'deleted')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('comments')
-        .select('id, post_id, text, created_at')
-        .eq('author_key', actorKey)
-        .neq('status', 'deleted')
-        .order('created_at', { ascending: false }),
-    ])
-
-    if (myPostsRes.error) {
-      console.error('내 글 불러오기 실패', myPostsRes.error)
-      setMyPosts([])
-    }
-
-    if (myCommentsRes.error) {
-      console.error('내 댓글 불러오기 실패', myCommentsRes.error)
-      setMyComments([])
-      console.groupEnd()
-      return
-    }
-
-    const myPostsData = myPostsRes.data ?? []
-    const myCommentsData = myCommentsRes.data ?? []
-
-    const postIds = myPostsData.map((post: any) => Number(post.id))
-    const commentRows = myCommentsData.map((comment: any) => ({
-      id: Number(comment.id),
-      commentId: Number(comment.id),
-      postId: Number(comment.post_id),
-      text: comment.text,
-    }))
-    const commentIds = commentRows.map((item) => item.commentId)
-    const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
-    const activityTargetIds = [...new Set([...postIds, ...commentIds])]
-
-    const [
-      commentPostsRes,
-      activityReadsRes,
-      postCommentsRes,
-      replyReactionsRes,
-    ] = await Promise.all([
-      uniquePostIds.length > 0
-        ? supabase.from('posts').select('id, title').in('id', uniquePostIds)
-        : Promise.resolve({ data: [], error: null } as any),
-      activityTargetIds.length > 0
-        ? supabase
-            .from('user_activity_reads')
-            .select('id, actor_key, target_type, target_id, last_seen_at')
-            .eq('actor_key', actorKey)
-            .in('target_id', activityTargetIds)
-        : Promise.resolve({ data: [], error: null } as any),
-      postIds.length > 0
-        ? supabase
-            .from('comments')
-            .select('id, post_id, author_key, created_at')
-            .in('post_id', postIds)
-            .neq('status', 'deleted')
-        : Promise.resolve({ data: [], error: null } as any),
-      commentIds.length > 0
-        ? supabase
-            .from('comment_reactions')
-            .select('id, comment_id, reactor_key, reaction_type, created_at')
-            .eq('reaction_type', 'disagree')
-            .in('comment_id', commentIds)
-        : Promise.resolve({ data: [], error: null } as any),
-    ])
-
-    if (commentPostsRes.error) {
-      console.error('댓글 글 제목 불러오기 실패', commentPostsRes.error)
-    }
-    if (activityReadsRes.error) {
-      console.error('활동 읽음 상태 불러오기 실패', activityReadsRes.error)
-    }
-    if (postCommentsRes.error) {
-      console.error('내 글 새 댓글 불러오기 실패', postCommentsRes.error)
-    }
-    if (replyReactionsRes.error) {
-      console.error('내 댓글 반박 불러오기 실패', replyReactionsRes.error)
-    }
-
-    const postTitleMap = new Map<number, string>()
-    ;(commentPostsRes.data ?? []).forEach((post: any) => {
-      postTitleMap.set(Number(post.id), post.title)
-    })
-
-    const readMap = new Map<string, string | null>()
-    ;(activityReadsRes.data ?? []).forEach((row: any) => {
-      readMap.set(
-        `${row.target_type}:${Number(row.target_id)}`,
-        row.last_seen_at ?? null,
+      const actorLookupKeys = Array.from(
+        new Set(
+          [
+            actorKey,
+            normalizeNotificationActorKey(actorKey),
+            currentRawActorKey,
+            currentActorUnifiedKey,
+          ]
+            .filter(Boolean)
+            .map((key) => String(key)),
+        ),
       )
-    })
 
-    const totalCommentCountMap = new Map<number, number>()
-    const newCommentCountMap = new Map<number, number>()
-    ;(postCommentsRes.data ?? []).forEach((row: any) => {
-      const postId = Number(row.post_id)
-      const seenAt = readMap.get(`post:${postId}`)
-      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
-      const seenTime = seenAt ? new Date(seenAt).getTime() : 0
-      const isOtherUser = String(row.author_key ?? '') !== String(actorKey)
-      if (isOtherUser) {
-        totalCommentCountMap.set(
-          postId,
-          Number(totalCommentCountMap.get(postId) ?? 0) + 1,
-        )
+      if (actorLookupKeys.length === 0) return
+
+      console.groupCollapsed('[matnya] fetchMyActivity')
+      console.log('actorKey', actorKey)
+      console.log('actorLookupKeys', actorLookupKeys)
+
+      const [myPostsRes, myCommentsRes] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('id, title, category, age_group, created_at')
+          .in('author_key', actorLookupKeys)
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('comments')
+          .select('id, post_id, text, created_at')
+          .in('author_key', actorLookupKeys)
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (myPostsRes.error) {
+        console.error('내 글 불러오기 실패', myPostsRes.error)
+        setMyPosts([])
       }
-      if (!isOtherUser || createdAt <= seenTime) return
-      newCommentCountMap.set(
-        postId,
-        Number(newCommentCountMap.get(postId) ?? 0) + 1,
-      )
-    })
 
-    const totalReplyCountMap = new Map<number, number>()
-    const newReplyCountMap = new Map<number, number>()
-    ;(replyReactionsRes.data ?? []).forEach((row: any) => {
-      const commentId = Number(row.comment_id)
-      const seenAt = readMap.get(`comment:${commentId}`)
-      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0
-      const seenTime = seenAt ? new Date(seenAt).getTime() : 0
-      const isOtherUser = String(row.reactor_key ?? '') !== String(actorKey)
-      totalReplyCountMap.set(
-        commentId,
-        Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
-      )
-      if (!isOtherUser || createdAt <= seenTime) return
-      newReplyCountMap.set(
-        commentId,
-        Number(newReplyCountMap.get(commentId) ?? 0) + 1,
-      )
-    })
+      if (myCommentsRes.error) {
+        console.error('내 댓글 불러오기 실패', myCommentsRes.error)
+        setMyComments([])
+        console.groupEnd()
+        return
+      }
 
-    const nextMyPosts = myPostsData.map((post: any) => ({
-      id: Number(post.id),
-      postId: Number(post.id),
-      title: post.title,
-      category: post.category,
-      ageGroup: post.age_group,
-      hasNewComments: Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
-      newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
-      totalCommentsCount: Number(
-        totalCommentCountMap.get(Number(post.id)) ?? 0,
-      ),
-    }))
+      const myPostsData = myPostsRes.data ?? []
+      const myCommentsData = myCommentsRes.data ?? []
 
-    const nextMyComments = commentRows.map((comment) => ({
-      ...comment,
-      postTitle: postTitleMap.get(comment.postId) ?? '원글',
-      hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
-      newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
-      totalRepliesCount: Number(totalReplyCountMap.get(comment.commentId) ?? 0),
-    }))
+      const postIds = myPostsData.map((post: any) => Number(post.id))
+      const commentRows = myCommentsData.map((comment: any) => ({
+        id: Number(comment.id),
+        commentId: Number(comment.id),
+        postId: Number(comment.post_id),
+        text: comment.text,
+      }))
+      const commentIds = commentRows.map((item) => item.commentId)
+      const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
+      const activityTargetIds = [...new Set([...postIds, ...commentIds])]
 
-    console.log('myPosts', nextMyPosts)
-    console.log('myComments', nextMyComments)
-    console.log('replyReactionsRaw', replyReactionsRes.data ?? [])
-    console.groupEnd()
+      const [
+        commentPostsRes,
+        activityReadsRes,
+        postCommentsRes,
+        replyReactionsRes,
+      ] = await Promise.all([
+        uniquePostIds.length > 0
+          ? supabase.from('posts').select('id, title').in('id', uniquePostIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        activityTargetIds.length > 0
+          ? supabase
+              .from('user_activity_reads')
+              .select('id, actor_key, target_type, target_id, last_seen_at')
+              .in('actor_key', actorLookupKeys)
+              .in('target_id', activityTargetIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        postIds.length > 0
+          ? supabase
+              .from('comments')
+              .select('id, post_id, author_key, created_at')
+              .in('post_id', postIds)
+              .neq('status', 'deleted')
+          : Promise.resolve({ data: [], error: null } as any),
+        commentIds.length > 0
+          ? supabase
+              .from('comment_reactions')
+              .select('id, comment_id, reactor_key, reaction_type, created_at')
+              .eq('reaction_type', 'disagree')
+              .in('comment_id', commentIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ])
 
-    setMyPosts(nextMyPosts)
-    setMyComments(nextMyComments)
-  }, [])
+      if (commentPostsRes.error) {
+        console.error('댓글 글 제목 불러오기 실패', commentPostsRes.error)
+      }
+      if (activityReadsRes.error) {
+        console.error('활동 읽음 상태 불러오기 실패', activityReadsRes.error)
+      }
+      if (postCommentsRes.error) {
+        console.error('내 글 새 댓글 불러오기 실패', postCommentsRes.error)
+      }
+      if (replyReactionsRes.error) {
+        console.error('내 댓글 반박 불러오기 실패', replyReactionsRes.error)
+      }
+
+      const postTitleMap = new Map<number, string>()
+      ;(commentPostsRes.data ?? []).forEach((post: any) => {
+        postTitleMap.set(Number(post.id), post.title)
+      })
+
+      const readMap = new Map<string, string | null>()
+      ;(activityReadsRes.data ?? []).forEach((row: any) => {
+        const key = `${row.target_type}:${Number(row.target_id)}`
+        const prev = readMap.get(key)
+        const next = row.last_seen_at ?? null
+        if (
+          !prev ||
+          (next && new Date(next).getTime() > new Date(prev).getTime())
+        ) {
+          readMap.set(key, next)
+        }
+      })
+
+      const totalCommentCountMap = new Map<number, number>()
+      const newCommentCountMap = new Map<number, number>()
+      ;(postCommentsRes.data ?? []).forEach((row: any) => {
+        const postId = Number(row.post_id)
+        const seenAt = readMap.get(`post:${postId}`)
+        const createdAt = row.created_at
+          ? new Date(row.created_at).getTime()
+          : 0
+        const seenTime = seenAt ? new Date(seenAt).getTime() : 0
+        const isOtherUser = !actorLookupKeys.includes(
+          String(row.author_key ?? ''),
+        )
+        if (isOtherUser) {
+          totalCommentCountMap.set(
+            postId,
+            Number(totalCommentCountMap.get(postId) ?? 0) + 1,
+          )
+        }
+        if (!isOtherUser || createdAt <= seenTime) return
+        newCommentCountMap.set(
+          postId,
+          Number(newCommentCountMap.get(postId) ?? 0) + 1,
+        )
+      })
+
+      const totalReplyCountMap = new Map<number, number>()
+      const newReplyCountMap = new Map<number, number>()
+      ;(replyReactionsRes.data ?? []).forEach((row: any) => {
+        const commentId = Number(row.comment_id)
+        const seenAt = readMap.get(`comment:${commentId}`)
+        const createdAt = row.created_at
+          ? new Date(row.created_at).getTime()
+          : 0
+        const seenTime = seenAt ? new Date(seenAt).getTime() : 0
+        const isOtherUser = !actorLookupKeys.includes(
+          String(row.reactor_key ?? ''),
+        )
+        totalReplyCountMap.set(
+          commentId,
+          Number(totalReplyCountMap.get(commentId) ?? 0) + 1,
+        )
+        if (!isOtherUser || createdAt <= seenTime) return
+        newReplyCountMap.set(
+          commentId,
+          Number(newReplyCountMap.get(commentId) ?? 0) + 1,
+        )
+      })
+
+      const nextMyPosts = myPostsData.map((post: any) => ({
+        id: Number(post.id),
+        postId: Number(post.id),
+        title: post.title,
+        category: post.category,
+        ageGroup: post.age_group,
+        hasNewComments:
+          Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
+        newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
+        totalCommentsCount: Number(
+          totalCommentCountMap.get(Number(post.id)) ?? 0,
+        ),
+      }))
+
+      const nextMyComments = commentRows.map((comment) => ({
+        ...comment,
+        postTitle: postTitleMap.get(comment.postId) ?? '원글',
+        hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
+        newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
+        totalRepliesCount: Number(
+          totalReplyCountMap.get(comment.commentId) ?? 0,
+        ),
+      }))
+
+      console.log('myPosts', nextMyPosts)
+      console.log('myComments', nextMyComments)
+      console.log('replyReactionsRaw', replyReactionsRes.data ?? [])
+      console.groupEnd()
+
+      setMyPosts(nextMyPosts)
+      setMyComments(nextMyComments)
+    },
+    [currentActorUnifiedKey, currentRawActorKey],
+  )
 
   const markAllMyPostsSeen = useCallback(async () => {
-    if (!currentRawActorKey) return
+    const readActorKeys = Array.from(
+      new Set(
+        [currentRawActorKey, currentActorUnifiedKey]
+          .filter(Boolean)
+          .map((key) => String(key)),
+      ),
+    )
+    if (readActorKeys.length === 0) return
 
     const targetPostIds = [
       ...new Set(
@@ -6645,13 +6689,23 @@ export default function MatnyaApp() {
     if (targetPostIds.length === 0) return
 
     const seenAt = new Date().toISOString()
-    const { error } = await supabase.from('user_activity_reads').upsert(
-      targetPostIds.map((postId) => ({
-        actor_key: currentRawActorKey,
-        target_type: 'post',
-        target_id: postId,
-        last_seen_at: seenAt,
+    setMyPosts((prev) =>
+      prev.map((item) => ({
+        ...item,
+        hasNewComments: false,
+        newCommentsCount: 0,
       })),
+    )
+
+    const { error } = await supabase.from('user_activity_reads').upsert(
+      readActorKeys.flatMap((actorKey) =>
+        targetPostIds.map((postId) => ({
+          actor_key: actorKey,
+          target_type: 'post',
+          target_id: postId,
+          last_seen_at: seenAt,
+        })),
+      ),
       { onConflict: 'actor_key,target_type,target_id' },
     )
 
@@ -6661,19 +6715,25 @@ export default function MatnyaApp() {
       return
     }
 
-    setMyPosts((prev) =>
-      prev.map((item) => ({
-        ...item,
-        hasNewComments: false,
-        newCommentsCount: 0,
-      })),
-    )
     showToast('내 글 새 반응 읽음 처리됨')
-    void fetchMyActivity(currentRawActorKey)
-  }, [currentRawActorKey, fetchMyActivity, myPosts, showToast])
+    void fetchMyActivity(readActorKeys[0])
+  }, [
+    currentActorUnifiedKey,
+    currentRawActorKey,
+    fetchMyActivity,
+    myPosts,
+    showToast,
+  ])
 
   const markAllMyCommentsSeen = useCallback(async () => {
-    if (!currentRawActorKey) return
+    const readActorKeys = Array.from(
+      new Set(
+        [currentRawActorKey, currentActorUnifiedKey]
+          .filter(Boolean)
+          .map((key) => String(key)),
+      ),
+    )
+    if (readActorKeys.length === 0) return
 
     const targetCommentIds = [
       ...new Set(
@@ -6686,13 +6746,23 @@ export default function MatnyaApp() {
     if (targetCommentIds.length === 0) return
 
     const seenAt = new Date().toISOString()
-    const { error } = await supabase.from('user_activity_reads').upsert(
-      targetCommentIds.map((commentId) => ({
-        actor_key: currentRawActorKey,
-        target_type: 'comment',
-        target_id: commentId,
-        last_seen_at: seenAt,
+    setMyComments((prev) =>
+      prev.map((item) => ({
+        ...item,
+        hasNewReplies: false,
+        newRepliesCount: 0,
       })),
+    )
+
+    const { error } = await supabase.from('user_activity_reads').upsert(
+      readActorKeys.flatMap((actorKey) =>
+        targetCommentIds.map((commentId) => ({
+          actor_key: actorKey,
+          target_type: 'comment',
+          target_id: commentId,
+          last_seen_at: seenAt,
+        })),
+      ),
       { onConflict: 'actor_key,target_type,target_id' },
     )
 
@@ -6702,16 +6772,15 @@ export default function MatnyaApp() {
       return
     }
 
-    setMyComments((prev) =>
-      prev.map((item) => ({
-        ...item,
-        hasNewReplies: false,
-        newRepliesCount: 0,
-      })),
-    )
     showToast('내 댓글 새 반응 읽음 처리됨')
-    void fetchMyActivity(currentRawActorKey)
-  }, [currentRawActorKey, fetchMyActivity, myComments, showToast])
+    void fetchMyActivity(readActorKeys[0])
+  }, [
+    currentActorUnifiedKey,
+    currentRawActorKey,
+    fetchMyActivity,
+    myComments,
+    showToast,
+  ])
 
   const fetchDeletedItems = useCallback(async () => {
     const { data: deletedPostsData, error: deletedPostsError } = await supabase
