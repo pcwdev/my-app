@@ -11683,8 +11683,7 @@ ${shareUrl}`)
                       <span className="text-[11px] font-black sm:text-xs">
                         Lv.{levelInfo.level}
                       </span>
-                      {unreadActivityBadgeCount + unreadNotificationCount >
-                      0 ? (
+                      {unreadActivityBadgeCount > 0 ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                       ) : null}
                     </button>
