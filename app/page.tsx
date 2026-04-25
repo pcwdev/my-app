@@ -2181,6 +2181,8 @@ function InquiryCenterModal({
   const [content, setContent] = useState('')
   const [contact, setContact] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -2189,9 +2191,54 @@ function InquiryCenterModal({
     setContent('')
     setContact('')
     setSubmitting(false)
+    setSubmitted(false)
+    setSubmitError('')
   }, [open])
 
   if (!open) return null
+
+  if (submitted) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/35 px-4 py-6 backdrop-blur-md">
+        <div className="mx-auto max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
+          <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 px-4 py-5 text-center">
+            <div className="text-3xl">✓</div>
+            <div className="mt-2 text-lg font-black tracking-[-0.03em] text-slate-900">
+              문의가 접수됐어요
+            </div>
+            <div className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+              운영팀이 확인 중입니다. 추가로 남길 내용이 있으면 새 문의를 작성할
+              수 있어요.
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700"
+            >
+              닫기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInquiryType('bug')
+                setTitle('')
+                setContent('')
+                setContact('')
+                setSubmitError('')
+                setSubmitting(false)
+                setSubmitted(false)
+              }}
+              className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
+            >
+              새 문의
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const currentMeta = inquiryTypeMeta[inquiryType]
   const canSubmit = title.trim().length >= 2 && content.trim().length >= 5
@@ -2279,6 +2326,12 @@ function InquiryCenterModal({
           />
         </label>
 
+        {submitError ? (
+          <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            {submitError}
+          </div>
+        ) : null}
+
         <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -2292,6 +2345,7 @@ function InquiryCenterModal({
             disabled={!canSubmit || submitting}
             onClick={async () => {
               if (!canSubmit || submitting) return
+              setSubmitError('')
               setSubmitting(true)
               try {
                 await onSubmit({
@@ -2300,6 +2354,10 @@ function InquiryCenterModal({
                   content: content.trim(),
                   contact: contact.trim(),
                 })
+                setSubmitted(true)
+              } catch (error) {
+                console.error('문의 접수 실패', error)
+                setSubmitError('접수에 실패했어요. 잠시 후 다시 시도해주세요.')
               } finally {
                 setSubmitting(false)
               }
@@ -5321,11 +5379,17 @@ export default function MatnyaApp() {
     label: '',
   })
   const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [inquiryModalKey, setInquiryModalKey] = useState(0)
   const [inquiryAdminOpen, setInquiryAdminOpen] = useState(false)
   const [inquiryAdminItems, setInquiryAdminItems] = useState<InquiryRow[]>([])
   const [inquiryAdminLoading, setInquiryAdminLoading] = useState(false)
 
   const isAdmin = profile?.role === 'admin'
+
+  const openInquiryCenter = useCallback(() => {
+    setInquiryModalKey((prev) => prev + 1)
+    setInquiryOpen(true)
+  }, [])
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -5361,10 +5425,9 @@ export default function MatnyaApp() {
       if (error) {
         console.error('문의 접수 실패', error)
         showToast('문의 접수 실패')
-        return
+        throw error
       }
 
-      setInquiryOpen(false)
       showToast('문의 접수 완료 · 운영팀이 확인 중')
     },
     [authUser?.id, showToast, voterKey],
@@ -10678,19 +10741,12 @@ ${shareUrl}`)
                     ) : null}
 
                     <button
-                      onClick={() => setInquiryOpen(true)}
-                      className="flex h-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 px-3 text-[11px] font-black text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:px-3.5"
+                      onClick={openInquiryCenter}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-[16px] font-black text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
                       aria-label="문의하기"
+                      title="문의하기"
                     >
-                      문의
-                    </button>
-
-                    <button
-                      onClick={openReportPost}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition active:scale-[0.96] sm:h-10 sm:w-10"
-                      aria-label="신고"
-                    >
-                      <Flag className="h-5 w-5" />
+                      ?
                     </button>
 
                     <button
@@ -10901,36 +10957,48 @@ ${shareUrl}`)
                   </span>
                 </div>
 
-                {adminMode && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={async () => {
-                        await fetchDeletedItems()
-                        setDeletedOpen(true)
-                      }}
-                      className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
-                    >
-                      복구 관리
-                    </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openReportPost}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.96] sm:h-9 sm:w-9"
+                    aria-label="현재 글 신고"
+                    title="현재 글 신고"
+                  >
+                    <Flag className="h-4 w-4" />
+                  </button>
 
-                    {currentPost.hidden && (
-                      <>
-                        <button
-                          onClick={() => void adminRestorePost()}
-                          className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
-                        >
-                          숨김 해제
-                        </button>
-                        <button
-                          onClick={() => void adminDeletePost()}
-                          className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-slate-900"
-                        >
-                          삭제
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
+                  {adminMode && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          await fetchDeletedItems()
+                          setDeletedOpen(true)
+                        }}
+                        className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
+                      >
+                        복구 관리
+                      </button>
+
+                      {currentPost.hidden && (
+                        <>
+                          <button
+                            onClick={() => void adminRestorePost()}
+                            className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
+                          >
+                            숨김 해제
+                          </button>
+                          <button
+                            onClick={() => void adminDeletePost()}
+                            className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-slate-900"
+                          >
+                            삭제
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="rounded-[24px] border border-transparent bg-transparent p-0 shadow-none">
@@ -12068,6 +12136,7 @@ ${shareUrl}`)
           />
 
           <InquiryCenterModal
+            key={inquiryModalKey}
             open={inquiryOpen}
             onClose={() => setInquiryOpen(false)}
             onSubmit={submitInquiry}
