@@ -3679,7 +3679,7 @@ function MyActivityModal({
           {tab === 'comments' && filteredMyComments.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               {commentFilter === 'new'
-                ? '아직 새 댓글이 붙은 댓글이 없음'
+                ? '아직 새 반응이 온 댓글이 없음'
                 : '아직 작성한 댓글이 없음'}
             </div>
           ) : null}
@@ -3736,12 +3736,9 @@ function MyActivityModal({
                     })}
                   </div>
                   {unreadWatchlistCount > 0 ? (
-                    <button
-                      onClick={onMarkAllWatchlistSeen}
-                      className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600"
-                    >
-                      전체 읽음
-                    </button>
+                    <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600">
+                      새 소식 {unreadWatchlistCount}
+                    </span>
                   ) : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">
@@ -3809,7 +3806,7 @@ function MyActivityModal({
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    🔥 새 댓글 {item.newRepliesCount ?? 1}개
+                    🔥 누가 네 댓글에 반응함 {item.newRepliesCount ?? 1}개
                   </div>
                 ) : (item.totalRepliesCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
