@@ -3810,7 +3810,7 @@ function MyActivityModal({
                   </div>
                 ) : (item.totalRepliesCount ?? 0) > 0 ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    댓글 {item.totalRepliesCount ?? 0}개
+                    반응 {item.totalRepliesCount ?? 0}개
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-400">
