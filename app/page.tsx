@@ -3204,61 +3204,63 @@ function OutcomeWriteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-md">
-      <div className="mx-auto mt-16 max-w-sm rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
-        <div className="mb-1 text-lg font-bold">후기 등록</div>
-        <div className="mb-4 text-sm text-slate-500">{postTitle}</div>
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-slate-900/30 px-4 py-4 backdrop-blur-md sm:px-0">
+      <div className="mx-auto flex min-h-full w-full max-w-sm items-center">
+        <div className="max-h-[calc(100dvh-32px)] w-full overflow-y-auto rounded-[32px] border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl">
+          <div className="mb-1 text-lg font-bold">후기 등록</div>
+          <div className="mb-4 text-sm text-slate-500">{postTitle}</div>
 
-        <div className="space-y-2">
-          {options.map((option) => {
-            const active = outcomeType === option.value
-            return (
-              <button
-                key={option.value}
-                onClick={() => setOutcomeType(option.value)}
-                className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                  active
-                    ? 'border-[#bcd0ff] bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.20)]'
-                    : 'border-slate-200/80 bg-white text-slate-900'
-                }`}
-              >
-                <div className="text-sm font-bold">{option.label}</div>
-                <div
-                  className={`mt-1 text-xs ${active ? 'text-white/85' : 'text-slate-500'}`}
+          <div className="space-y-2">
+            {options.map((option) => {
+              const active = outcomeType === option.value
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setOutcomeType(option.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                    active
+                      ? 'border-[#bcd0ff] bg-[#4f7cff] text-white shadow-[0_12px_24px_rgba(79,124,255,0.20)]'
+                      : 'border-slate-200/80 bg-white text-slate-900'
+                  }`}
                 >
-                  {option.helper}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="mt-4">
-          <textarea
-            value={summary}
-            maxLength={140}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="예: 결국 연락했고 잘 됐음 / 퇴사 안 하고 합의봄 / 내가 오해한 거였음"
-            className="min-h-[110px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-          />
-          <div className="mt-2 text-right text-[11px] text-slate-400">
-            {summary.length}/140
+                  <div className="text-sm font-bold">{option.label}</div>
+                  <div
+                    className={`mt-1 text-xs ${active ? 'text-white/85' : 'text-slate-500'}`}
+                  >
+                    {option.helper}
+                  </div>
+                </button>
+              )
+            })}
           </div>
-        </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <button
-            onClick={onClose}
-            className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 font-bold shadow-[0_2px_10px_rgba(15,23,42,0.03)]"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
-          >
-            후기 등록
-          </button>
+          <div className="mt-4">
+            <textarea
+              value={summary}
+              maxLength={140}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="예: 결국 연락했고 잘 됐음 / 퇴사 안 하고 합의봄 / 내가 오해한 거였음"
+              className="min-h-[110px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[16px] leading-6 text-slate-900 outline-none placeholder:text-slate-400"
+            />
+            <div className="mt-2 text-right text-[11px] text-slate-400">
+              {summary.length}/140
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={onClose}
+              className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 font-bold shadow-[0_2px_10px_rgba(15,23,42,0.03)]"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white shadow-[0_12px_24px_rgba(15,23,42,0.20)]"
+            >
+              후기 등록
+            </button>
+          </div>
         </div>
       </div>
     </div>
