@@ -36,6 +36,119 @@ const reportReasons = [
   '도배/광고',
 ]
 
+const MODERATION_BLOCK_MESSAGE =
+  '광고/연락처/외부 링크로 의심되는 내용은 등록할 수 없습니다.'
+const MODERATION_SPAM_MESSAGE =
+  '반복/도배성 내용으로 보여 잠시 후 다시 작성해주세요.'
+
+const BLOCKED_TEXT_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
+  { pattern: /https?:\/\//i, reason: MODERATION_BLOCK_MESSAGE },
+  { pattern: /www\./i, reason: MODERATION_BLOCK_MESSAGE },
+  {
+    pattern:
+      /(?:^|\s)[a-z0-9-]+\.(?:com|kr|net|co\.kr|shop|site|xyz|org|io)(?:\s|$|\/)/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  { pattern: /오픈\s*채팅|오픈톡|오픈카톡/i, reason: MODERATION_BLOCK_MESSAGE },
+  { pattern: /카톡|카카오톡|kakao\s*talk/i, reason: MODERATION_BLOCK_MESSAGE },
+  {
+    pattern: /텔레그램|telegram|텔레\s*그램/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /라인\s*id|라인아이디|line\s*id/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /010[-\s.]?\d{3,4}[-\s.]?\d{4}/,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /\d{2,3}[-\s.]\d{3,4}[-\s.]\d{4}/,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /대출|소액\s*결제|개인돈|월변|급전/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /부업|고수익|재택\s*알바|수익\s*인증|돈\s*버는/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /토토|바카라|카지노|스포츠\s*배팅|사설\s*사이트/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern: /조건\s*만남|성인\s*방송|성인\s*사이트|19금\s*만남/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+]
+
+const SOFT_SUSPICIOUS_PATTERNS: RegExp[] = [
+  /문의\s*(주세요|주세여|바람|가능|환영)/i,
+  /선착순|무료\s*지급|100%\s*지급|이벤트\s*참여/i,
+]
+
+function normalizeModerationText(value: string) {
+  return String(value ?? '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getRepeatedCharModerationReason(value: string) {
+  const compact = normalizeModerationText(value).replace(/\s/g, '')
+  if (/(.)\1{8,}/.test(compact)) return MODERATION_SPAM_MESSAGE
+  if (/([!?ㅋㅎㅠㅜㅡ~]){10,}/.test(compact)) return MODERATION_SPAM_MESSAGE
+  return null
+}
+
+function getRepeatedPhraseModerationReason(value: string) {
+  const compact = normalizeModerationText(value).replace(/\s/g, '')
+  if (compact.length < 12) return null
+
+  for (let size = 2; size <= 8; size += 1) {
+    for (let index = 0; index <= compact.length - size * 3; index += 1) {
+      const phrase = compact.slice(index, index + size)
+      if (!phrase.trim()) continue
+      if (compact.includes(phrase.repeat(3))) return MODERATION_SPAM_MESSAGE
+    }
+  }
+
+  return null
+}
+
+function validateSafeText(value: string) {
+  const normalized = normalizeModerationText(value)
+  if (!normalized) return null
+
+  const repeatedReason =
+    getRepeatedCharModerationReason(normalized) ||
+    getRepeatedPhraseModerationReason(normalized)
+  if (repeatedReason) return repeatedReason
+
+  for (const item of BLOCKED_TEXT_PATTERNS) {
+    if (item.pattern.test(normalized)) return item.reason
+  }
+
+  if (SOFT_SUSPICIOUS_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return MODERATION_BLOCK_MESSAGE
+  }
+
+  return null
+}
+
+function validateContentBundle(
+  fields: Array<{ label: string; value: string }>,
+) {
+  for (const field of fields) {
+    const reason = validateSafeText(field.value)
+    if (reason) return `${field.label}: ${reason}`
+  }
+  return null
+}
+
 const inquiryTypeMeta: Record<
   InquiryType,
   { label: string; helper: string; placeholder: string }
@@ -4368,6 +4481,12 @@ function CommentModal({
     const trimmed = text.trim()
     if (!trimmed || isSubmitting) return
 
+    const moderationReason = validateSafeText(trimmed)
+    if (moderationReason) {
+      window.alert(moderationReason)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -4793,6 +4912,18 @@ function CreatePostModal({
 
     if (!trimmedTitle || !trimmedContent || !trimmedLeft || !trimmedRight)
       return
+
+    const moderationReason = validateContentBundle([
+      { label: '제목', value: trimmedTitle },
+      { label: '상황 설명', value: trimmedContent },
+      { label: '왼쪽 선택지', value: trimmedLeft },
+      { label: '오른쪽 선택지', value: trimmedRight },
+    ])
+
+    if (moderationReason) {
+      window.alert(moderationReason)
+      return
+    }
 
     onCreate({
       category,
@@ -5781,6 +5912,16 @@ export default function MatnyaApp() {
       content: string
       contact: string
     }) => {
+      const moderationReason = validateContentBundle([
+        { label: '문의 제목', value: input.title },
+        { label: '문의 내용', value: input.content },
+      ])
+
+      if (moderationReason) {
+        showToast(moderationReason)
+        throw new Error(moderationReason)
+      }
+
       const pageUrl =
         typeof window !== 'undefined' ? window.location.href : null
       const userAgent =
@@ -10649,6 +10790,12 @@ ${shareUrl}`)
       return
     }
 
+    const moderationReason = validateSafeText(trimmed)
+    if (moderationReason) {
+      showToast(moderationReason)
+      return
+    }
+
     const { data: inserted, error } = await supabase
       .from('post_outcomes')
       .insert({
@@ -10983,6 +11130,12 @@ ${shareUrl}`)
     replyToCommentId?: number | null,
   ) => {
     if (!currentPost) return
+
+    const moderationReason = validateSafeText(text)
+    if (moderationReason) {
+      showToast(moderationReason)
+      return
+    }
 
     const targetPostId = currentPost.id
     const targetPostTitle = currentPost.title
@@ -11329,6 +11482,18 @@ ${shareUrl}`)
     leftLabel: string
     rightLabel: string
   }) => {
+    const moderationReason = validateContentBundle([
+      { label: '제목', value: data.title },
+      { label: '상황 설명', value: data.content },
+      { label: '왼쪽 선택지', value: data.leftLabel },
+      { label: '오른쪽 선택지', value: data.rightLabel },
+    ])
+
+    if (moderationReason) {
+      showToast(moderationReason)
+      return
+    }
+
     const { data: inserted, error } = await supabase
       .from('posts')
       .insert({
