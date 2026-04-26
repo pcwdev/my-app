@@ -365,6 +365,18 @@ type InquiryRow = {
   resolved_at: string | null
 }
 
+type ReportQueueItem = {
+  targetType: 'post' | 'comment'
+  targetId: number
+  postId: number | null
+  postTitle: string
+  preview: string
+  reportCount: number
+  hidden: boolean
+  lastReason: string | null
+  lastReportedAt: string | null
+}
+
 type NotificationType =
   | 'new_post'
   | 'post_comment'
@@ -479,6 +491,7 @@ type MyPostItem = {
   title: string
   category: string
   ageGroup: string
+  hidden?: boolean
   hasNewComments?: boolean
   newCommentsCount?: number
   totalCommentsCount?: number
@@ -490,6 +503,8 @@ type MyCommentItem = {
   postId: number
   postTitle: string
   text: string
+  hidden?: boolean
+  parentPostHidden?: boolean
   hasNewReplies?: boolean
   newRepliesCount?: number
   totalRepliesCount?: number
@@ -2459,10 +2474,10 @@ const VoteOption = React.memo(function VoteOption({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group relative w-full overflow-hidden rounded-[26px] border px-4 py-4 text-left transition-all duration-200 ${
+      className={`group relative w-full min-h-[60px] overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-200 md:min-h-[72px] md:px-4 md:py-4 ${
         active
           ? 'border-slate-950 bg-[linear-gradient(180deg,#ffffff_0%,#f7f7f8_100%)] shadow-[0_18px_36px_rgba(15,23,42,0.14)]'
-          : 'border-slate-200/90 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.05)]'
+          : 'border-slate-300 bg-white shadow-[0_12px_26px_rgba(15,23,42,0.10)]'
       } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)]'}`}
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-slate-950 opacity-0 transition-opacity duration-200 group-hover:opacity-60" />
@@ -2472,10 +2487,10 @@ const VoteOption = React.memo(function VoteOption({
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
-            내 판단
+          <div className="text-[10px] font-black tracking-[0.14em] text-slate-400 md:text-[11px] md:tracking-[0.18em]">
+            CHOOSE
           </div>
-          <div className="mt-1 text-[17px] font-black leading-snug tracking-[-0.03em] text-slate-950">
+          <div className="mt-0.5 text-[15px] font-black leading-snug tracking-[-0.03em] text-slate-950 md:mt-1 md:text-[17px]">
             {label}
           </div>
         </div>
@@ -2490,8 +2505,8 @@ const VoteOption = React.memo(function VoteOption({
             </div>
           </div>
         ) : (
-          <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600">
-            고르기
+          <div className="shrink-0 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[10px] font-black text-slate-700 md:px-3 md:py-1.5 md:text-[11px]">
+            탭 선택
           </div>
         )}
       </div>
@@ -2504,10 +2519,8 @@ const VoteOption = React.memo(function VoteOption({
           />
         </div>
       ) : (
-        <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-semibold leading-5 text-slate-500">
-          <span className="font-black text-slate-700">{previewTitle}</span>
-          <span className="mx-1 text-slate-300">·</span>
-          {previewHelper}
+        <div className="mt-1.5 text-[11px] font-semibold leading-4 text-slate-500 md:mt-3 md:rounded-xl md:border md:border-slate-200 md:bg-slate-50 md:px-3 md:py-2 md:text-[12px] md:leading-5 md:text-slate-600">
+          탭하면 결과 공개
         </div>
       )}
     </button>
@@ -2969,6 +2982,7 @@ const CommentCard = React.memo(function CommentCard({
   leftLabel,
   rightLabel,
   onOpenReportComment,
+  reportCompleted = false,
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
@@ -2983,6 +2997,7 @@ const CommentCard = React.memo(function CommentCard({
   leftLabel: string
   rightLabel: string
   onOpenReportComment: (commentId: number) => void
+  reportCompleted?: boolean
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
@@ -2996,8 +3011,9 @@ const CommentCard = React.memo(function CommentCard({
   pulseReactionType?: CommentReactionType | null
   liveBattleFocus?: boolean
 }) {
-  if (comment.hidden && !adminMode) return null
+  const isHiddenForUser = comment.hidden && !adminMode
 
+  const isSoftReported = !adminMode && !comment.hidden && comment.reportCount === 2
   const isLeft = comment.side === 'left'
   const sideLabel = isLeft ? leftLabel : rightLabel
   const sideBadgeClass = isLeft
@@ -3012,6 +3028,8 @@ const CommentCard = React.memo(function CommentCard({
       className={`overflow-hidden rounded-[16px] border shadow-[0_6px_16px_rgba(15,23,42,0.045)] ${
         comment.hidden
           ? 'border-red-200 bg-red-50'
+          : isSoftReported
+            ? 'border-amber-200/80 bg-amber-50/70 opacity-75'
           : 'border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,255,0.96)_100%)]'
       }`}
     >
@@ -3025,6 +3043,11 @@ const CommentCard = React.memo(function CommentCard({
         }`}
       />
       <div className="p-2">
+        {isSoftReported ? (
+          <div className="mb-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+            ⚠️ 확인 중인 댓글입니다
+          </div>
+        ) : null}
         <div className="mb-1.5 flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1">
@@ -3054,19 +3077,29 @@ const CommentCard = React.memo(function CommentCard({
           {!comment.hidden ? (
             <button
               onClick={() => onOpenReportComment(comment.id)}
-              className="inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+              disabled={reportCompleted}
+              className={`inline-flex h-6.5 shrink-0 items-center justify-center rounded-full border transition ${
+                reportCompleted
+                  ? 'cursor-not-allowed border-emerald-200 bg-emerald-50 px-2 text-[10px] font-black text-emerald-700'
+                  : 'w-6.5 border-slate-200/80 bg-white/90 text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+              }`}
               aria-label="댓글 신고"
+              title={reportCompleted ? '신고 완료' : '댓글 신고'}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              {reportCompleted ? (
+                '완료'
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
             </button>
           ) : null}
         </div>
 
         <div className="text-[12.5px] leading-[1.4] tracking-[-0.01em] text-slate-700 line-clamp-2">
-          {comment.hidden ? '신고 누적으로 숨김된 댓글' : comment.text}
+          {comment.hidden && !adminMode ? '삭제된 댓글입니다' : comment.text}
         </div>
 
-        {!comment.hidden ? (
+        {!isHiddenForUser ? (
           <div className="mt-1.5">
             {liveBattleFocus ? (
               <div className="mb-1.5 flex items-center gap-1 text-[10px] font-black tracking-[0.02em] text-rose-600">
@@ -3769,14 +3802,19 @@ function MyActivityModal({
             filteredMyPosts.map((item) => (
               <button
                 key={item.id}
+                disabled={!!item.hidden}
                 onClick={() => onOpenPost(item.postId, item.postId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] ${
+                  item.hidden
+                    ? 'cursor-not-allowed border-slate-200/80 bg-slate-50/80'
+                    : 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
+                }`}
               >
                 <div className="text-xs text-slate-500">
                   {item.category} · {item.ageGroup}
                 </div>
                 <div className="mt-1 font-bold text-slate-900">
-                  {item.title}
+                  {item.hidden ? '현재 확인할 수 없는 글입니다' : item.title}
                 </div>
                 {item.hasNewComments ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-rose-600">
@@ -3791,7 +3829,9 @@ function MyActivityModal({
                     아직 반응 없음
                   </div>
                 )}
-                <div className="mt-2 text-xs text-slate-400">올린 글 보기</div>
+                <div className="mt-2 text-xs text-slate-400">
+                  {item.hidden ? '운영 정책에 의해 숨김 처리됨' : '올린 글 보기'}
+                </div>
               </button>
             ))}
 
@@ -3799,12 +3839,21 @@ function MyActivityModal({
             filteredMyComments.map((item) => (
               <button
                 key={item.id}
+                disabled={!!item.parentPostHidden}
                 onClick={() => onOpenComment(item.postId, item.commentId)}
-                className="w-full rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                className={`w-full rounded-3xl border p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.06)] ${
+                  item.parentPostHidden
+                    ? 'cursor-not-allowed border-slate-200/80 bg-slate-50/80'
+                    : 'border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]'
+                }`}
               >
-                <div className="text-xs text-slate-500">{item.postTitle}</div>
+                <div className="text-xs text-slate-500">
+                  {item.parentPostHidden
+                    ? '삭제된 게시글에서 작성한 댓글입니다'
+                    : item.postTitle}
+                </div>
                 <div className="mt-1 text-sm text-slate-900/85">
-                  {item.text}
+                  {item.hidden ? '삭제된 댓글입니다' : item.text}
                 </div>
                 {item.hasNewReplies ? (
                   <div className="mt-2 inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
@@ -3820,7 +3869,9 @@ function MyActivityModal({
                   </div>
                 )}
                 <div className="mt-2 text-xs text-slate-400">
-                  댓글 단 글로 이동
+                  {item.parentPostHidden
+                    ? '원글이 숨김 처리되어 이동할 수 없음'
+                    : '댓글 단 글로 이동'}
                 </div>
               </button>
             ))}
@@ -4024,12 +4075,163 @@ function DeletedItemsModal({
   )
 }
 
+function ReportInboxModal({
+  open,
+  onClose,
+  loading,
+  items,
+  onOpenItem,
+  onHideItem,
+  onRestoreItem,
+}: {
+  open: boolean
+  onClose: () => void
+  loading: boolean
+  items: ReportQueueItem[]
+  onOpenItem: (item: ReportQueueItem) => void
+  onHideItem: (item: ReportQueueItem) => void
+  onRestoreItem: (item: ReportQueueItem) => void
+}) {
+  const [tab, setTab] = useState<'all' | 'post' | 'comment'>('all')
+
+  useEffect(() => {
+    if (open) setTab('all')
+  }, [open])
+
+  const filteredItems = useMemo(() => {
+    if (tab === 'all') return items
+    return items.filter((item) => item.targetType === tab)
+  }, [items, tab])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-40 overflow-hidden bg-slate-900/30 backdrop-blur-md">
+      <div className="mx-auto flex h-[100svh] w-full min-h-0 max-w-md flex-col overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] pb-[env(safe-area-inset-bottom)] text-slate-900">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
+          <div>
+            <div className="text-lg font-bold">운영자 신고함</div>
+            <div className="text-sm text-slate-500">신고 건수 우선으로 빠르게 확인</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-5 pt-4">
+          <div className="flex gap-2">
+            {[
+              { key: 'all', label: '전체' },
+              { key: 'post', label: '글' },
+              { key: 'comment', label: '댓글' },
+            ].map((entry) => (
+              <button
+                key={entry.key}
+                onClick={() => setTab(entry.key as 'all' | 'post' | 'comment')}
+                className={`rounded-full px-4 py-2 text-sm font-bold ${
+                  tab === entry.key
+                    ? 'bg-[#4f7cff] text-slate-900'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {loading ? (
+            <div className="text-sm text-slate-500">신고함 불러오는 중...</div>
+          ) : null}
+          {!loading && filteredItems.length === 0 ? (
+            <div className="text-sm text-slate-500">신고된 항목이 없음</div>
+          ) : null}
+
+          {!loading &&
+            filteredItems.map((item) => {
+              const badgeClass =
+                item.reportCount >= REPORT_HIDE_THRESHOLD
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : item.reportCount === 2
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-blue-200 bg-blue-50 text-blue-700'
+              const badgeLabel =
+                item.reportCount >= REPORT_HIDE_THRESHOLD
+                  ? '3+ 자동숨김'
+                  : item.reportCount === 2
+                    ? '2회 주의'
+                    : '1회 확인'
+
+              return (
+                <div
+                  key={`${item.targetType}-${item.targetId}`}
+                  className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-bold text-slate-500">
+                      {item.targetType === 'post' ? '글' : '댓글'} #{item.targetId}
+                    </div>
+                    <div
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${badgeClass}`}
+                    >
+                      {badgeLabel} · {item.reportCount}회
+                    </div>
+                  </div>
+
+                  <div className="mt-1 text-sm font-bold text-slate-900 line-clamp-1">
+                    {item.postTitle}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600 line-clamp-2">
+                    {item.preview || '본문 없음'}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500 line-clamp-1">
+                    최근 사유: {item.lastReason || '사유 없음'}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => onOpenItem(item)}
+                      className="rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700"
+                    >
+                      열기
+                    </button>
+                    {!item.hidden ? (
+                      <button
+                        onClick={() => onHideItem(item)}
+                        className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700"
+                      >
+                        숨김
+                      </button>
+                    ) : null}
+                    {item.hidden ? (
+                      <button
+                        onClick={() => onRestoreItem(item)}
+                        className="rounded-2xl bg-[#4f7cff] px-3 py-1.5 text-xs font-bold text-slate-900"
+                      >
+                        복구
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CommentModal({
   post,
   open,
   onClose,
   onAddComment,
   onOpenReportComment,
+  isCommentReported,
   adminMode,
   onAdminRestoreComment,
   onAdminDeleteComment,
@@ -4053,6 +4255,7 @@ function CommentModal({
     replyToCommentId?: number | null,
   ) => Promise<void> | void
   onOpenReportComment: (commentId: number) => void
+  isCommentReported: (commentId: number) => boolean
   adminMode: boolean
   onAdminRestoreComment: (commentId: number) => void
   onAdminDeleteComment: (commentId: number) => void
@@ -4756,6 +4959,7 @@ function CommentModal({
                         leftLabel={post.leftLabel}
                         rightLabel={post.rightLabel}
                         onOpenReportComment={onOpenReportComment}
+                        reportCompleted={isCommentReported(comment.id)}
                         adminMode={adminMode}
                         onAdminRestoreComment={onAdminRestoreComment}
                         onAdminDeleteComment={onAdminDeleteComment}
@@ -5824,6 +6028,9 @@ export default function MatnyaApp() {
     NotificationEventRow[]
   >([])
   const [notificationLoading, setNotificationLoading] = useState(false)
+  const [reportInboxOpen, setReportInboxOpen] = useState(false)
+  const [reportInboxLoading, setReportInboxLoading] = useState(false)
+  const [reportInboxItems, setReportInboxItems] = useState<ReportQueueItem[]>([])
 
   const isAdmin = profile?.role === 'admin'
 
@@ -6253,24 +6460,44 @@ export default function MatnyaApp() {
       sessionId?: string | null
       refId?: number | null
     }) => {
-      const { error } = await supabase.from('post_events').insert({
+      const insertPayload = {
         post_id: postId,
         voter_key: voterKey || null,
         event_type: eventType,
         side: side ?? null,
         session_id: sessionId ?? null,
         ref_id: refId ?? null,
-      })
+      }
 
-      if (error) {
-        console.error('post_events 저장 실패', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          postId,
-          eventType,
-        })
+      try {
+        const { error } = await supabase.from('post_events').insert(insertPayload)
+
+        if (error) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('post_events 저장 실패', {
+              error,
+              insertPayload,
+              postId,
+              eventType,
+            })
+          } else {
+            console.warn('post_events 저장 실패', {
+              message: error.message,
+              code: error.code,
+            })
+          }
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('post_events 저장 중 예외 발생', {
+            error,
+            insertPayload,
+            postId,
+            eventType,
+          })
+        } else {
+          console.warn('post_events 저장 중 예외 발생')
+        }
       }
     },
     [voterKey],
@@ -6733,15 +6960,13 @@ export default function MatnyaApp() {
       const [myPostsRes, myCommentsRes] = await Promise.all([
         supabase
           .from('posts')
-          .select('id, title, category, age_group, created_at')
+          .select('id, title, category, age_group, created_at, hidden')
           .in('author_key', actorLookupKeys)
-          .neq('status', 'deleted')
           .order('created_at', { ascending: false }),
         supabase
           .from('comments')
-          .select('id, post_id, text, created_at')
+          .select('id, post_id, text, created_at, hidden')
           .in('author_key', actorLookupKeys)
-          .neq('status', 'deleted')
           .order('created_at', { ascending: false }),
       ])
 
@@ -6766,6 +6991,7 @@ export default function MatnyaApp() {
         commentId: Number(comment.id),
         postId: Number(comment.post_id),
         text: comment.text,
+        hidden: Boolean(comment.hidden ?? false),
       }))
       const commentIds = commentRows.map((item) => item.commentId)
       const uniquePostIds = [...new Set(commentRows.map((item) => item.postId))]
@@ -6778,7 +7004,10 @@ export default function MatnyaApp() {
         replyReactionsRes,
       ] = await Promise.all([
         uniquePostIds.length > 0
-          ? supabase.from('posts').select('id, title').in('id', uniquePostIds)
+          ? supabase
+              .from('posts')
+              .select('id, title, hidden')
+              .in('id', uniquePostIds)
           : Promise.resolve({ data: [], error: null } as any),
         activityTargetIds.length > 0
           ? supabase
@@ -6817,8 +7046,10 @@ export default function MatnyaApp() {
       }
 
       const postTitleMap = new Map<number, string>()
+      const postHiddenMap = new Map<number, boolean>()
       ;(commentPostsRes.data ?? []).forEach((post: any) => {
         postTitleMap.set(Number(post.id), post.title)
+        postHiddenMap.set(Number(post.id), Boolean(post.hidden ?? false))
       })
 
       const readMap = new Map<string, string | null>()
@@ -6916,6 +7147,7 @@ export default function MatnyaApp() {
         title: post.title,
         category: post.category,
         ageGroup: post.age_group,
+        hidden: Boolean(post.hidden ?? false),
         hasNewComments:
           Number(newCommentCountMap.get(Number(post.id)) ?? 0) > 0,
         newCommentsCount: Number(newCommentCountMap.get(Number(post.id)) ?? 0),
@@ -6927,6 +7159,7 @@ export default function MatnyaApp() {
       const nextMyComments = commentRows.map((comment) => ({
         ...comment,
         postTitle: postTitleMap.get(comment.postId) ?? '원글',
+        parentPostHidden: Boolean(postHiddenMap.get(comment.postId) ?? false),
         hasNewReplies: Number(newReplyCountMap.get(comment.commentId) ?? 0) > 0,
         newRepliesCount: Number(newReplyCountMap.get(comment.commentId) ?? 0),
         totalRepliesCount: Number(
@@ -7733,6 +7966,250 @@ export default function MatnyaApp() {
       showToast('관리자 데이터 로딩 실패')
     }
   }
+
+  const loadReportInbox = useCallback(async () => {
+    setReportInboxLoading(true)
+    const { data: reportRows, error: reportError } = await supabase
+      .from('reports')
+      .select('target_type, target_id, reason, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500)
+
+    if (reportError) {
+      console.error('신고함 불러오기 실패', reportError)
+      setReportInboxLoading(false)
+      return
+    }
+
+    const groupedMap = new Map<
+      string,
+      {
+        targetType: 'post' | 'comment'
+        targetId: number
+        reportCount: number
+        lastReason: string | null
+        lastReportedAt: string | null
+      }
+    >()
+
+    ;(reportRows ?? []).forEach((row: any) => {
+      const targetType = row.target_type as 'post' | 'comment'
+      const targetId = Number(row.target_id)
+      if (!targetType || !targetId) return
+
+      const key = `${targetType}:${targetId}`
+      const existing = groupedMap.get(key)
+      if (!existing) {
+        groupedMap.set(key, {
+          targetType,
+          targetId,
+          reportCount: 1,
+          lastReason: row.reason ?? null,
+          lastReportedAt: row.created_at ?? null,
+        })
+        return
+      }
+
+      existing.reportCount += 1
+    })
+
+    const postIds = [...groupedMap.values()]
+      .filter((item) => item.targetType === 'post')
+      .map((item) => item.targetId)
+    const commentIds = [...groupedMap.values()]
+      .filter((item) => item.targetType === 'comment')
+      .map((item) => item.targetId)
+
+    const [postRes, commentRes] = await Promise.all([
+      postIds.length > 0
+        ? supabase
+            .from('posts')
+            .select('id, title, content, hidden, report_count')
+            .in('id', postIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      commentIds.length > 0
+        ? supabase
+            .from('comments')
+            .select('id, post_id, text, hidden, report_count')
+            .in('id', commentIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ])
+
+    if (postRes.error || commentRes.error) {
+      console.error('신고함 대상 조회 실패', postRes.error ?? commentRes.error)
+      setReportInboxLoading(false)
+      return
+    }
+
+    const postMap = new Map<number, any>()
+    ;(postRes.data ?? []).forEach((row: any) => {
+      postMap.set(Number(row.id), row)
+    })
+
+    const commentMap = new Map<number, any>()
+    ;(commentRes.data ?? []).forEach((row: any) => {
+      commentMap.set(Number(row.id), row)
+    })
+
+    const commentPostIds = [...new Set((commentRes.data ?? []).map((row: any) => Number(row.post_id)))]
+    const { data: commentPostRows, error: commentPostError } =
+      commentPostIds.length > 0
+        ? await supabase.from('posts').select('id, title').in('id', commentPostIds)
+        : ({ data: [], error: null } as any)
+
+    if (commentPostError) {
+      console.error('댓글 부모 글 조회 실패', commentPostError)
+      setReportInboxLoading(false)
+      return
+    }
+
+    const commentPostTitleMap = new Map<number, string>()
+    ;(commentPostRows ?? []).forEach((row: any) => {
+      commentPostTitleMap.set(Number(row.id), String(row.title ?? ''))
+    })
+
+    const nextItems: ReportQueueItem[] = []
+
+    groupedMap.forEach((grouped) => {
+      if (grouped.targetType === 'post') {
+        const post = postMap.get(grouped.targetId)
+        if (!post) return
+        nextItems.push({
+          targetType: 'post',
+          targetId: grouped.targetId,
+          postId: grouped.targetId,
+          postTitle: String(post.title ?? ''),
+          preview: String(post.content ?? ''),
+          reportCount: Number(post.report_count ?? grouped.reportCount ?? 0),
+          hidden: Boolean(post.hidden ?? false),
+          lastReason: grouped.lastReason,
+          lastReportedAt: grouped.lastReportedAt,
+        })
+        return
+      }
+
+      const comment = commentMap.get(grouped.targetId)
+      if (!comment) return
+      const postId = Number(comment.post_id)
+      nextItems.push({
+        targetType: 'comment',
+        targetId: grouped.targetId,
+        postId,
+        postTitle: commentPostTitleMap.get(postId) ?? `글 #${postId}`,
+        preview: String(comment.text ?? ''),
+        reportCount: Number(comment.report_count ?? grouped.reportCount ?? 0),
+        hidden: Boolean(comment.hidden ?? false),
+        lastReason: grouped.lastReason,
+        lastReportedAt: grouped.lastReportedAt,
+      })
+    })
+
+    nextItems.sort((a, b) => {
+      const severityA = a.reportCount >= 3 ? 3 : a.reportCount
+      const severityB = b.reportCount >= 3 ? 3 : b.reportCount
+      if (severityB !== severityA) return severityB - severityA
+      const timeA = a.lastReportedAt ? new Date(a.lastReportedAt).getTime() : 0
+      const timeB = b.lastReportedAt ? new Date(b.lastReportedAt).getTime() : 0
+      return timeB - timeA
+    })
+
+    setReportInboxItems(nextItems)
+    setReportInboxLoading(false)
+  }, [])
+
+  const openReportInbox = useCallback(async () => {
+    if (!isAdmin || !adminMode) {
+      showToast('관리자 모드에서만 가능')
+      return
+    }
+    await loadReportInbox()
+    setReportInboxOpen(true)
+  }, [adminMode, isAdmin, loadReportInbox, showToast])
+
+  const openReportTarget = useCallback(
+    (item: ReportQueueItem) => {
+      const targetPostId = item.targetType === 'post' ? item.targetId : item.postId
+      if (!targetPostId) return
+
+      const postIndex = posts.findIndex((post) => post.id === targetPostId)
+      if (postIndex >= 0) {
+        setCurrentIndex(postIndex)
+      }
+
+      if (item.targetType === 'comment') {
+        setCommentInitialHighlightId(item.targetId)
+        setCommentOpen(true)
+      }
+
+      setReportInboxOpen(false)
+    },
+    [posts],
+  )
+
+  const adminHideReportedItem = useCallback(
+    async (item: ReportQueueItem) => {
+      if (item.targetType === 'post') {
+        const nextReportCount = Math.max(
+          REPORT_HIDE_THRESHOLD,
+          Number(item.reportCount || 0),
+        )
+        const { error } = await supabase
+          .from('posts')
+          .update({
+            hidden: true,
+            report_count: nextReportCount,
+          })
+          .eq('id', item.targetId)
+
+        if (error) {
+          console.error('신고 글 숨김 실패', error)
+          showToast('숨김 처리 실패')
+          return
+        }
+
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === item.targetId
+              ? { ...post, hidden: true, reportCount: nextReportCount }
+              : post,
+          ),
+        )
+      } else {
+        const nextReportCount = Math.max(
+          REPORT_HIDE_THRESHOLD,
+          Number(item.reportCount || 0),
+        )
+        const { error } = await supabase
+          .from('comments')
+          .update({
+            hidden: true,
+            report_count: nextReportCount,
+          })
+          .eq('id', item.targetId)
+
+        if (error) {
+          console.error('신고 댓글 숨김 실패', error)
+          showToast('숨김 처리 실패')
+          return
+        }
+
+        setPosts((prev) =>
+          prev.map((post) => ({
+            ...post,
+            comments: post.comments.map((comment) =>
+              comment.id === item.targetId
+                ? { ...comment, hidden: true, reportCount: nextReportCount }
+                : comment,
+            ),
+          })),
+        )
+      }
+
+      showToast('숨김 처리 완료')
+      await loadReportInbox()
+    },
+    [loadReportInbox, showToast],
+  )
 
   const handleGoogleLogin = async () => {
     try {
@@ -8716,6 +9193,8 @@ export default function MatnyaApp() {
         ? posts
         : posts.filter((post) => post.category === selectedCategory)
 
+    result = result.filter((post) => adminMode || !post.hidden)
+
     if (tab === '인기') {
       result = [...result].sort((a, b) => {
         const scoreA =
@@ -8729,7 +9208,7 @@ export default function MatnyaApp() {
     }
 
     return result
-  }, [posts, tab, selectedCategory])
+  }, [posts, tab, selectedCategory, adminMode])
 
   const openOwnerShareSession = useCallback(
     async (item: ShareInboxItem) => {
@@ -10400,6 +10879,11 @@ ${shareUrl}`)
 
   const openPostDirect = (postId: number, markSeenPostId?: number) => {
     const index = posts.findIndex((p) => p.id === postId)
+    const targetPost = index >= 0 ? posts[index] : null
+    if (!targetPost || (targetPost.hidden && !adminMode)) {
+      showToast('현재 확인할 수 없는 글입니다')
+      return false
+    }
     if (index >= 0) {
       const latestSeenAt = postOutcomeMap[postId]?.[0]?.createdAt ?? null
       if (currentPost) {
@@ -10425,18 +10909,21 @@ ${shareUrl}`)
       if (myWatchlistMap[postId] && latestSeenAt) {
         void markWatchlistOutcomeSeen(postId, latestSeenAt)
       }
+      return true
     }
+    return false
   }
 
   const openNotificationItem = (item: NotificationEventRow) => {
     void markNotificationRead(item.id)
     setNotificationOpen(false)
 
+    let canOpenPost = true
     if (item.reference_post_id) {
-      openPostDirect(Number(item.reference_post_id))
+      canOpenPost = openPostDirect(Number(item.reference_post_id))
     }
 
-    if (item.reference_comment_id) {
+    if (item.reference_comment_id && canOpenPost) {
       setCommentInitialHighlightId(Number(item.reference_comment_id))
       setCommentOpen(true)
     }
@@ -10451,6 +10938,11 @@ ${shareUrl}`)
 
   const openCommentDirect = (postId: number, commentId?: number) => {
     const index = posts.findIndex((p) => p.id === postId)
+    const targetPost = index >= 0 ? posts[index] : null
+    if (!targetPost || (targetPost.hidden && !adminMode)) {
+      showToast('삭제된 게시글에서 작성한 댓글입니다')
+      return
+    }
     if (index >= 0) {
       if (currentPost) {
         recordChoicePath(currentPost.id, postId)
@@ -11352,9 +11844,36 @@ ${shareUrl}`)
     }
   }
 
-  const openReportPost = () => {
+  const closeReportModal = () => {
+    setReportModal({
+      open: false,
+      type: null,
+      id: null,
+      label: '',
+    })
+  }
+
+  const openReportPost = async () => {
     if (!currentPost) return
+    if (!voterKey) return
+    if (currentPost.authorKey && currentActorKey && currentPost.authorKey === currentActorKey) {
+      showToast('내가 작성한 글은 신고 불가')
+      return
+    }
     if (reportedPosts[currentPost.id]) {
+      showToast('이미 신고한 글임')
+      return
+    }
+    const { data, error } = await supabase
+      .from('reports')
+      .select('id')
+      .eq('target_type', 'post')
+      .eq('target_id', currentPost.id)
+      .eq('reporter_key', voterKey)
+      .limit(1)
+
+    if (!error && (data ?? []).length > 0) {
+      setReportedPosts((prev) => ({ ...prev, [currentPost.id]: true }))
       showToast('이미 신고한 글임')
       return
     }
@@ -11366,8 +11885,27 @@ ${shareUrl}`)
     })
   }
 
-  const openReportComment = (commentId: number) => {
+  const openReportComment = async (commentId: number) => {
+    if (!voterKey) return
+    const targetComment = currentPost?.comments.find((comment) => comment.id === commentId)
+    if (targetComment?.authorKey && currentActorKey && targetComment.authorKey === currentActorKey) {
+      showToast('내가 작성한 댓글은 신고 불가')
+      return
+    }
     if (reportedComments[commentId]) {
+      showToast('이미 신고한 댓글임')
+      return
+    }
+    const { data, error } = await supabase
+      .from('reports')
+      .select('id')
+      .eq('target_type', 'comment')
+      .eq('target_id', commentId)
+      .eq('reporter_key', voterKey)
+      .limit(1)
+
+    if (!error && (data ?? []).length > 0) {
+      setReportedComments((prev) => ({ ...prev, [commentId]: true }))
       showToast('이미 신고한 댓글임')
       return
     }
@@ -11381,16 +11919,37 @@ ${shareUrl}`)
 
   const submitReport = async (reason: string) => {
     const reportId = reportModal.id
-    if (reportId == null || !voterKey || !reportModal.type) return
+    if (reportId == null || !reportModal.type) return
+    const targetId = Number(reportId)
+    if (!Number.isFinite(targetId)) return
+
+    const localReporterKey =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(STORAGE_KEYS.voterKey)
+        : null
+    const reporterKey = localReporterKey || voterKey || ''
+    if (!reporterKey) return
+    if (reporterKey !== voterKey) {
+      setVoterKey(reporterKey)
+    }
 
     const targetType = reportModal.type
-
-    const { error: insertReportError } = await supabase.from('reports').insert({
+    console.log('[report-debug] targetType', targetType)
+    console.log('[report-debug] targetId', targetId)
+    const insertPayload = {
       target_type: targetType,
-      target_id: reportId,
-      reporter_key: voterKey,
+      target_id: targetId,
+      reporter_key: reporterKey,
       reason,
-    })
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[matnya] submitReport payload', insertPayload)
+    }
+
+    const { error: insertReportError } = await supabase
+      .from('reports')
+      .insert(insertPayload)
 
     if (insertReportError) {
       const message = String(insertReportError.message || '')
@@ -11401,8 +11960,14 @@ ${shareUrl}`)
         message.includes('duplicate') ||
         details.includes('already exists')
       ) {
+        if (targetType === 'post') {
+          setReportedPosts((prev) => ({ ...prev, [reportId]: true }))
+        } else {
+          setReportedComments((prev) => ({ ...prev, [reportId]: true }))
+        }
+        closeReportModal()
         showToast(
-          targetType === 'post' ? '이미 신고한 글임' : '이미 신고한 댓글임',
+          targetType === 'post' ? '글 신고 완료' : '댓글 신고 완료',
         )
         return
       }
@@ -11416,7 +11981,7 @@ ${shareUrl}`)
       .from('reports')
       .select('*', { count: 'exact', head: true })
       .eq('target_type', targetType)
-      .eq('target_id', reportId)
+      .eq('target_id', targetId)
 
     if (countError) {
       console.error('신고 수 조회 실패', countError)
@@ -11426,31 +11991,83 @@ ${shareUrl}`)
 
     const safeReportCount = Number(latestReportCount ?? 0)
     const nextHidden = safeReportCount >= REPORT_HIDE_THRESHOLD
+    console.log('[report-debug] reports count result', latestReportCount)
+    console.log('[report-debug] safeReportCount', safeReportCount)
+    console.log('[report-debug] nextHidden', nextHidden)
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[matnya] report count result', {
+        targetType,
+        targetId,
+        isTargetTypePost: targetType === 'post',
+        isTargetIdNumber: Number.isFinite(targetId),
+        latestReportCount,
+        safeReportCount,
+        nextHidden,
+      })
+    }
 
     if (targetType === 'post') {
-      const { error: updatePostError } = await supabase
-        .from('posts')
-        .update({
-          report_count: safeReportCount,
-          hidden: nextHidden,
-          status: nextHidden ? 'hidden' : 'active',
+      const postUpdatePayload = {
+        report_count: safeReportCount,
+        hidden: nextHidden,
+      }
+      console.log('[report-debug] posts update payload', postUpdatePayload)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[matnya] post update attempt', {
+          targetType,
+          targetId,
+          safeReportCount,
+          nextHidden,
+          payload: postUpdatePayload,
         })
-        .eq('id', reportId)
+      }
 
+      const { data: updatedPostRows, error: updatePostError } = await supabase
+        .from('posts')
+        .update(postUpdatePayload)
+        .eq('id', targetId)
+        .select('id, report_count, hidden')
+
+      console.log('[report-debug] posts update error', updatePostError)
       if (updatePostError) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[matnya] post update error', {
+            targetType,
+            targetId,
+            safeReportCount,
+            nextHidden,
+            payload: postUpdatePayload,
+            error: updatePostError,
+          })
+        }
         console.error('게시글 신고 반영 실패', updatePostError)
         showToast('신고 반영 실패')
         return
       }
 
-      setReportedPosts((prev) => ({ ...prev, [reportId]: true }))
+      console.log('[report-debug] posts update result', updatedPostRows)
+      if (!updatedPostRows || updatedPostRows.length === 0) {
+        console.warn('[report-debug] posts update result is empty')
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[matnya] post update result', {
+          targetType,
+          targetId,
+          payload: postUpdatePayload,
+          data: updatedPostRows,
+          isEmptyData: !updatedPostRows || updatedPostRows.length === 0,
+        })
+      }
+
+      setReportedPosts((prev) => ({ ...prev, [targetId]: true }))
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === reportId
+          p.id === targetId
             ? {
                 ...p,
-                reportCount: safeReportCount,
-                hidden: nextHidden,
+                reportCount: Number(updatedPostRows?.[0]?.report_count ?? safeReportCount),
+                hidden: Boolean(updatedPostRows?.[0]?.hidden ?? nextHidden),
               }
             : p,
         ),
@@ -11458,35 +12075,72 @@ ${shareUrl}`)
     }
 
     if (targetType === 'comment') {
-      if (!currentPost) return
-
-      const { error: updateCommentError } = await supabase
-        .from('comments')
-        .update({
-          report_count: safeReportCount,
-          hidden: nextHidden,
-          status: nextHidden ? 'hidden' : 'active',
+      const commentUpdatePayload = {
+        report_count: safeReportCount,
+        hidden: nextHidden,
+      }
+      console.log('[report-debug] comments update payload', commentUpdatePayload)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[matnya] comment update attempt', {
+          targetType,
+          targetId,
+          safeReportCount,
+          nextHidden,
+          payload: commentUpdatePayload,
         })
-        .eq('id', reportId)
+      }
 
+      const { data: updatedCommentRows, error: updateCommentError } = await supabase
+        .from('comments')
+        .update(commentUpdatePayload)
+        .eq('id', targetId)
+        .select('id, report_count, hidden')
+
+      console.log('[report-debug] comments update error', updateCommentError)
       if (updateCommentError) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[matnya] comment update error', {
+            targetType,
+            targetId,
+            safeReportCount,
+            nextHidden,
+            payload: commentUpdatePayload,
+            error: updateCommentError,
+          })
+        }
         console.error('댓글 신고 반영 실패', updateCommentError)
         showToast('신고 반영 실패')
         return
       }
 
-      setReportedComments((prev) => ({ ...prev, [reportId]: true }))
+      console.log('[report-debug] comments update result', updatedCommentRows)
+      if (!updatedCommentRows || updatedCommentRows.length === 0) {
+        console.warn('[report-debug] comments update result is empty')
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[matnya] comment update result', {
+          targetType,
+          targetId,
+          payload: commentUpdatePayload,
+          data: updatedCommentRows,
+          isEmptyData: !updatedCommentRows || updatedCommentRows.length === 0,
+        })
+      }
+
+      setReportedComments((prev) => ({ ...prev, [targetId]: true }))
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === currentPost.id
+          p.comments.some((c) => c.id === targetId)
             ? {
                 ...p,
                 comments: p.comments.map((c) =>
-                  c.id === reportId
+                  c.id === targetId
                     ? {
                         ...c,
-                        reportCount: safeReportCount,
-                        hidden: nextHidden,
+                        reportCount: Number(
+                          updatedCommentRows?.[0]?.report_count ?? safeReportCount,
+                        ),
+                        hidden: Boolean(updatedCommentRows?.[0]?.hidden ?? nextHidden),
                       }
                     : c,
                 ),
@@ -11496,12 +12150,7 @@ ${shareUrl}`)
       )
     }
 
-    setReportModal({
-      open: false,
-      type: null,
-      id: null,
-      label: '',
-    })
+    closeReportModal()
 
     showToast(
       nextHidden ? `${reason} 신고 접수 · 숨김 처리됨` : `${reason} 신고 접수`,
@@ -11607,17 +12256,31 @@ ${shareUrl}`)
     )
   }
 
-  const adminRestorePost = async () => {
-    if (!currentPost) return
+  const adminRestorePost = async (postId?: number) => {
+    const targetPostId = postId ?? currentPost?.id
+    if (!targetPostId) return
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('posts')
       .update({
         hidden: false,
         report_count: 0,
-        status: 'active',
+        deleted_at: null,
+        deleted_reason: null,
+        deleted_by: null,
       })
-      .eq('id', currentPost.id)
+      .eq('id', targetPostId)
+
+    if (error?.code === '42703') {
+      const fallbackRes = await supabase
+        .from('posts')
+        .update({
+          hidden: false,
+          report_count: 0,
+        })
+        .eq('id', targetPostId)
+      error = fallbackRes.error
+    }
 
     if (error) {
       console.error('글 숨김 해제 실패', error)
@@ -11627,7 +12290,7 @@ ${shareUrl}`)
 
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === currentPost.id ? { ...p, hidden: false, reportCount: 0 } : p,
+        p.id === targetPostId ? { ...p, hidden: false, reportCount: 0 } : p,
       ),
     )
     showToast('글 숨김 해제 완료')
@@ -11639,8 +12302,8 @@ ${shareUrl}`)
     const { error } = await supabase
       .from('posts')
       .update({
-        status: 'deleted',
         hidden: true,
+        report_count: Math.max(REPORT_HIDE_THRESHOLD, Number(currentPost.reportCount)),
       })
       .eq('id', currentPost.id)
 
@@ -11650,28 +12313,58 @@ ${shareUrl}`)
       return
     }
 
-    const nextPosts = posts.filter((p) => p.id !== currentPost.id)
-    setPosts(nextPosts)
-    setMyPosts((prev) => prev.filter((item) => item.postId !== currentPost.id))
-    setMyComments((prev) =>
-      prev.filter((item) => item.postId !== currentPost.id),
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === currentPost.id
+          ? {
+              ...post,
+              hidden: true,
+              reportCount: Math.max(
+                REPORT_HIDE_THRESHOLD,
+                Number(post.reportCount ?? 0),
+              ),
+            }
+          : post,
+      ),
     )
-    setCurrentIndex(0)
-    await fetchDeletedItems()
-    showToast('글 삭제 완료')
+    setMyPosts((prev) =>
+      prev.map((item) =>
+        item.postId === currentPost.id ? { ...item, hidden: true } : item,
+      ),
+    )
+    setMyComments((prev) =>
+      prev.map((item) =>
+        item.postId === currentPost.id ? { ...item, parentPostHidden: true } : item,
+      ),
+    )
+    showToast('글 숨김 처리 완료')
   }
 
-  const adminRestoreComment = async (commentId: number) => {
-    if (!currentPost) return
+  const adminRestoreComment = async (commentId: number, postId?: number) => {
+    const targetPostId = postId ?? currentPost?.id
+    if (!targetPostId) return
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('comments')
       .update({
         hidden: false,
         report_count: 0,
-        status: 'active',
+        deleted_at: null,
+        deleted_reason: null,
+        deleted_by: null,
       })
       .eq('id', commentId)
+
+    if (error?.code === '42703') {
+      const fallbackRes = await supabase
+        .from('comments')
+        .update({
+          hidden: false,
+          report_count: 0,
+        })
+        .eq('id', commentId)
+      error = fallbackRes.error
+    }
 
     if (error) {
       console.error('댓글 숨김 해제 실패', error)
@@ -11681,7 +12374,7 @@ ${shareUrl}`)
 
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === currentPost.id
+        p.id === targetPostId
           ? {
               ...p,
               comments: p.comments.map((c) =>
@@ -11702,8 +12395,8 @@ ${shareUrl}`)
     const { error } = await supabase
       .from('comments')
       .update({
-        status: 'deleted',
         hidden: true,
+        report_count: REPORT_HIDE_THRESHOLD,
       })
       .eq('id', commentId)
 
@@ -11716,14 +12409,31 @@ ${shareUrl}`)
     setPosts((prev) =>
       prev.map((p) =>
         p.id === currentPost.id
-          ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) }
+          ? {
+              ...p,
+              comments: p.comments.map((c) =>
+                c.id === commentId
+                  ? {
+                      ...c,
+                      hidden: true,
+                      reportCount: Math.max(
+                        REPORT_HIDE_THRESHOLD,
+                        Number(c.reportCount ?? 0),
+                      ),
+                    }
+                  : c,
+              ),
+            }
           : p,
       ),
     )
 
-    setMyComments((prev) => prev.filter((item) => item.commentId !== commentId))
-    await fetchDeletedItems()
-    showToast('댓글 삭제 완료')
+    setMyComments((prev) =>
+      prev.map((item) =>
+        item.commentId === commentId ? { ...item, hidden: true } : item,
+      ),
+    )
+    showToast('댓글 숨김 처리 완료')
   }
 
   const adminRestoreDeletedPost = async (postId: number) => {
@@ -12109,7 +12819,13 @@ ${shareUrl}`)
               key={`${currentPost.id}-${tab}-${selectedCategory}-${shouldRenderKakaoHeavyBlocks ? 'rich' : 'safe'}`}
               ref={currentPostCardRef}
               tabIndex={-1}
-              className={`relative overflow-hidden rounded-[26px] border bg-white p-4 sm:rounded-[34px] sm:p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${postFocusPulse ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]' : 'border-white/95'}`}
+              className={`relative overflow-hidden rounded-[26px] border bg-white p-4 sm:rounded-[34px] sm:p-5 shadow-[0_24px_58px_rgba(15,23,42,0.10),0_2px_10px_rgba(15,23,42,0.03)] backdrop-blur transition-[border-color,box-shadow,transform,opacity] duration-220 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-24 before:bg-[linear-gradient(180deg,rgba(79,124,255,0.10)_0%,rgba(255,255,255,0)_100%)] ${
+                !adminMode && !currentPost.hidden && currentPost.reportCount === 2
+                  ? 'border-amber-200/90 bg-amber-50/40 opacity-80'
+                  : postFocusPulse
+                    ? 'border-[#9db7ff] ring-4 ring-[#dfe9ff] shadow-[0_28px_64px_rgba(79,124,255,0.18),0_2px_10px_rgba(15,23,42,0.04)]'
+                    : 'border-white/95'
+              }`}
             >
               <div className="relative mb-4 flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black tracking-[0.04em] text-white shadow-[0_10px_24px_rgba(15,23,42,0.20)]">
@@ -12133,12 +12849,21 @@ ${shareUrl}`)
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={openReportPost}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.96] sm:h-9 sm:w-9"
+                    onClick={() => void openReportPost()}
+                    disabled={!!reportedPosts[currentPost.id]}
+                    className={`flex h-8 items-center justify-center rounded-full border shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition sm:h-9 ${
+                      reportedPosts[currentPost.id]
+                        ? 'cursor-not-allowed border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-black text-emerald-700'
+                        : 'w-8 border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.96] sm:w-9'
+                    }`}
                     aria-label="현재 글 신고"
-                    title="현재 글 신고"
+                    title={reportedPosts[currentPost.id] ? '신고 완료' : '현재 글 신고'}
                   >
-                    <Flag className="h-4 w-4" />
+                    {reportedPosts[currentPost.id] ? (
+                      '신고 완료'
+                    ) : (
+                      <Flag className="h-4 w-4" />
+                    )}
                   </button>
 
                   {adminMode && (
@@ -12151,6 +12876,12 @@ ${shareUrl}`)
                         className="rounded-2xl bg-[#4f7cff] px-3 py-2 text-xs font-bold text-slate-900"
                       >
                         복구 관리
+                      </button>
+                      <button
+                        onClick={() => void openReportInbox()}
+                        className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                      >
+                        신고함
                       </button>
 
                       {currentPost.hidden && (
@@ -12176,14 +12907,37 @@ ${shareUrl}`)
 
               <div className="rounded-[24px] border border-transparent bg-transparent p-0 shadow-none">
                 <div className="hidden">today issue</div>
-                <h1 className="mt-4 text-[29px] font-black leading-[1.16] tracking-[-0.055em] text-slate-950">
+                {!adminMode &&
+                !currentPost.hidden &&
+                currentPost.reportCount === 2 ? (
+                  <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                    ⚠️ 확인 중인 글입니다
+                  </div>
+                ) : null}
+                <h1
+                  className={`mt-4 text-[29px] font-black leading-[1.16] tracking-[-0.055em] text-slate-950 ${
+                    !adminMode &&
+                    !currentPost.hidden &&
+                    currentPost.reportCount === 2
+                      ? 'opacity-75'
+                      : ''
+                  }`}
+                >
                   {currentPost.hidden && !adminMode
-                    ? '신고 누적으로 숨겨진 글'
+                    ? '이 게시글은 운영 정책에 의해 숨김 처리되었습니다'
                     : currentPost.title}
                 </h1>
-                <p className="mt-3 whitespace-pre-line text-[15px] font-medium leading-7 tracking-[-0.025em] text-slate-600">
+                <p
+                  className={`mt-3 whitespace-pre-line text-[15px] font-medium leading-7 tracking-[-0.025em] text-slate-600 ${
+                    !adminMode &&
+                    !currentPost.hidden &&
+                    currentPost.reportCount === 2
+                      ? 'opacity-70'
+                      : ''
+                  }`}
+                >
                   {currentPost.hidden && !adminMode
-                    ? '관리자 확인 전까지 숨김 처리됩니다.'
+                    ? '현재 확인할 수 없는 글입니다.'
                     : currentPost.content}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -12327,35 +13081,27 @@ ${shareUrl}`)
               </div>
 
               {(!currentPost.hidden || adminMode) && (
-                <div className="mt-4 space-y-3">
-                  <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+                <div className="mt-3 space-y-2.5 md:mt-4 md:space-y-3">
+                  <div className="overflow-hidden rounded-[24px] border border-slate-200/90 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3 shadow-[0_12px_24px_rgba(15,23,42,0.07)] md:rounded-[28px] md:p-4 md:shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-[11px] font-black tracking-[0.18em] text-slate-400">
-                          선택의 순간
+                          솔직히 어느 쪽?
                         </div>
-                        <div className="mt-1 text-[19px] font-black tracking-[-0.04em] text-slate-950">
+                        <div className="mt-0.5 text-[17px] font-black tracking-[-0.04em] text-slate-950 md:mt-1 md:text-[19px]">
                           {votes[currentPost.id]
                             ? dopamineResultTitle
-                            : '내 생각은 어느 쪽에 가까워?'}
+                            : '당신의 선택은?'}
                         </div>
                       </div>
-                      <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+                      <div className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.05)] md:px-3 md:py-1.5 md:text-[11px]">
                         {votes[currentPost.id] ? '분위기 공개' : '선택 전'}
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {dopamineLiveEvents.slice(0, 3).map((event) => (
-                        <div
-                          key={event}
-                          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)]"
-                        >
-                          {event}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-semibold leading-5 text-slate-600">
-                      {dopamineResultHelper}
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold leading-4 text-slate-600 md:mt-3 md:rounded-2xl md:py-2.5 md:text-[12px] md:leading-5">
+                      {votes[currentPost.id]
+                        ? dopamineResultHelper
+                        : '한 번 탭하면 바로 결과가 열립니다'}
                     </div>
                   </div>
                   <VoteOption
@@ -12368,9 +13114,9 @@ ${shareUrl}`)
                     onClick={() => void handleVote('left')}
                     disabled={isVoting}
                   />
-                  <div className="flex items-center gap-3 px-1">
+                  <div className="flex items-center gap-2 px-1 md:gap-3">
                     <div className="h-px flex-1 bg-slate-200" />
-                    <div className="text-[11px] font-black tracking-[0.16em] text-slate-400">
+                    <div className="text-[10px] font-black tracking-[0.12em] text-slate-400 md:text-[11px] md:tracking-[0.16em]">
                       또는
                     </div>
                     <div className="h-px flex-1 bg-slate-200" />
@@ -12385,6 +13131,11 @@ ${shareUrl}`)
                     onClick={() => void handleVote('right')}
                     disabled={isVoting}
                   />
+                  {!votes[currentPost.id] ? (
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-[12px] font-semibold text-slate-600 shadow-[0_8px_18px_rgba(15,23,42,0.05)] md:rounded-2xl md:px-4 md:py-3 md:text-[13px]">
+                      선택하면 전체 결과가 공개됩니다
+                    </div>
+                  ) : null}
 
                   {votes[currentPost.id] ? (
                     <div className="space-y-4">
@@ -13217,7 +13968,8 @@ ${shareUrl}`)
             onAddComment={(text, side, replyToCommentId) =>
               void addComment(text, side, replyToCommentId ?? null)
             }
-            onOpenReportComment={openReportComment}
+            onOpenReportComment={(commentId) => void openReportComment(commentId)}
+            isCommentReported={(commentId) => !!reportedComments[commentId]}
             adminMode={adminMode}
             onAdminRestoreComment={(commentId) =>
               void adminRestoreComment(commentId)
@@ -13281,6 +14033,27 @@ ${shareUrl}`)
             onRestoreComment={(commentId) =>
               void adminRestoreDeletedComment(commentId)
             }
+          />
+
+          <ReportInboxModal
+            open={reportInboxOpen}
+            onClose={() => setReportInboxOpen(false)}
+            loading={reportInboxLoading}
+            items={reportInboxItems}
+            onOpenItem={openReportTarget}
+            onHideItem={(item) => void adminHideReportedItem(item)}
+            onRestoreItem={(item) => {
+              if (item.targetType === 'post') {
+                void adminRestorePost(item.targetId).then(() => {
+                  void loadReportInbox()
+                })
+                return
+              }
+              if (!item.postId) return
+              void adminRestoreComment(item.targetId, item.postId).then(() => {
+                void loadReportInbox()
+              })
+            }}
           />
 
           <ShareInboxModal
@@ -13421,14 +14194,7 @@ ${shareUrl}`)
 
           <ReportModal
             open={reportModal.open}
-            onClose={() =>
-              setReportModal({
-                open: false,
-                type: null,
-                id: null,
-                label: '',
-              })
-            }
+            onClose={closeReportModal}
             onSubmit={(reason) => void submitReport(reason)}
             targetLabel={reportModal.label}
           />
