@@ -42,6 +42,7 @@ const MODERATION_SPAM_MESSAGE =
   '반복/도배성 내용으로 보여 잠시 후 다시 작성해주세요.'
 
 const BLOCKED_TEXT_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
+  // 외부 링크/도메인은 강차단
   { pattern: /https?:\/\//i, reason: MODERATION_BLOCK_MESSAGE },
   { pattern: /www\./i, reason: MODERATION_BLOCK_MESSAGE },
   {
@@ -49,8 +50,9 @@ const BLOCKED_TEXT_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
       /(?:^|\s)[a-z0-9-]+\.(?:com|kr|net|co\.kr|shop|site|xyz|org|io)(?:\s|$|\/)/i,
     reason: MODERATION_BLOCK_MESSAGE,
   },
+
+  // 연락처/외부 채널 유도는 강차단
   { pattern: /오픈\s*채팅|오픈톡|오픈카톡/i, reason: MODERATION_BLOCK_MESSAGE },
-  { pattern: /카톡|카카오톡|kakao\s*talk/i, reason: MODERATION_BLOCK_MESSAGE },
   {
     pattern: /텔레그램|telegram|텔레\s*그램/i,
     reason: MODERATION_BLOCK_MESSAGE,
@@ -67,14 +69,8 @@ const BLOCKED_TEXT_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     pattern: /\d{2,3}[-\s.]\d{3,4}[-\s.]\d{4}/,
     reason: MODERATION_BLOCK_MESSAGE,
   },
-  {
-    pattern: /대출|소액\s*결제|개인돈|월변|급전/i,
-    reason: MODERATION_BLOCK_MESSAGE,
-  },
-  {
-    pattern: /부업|고수익|재택\s*알바|수익\s*인증|돈\s*버는/i,
-    reason: MODERATION_BLOCK_MESSAGE,
-  },
+
+  // 불법/성인/도박성 키워드는 강차단
   {
     pattern: /토토|바카라|카지노|스포츠\s*배팅|사설\s*사이트/i,
     reason: MODERATION_BLOCK_MESSAGE,
@@ -83,10 +79,35 @@ const BLOCKED_TEXT_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     pattern: /조건\s*만남|성인\s*방송|성인\s*사이트|19금\s*만남/i,
     reason: MODERATION_BLOCK_MESSAGE,
   },
+
+  // 정상 주제어는 허용하고, 광고/모집 문맥만 차단
+  // 허용 예: “카톡 답장이 늦으면 식은 거임?”, “대출 때문에 힘든데 연애 가능?”, “부업하는 남친 괜찮음?”
+  {
+    pattern:
+      /(?:카톡|카카오톡|kakao\s*talk)\s*(?:주세요|주세여|문의|연락|추가|친추|상담|아이디|id|링크)/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern:
+      /(?:대출|개인돈|월변|급전)\s*(?:상담|문의|가능|해드립니다|받으세요|필요하신|도와드립니다|승인|무직자|당일)/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern:
+      /(?:부업|재택\s*알바)\s*(?:문의|모집|가능|추천|하실분|구합니다|고수익|수익|인증|월\s*\d+)/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
+  {
+    pattern:
+      /(?:고수익|수익\s*인증|돈\s*버는|재택\s*수익)\s*(?:부업|알바|문의|모집|가능|방법|추천)/i,
+    reason: MODERATION_BLOCK_MESSAGE,
+  },
 ]
 
 const SOFT_SUSPICIOUS_PATTERNS: RegExp[] = [
-  /문의\s*(주세요|주세여|바람|가능|환영)/i,
+  // “문의” 단독은 정상 문의/질문에도 쓰일 수 있으므로 광고성 CTA 문맥만 차단
+  /(?:카톡|카카오톡|텔레그램|라인|오픈채팅|대출|부업|고수익|재택\s*알바).{0,12}문의\s*(?:주세요|주세여|가능|환영|바람)?/i,
+  /문의\s*(?:주세요|주세여|가능|환영|바람).{0,12}(?:카톡|카카오톡|텔레그램|라인|오픈채팅|대출|부업|고수익|재택\s*알바)/i,
   /선착순|무료\s*지급|100%\s*지급|이벤트\s*참여/i,
 ]
 
