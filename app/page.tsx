@@ -8948,11 +8948,25 @@ ${shareUrl}`)
       )
     : null
   const canAdminWriteOutcome = isAdmin && adminMode
-  const canWriteOutcome =
-    (!!currentPost?.authorKey &&
-      !!currentActorKey &&
-      String(currentPost.authorKey) === String(currentActorKey)) ||
-    canAdminWriteOutcome
+  const currentPostAuthorKeys = Array.from(
+    new Set(
+      [
+        currentActorKey,
+        currentRawActorKey,
+        currentActorUnifiedKey,
+        authUser?.id,
+        voterKey,
+        authUser?.id ? `user:${authUser.id}` : null,
+        voterKey ? `voter:${voterKey}` : null,
+      ]
+        .filter(Boolean)
+        .map((key) => String(key)),
+    ),
+  )
+  const isCurrentPostAuthor =
+    !!currentPost?.authorKey &&
+    currentPostAuthorKeys.includes(String(currentPost.authorKey))
+  const canWriteOutcome = isCurrentPostAuthor || canAdminWriteOutcome
   const outcomeActionLabel = canAdminWriteOutcome
     ? '관리자 후기 등록'
     : '작성자 후기 남기기'
