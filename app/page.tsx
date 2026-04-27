@@ -12603,8 +12603,13 @@ ${shareUrl}`)
                         LIVE
                       </span>
                     </div>
-                    <div className="mt-0.5 text-[11px] font-extrabold tracking-[-0.03em] text-slate-500 sm:mt-1 sm:text-[13px]">
-                      너라면 여기서 끝내냐? 사람들한테 판단 받아봐
+                    <div className="mt-0.5 sm:mt-1">
+                      <div className="text-[11px] font-extrabold tracking-[-0.03em] text-slate-600 sm:text-[13px]">
+                        지금 이 선택, 진짜 맞냐?
+                      </div>
+                      <div className="mt-0.5 text-[10px] font-semibold leading-snug tracking-[-0.02em] text-slate-400 sm:text-[11px]">
+                        익명으로 물어보고, 사람들 의견을 확인해봐
+                      </div>
                     </div>
                   </button>
 
