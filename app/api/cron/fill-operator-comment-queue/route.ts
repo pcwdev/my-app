@@ -19,11 +19,11 @@ type FragmentRow = {
 
 const AUTHOR_POOL = ['익명281', '공감442', '현실주의자', '냉정하게봄']
 const FALLBACK_FRAGMENTS: FragmentRow[] = [
-  { type: 'starter', category: 'common', side: null, text: '이건 관점 차이가 큰 주제네.' },
-  { type: 'judgement', category: 'common', side: null, text: '결국 기준을 어디에 두느냐 문제 같아.' },
-  { type: 'ending', category: 'common', side: null, text: '서로 다르게 느낄 수 있는 포인트인 듯.' },
-  { type: 'reaction', category: 'common', side: null, text: '댓글들 보니까 양쪽 다 이해가 됨.' },
-  { type: 'reply', category: 'common', side: null, text: '위 의견은 맥락상 일리가 있어 보여.' },
+  { type: 'starter', category: 'common', side: null, text: '이건 좀 애매한데' },
+  { type: 'judgement', category: 'common', side: null, text: '솔직히 저건 서운하지' },
+  { type: 'ending', category: 'common', side: null, text: '나라면 선 긋는다' },
+  { type: 'reaction', category: 'common', side: null, text: '근데 이건 반대로 봐도 빡셈' },
+  { type: 'reply', category: 'common', side: null, text: '한두 번이면 몰라도 반복이면 문제임' },
 ]
 
 export const runtime = 'nodejs'
@@ -249,11 +249,24 @@ async function runFillJob(request: Request) {
 
   const { data: fragmentRows, error: fragmentError } = await supabaseAdmin
     .from('comment_seed_fragments')
-    .select('type, category, side, text')
+    .select('fragment_type, category, side, content')
 
   const fragments = fragmentError
     ? FALLBACK_FRAGMENTS
-    : ((fragmentRows ?? []) as FragmentRow[]).filter((row) => toSafeString(row.text).length > 0)
+    : ((fragmentRows ?? []).map((row) => {
+        const source = row as {
+          fragment_type?: unknown
+          category?: unknown
+          side?: unknown
+          content?: unknown
+        }
+        return {
+          type: toSafeString(source.fragment_type),
+          category: toSafeString(source.category) || 'common',
+          side: toSafeString(source.side) || null,
+          text: toSafeString(source.content),
+        } as FragmentRow
+      }) as FragmentRow[]).filter((row) => toSafeString(row.text).length > 0)
   const safeFragments = fragments.length > 0 ? fragments : FALLBACK_FRAGMENTS
   const text = composeCommentText(safeFragments, targetCategory, targetSide)
 
