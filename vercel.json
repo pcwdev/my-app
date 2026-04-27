@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/publish-seed",
+      "schedule": "0 9,13,18,23 * * *"
+    }
+  ]
+}
