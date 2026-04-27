@@ -2154,8 +2154,8 @@ function getResultRevealStage(
   if (effectiveLevel >= 3) {
     return {
       level: 3,
-      label: '지금 결과 보기',
-      helper: '사람들이 계속 들어오고 있어서 결과는 조금씩 달라질 수 있음',
+      label: '사람들은 이렇게 보고 있음',
+      helper: '대부분은 이 선택에 손을 들었음',
       toneClass: 'border-blue-200 bg-blue-50 text-blue-700',
       leftValue: exact.left,
       rightValue: exact.right,
@@ -2168,8 +2168,8 @@ function getResultRevealStage(
     const stateMeta = getRevealStateLabel(leftVotes, rightVotes)
     return {
       level: 2,
-      label: '댓글 분위기',
-      helper: '댓글에서 사람들이 왜 그렇게 보는지 바로 느낄 수 있음',
+      label: '아직 갈리는 중',
+      helper: '댓글에서 더 싸우는 중',
       toneClass: stateMeta.toneClass,
       leftValue: exact.left,
       rightValue: exact.right,
@@ -2260,27 +2260,27 @@ const POST_REACTION_META: Record<
   { label: string; activeClass: string; idleClass: string }
 > = {
   controversial: {
-    label: '👍 공감함',
+    label: '나만 이렇게 느낌?',
     activeClass: 'border-sky-200 bg-sky-50 text-sky-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   curious: {
-    label: '😒 억까임',
+    label: '결말 궁금함',
     activeClass: 'border-amber-200 bg-amber-50 text-amber-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   suspicious: {
-    label: '🤨 주작같음',
+    label: '반대로 봐도 빡셈',
     activeClass: 'border-orange-200 bg-orange-50 text-orange-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   minority: {
-    label: '😳 내가 소수네',
+    label: '이건 못 넘김',
     activeClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
     idleClass: 'border-slate-200 bg-white text-slate-500',
   },
   shareworthy: {
-    label: '숨김',
+    label: '여기서 끝내야 함',
     activeClass: 'border-slate-200 bg-slate-50 text-slate-500',
     idleClass: 'border-slate-200 bg-white text-slate-400',
   },
@@ -4746,7 +4746,7 @@ function CommentModal({
                 comments
               </div>
               <div className="mt-0.5 text-[17px] font-extrabold tracking-tight text-slate-950">
-                댓글 분위기 보기
+                사람들 판단 보기
               </div>
             </div>
             <button
@@ -9254,10 +9254,11 @@ export default function MatnyaApp() {
       if (typeof window === 'undefined') return
 
       const shareUrl = `${window.location.origin}${window.location.pathname}?post=${item.postId}&share=${item.sessionId}`
-      const shareText = `이거 맞냐?
+      const shareText = `너라면 여기서 끝내냐?
 ${item.title}
 
-너라면 뭐 선택함?`
+판단 좀 해줘
+내가 이상한지 봐줘`
 
       void loadOwnerShareInbox(true)
 
@@ -10054,10 +10055,11 @@ ${shareUrl}`)
     showToast('보낸 공유함에 저장됨 · 친구 답변 오면 빨간불로 알려줌')
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
-    const shareText = `이거 맞냐?
+    const shareText = `너라면 여기서 끝내냐?
 ${currentPost.title}
 
-너라면 뭐 선택함?`
+판단 좀 해줘
+친구한테 판결 받기`
 
     try {
       if (navigator.share) {
@@ -12574,7 +12576,7 @@ ${shareUrl}`)
                       </span>
                     </div>
                     <div className="mt-0.5 text-[11px] font-extrabold tracking-[-0.03em] text-slate-500 sm:mt-1 sm:text-[13px]">
-                      오늘 가장 많이 갈리는 이야기
+                      너라면 여기서 끝내냐? 사람들한테 판단 받아봐
                     </div>
                   </button>
 
@@ -13203,9 +13205,9 @@ ${shareUrl}`)
                                         : currentResultEmotion ===
                                             '⚡ 기우는 중'
                                           ? '조금씩 한쪽으로 기울지만 아직 안 끝났다.'
-                                          : currentTensionMeta
-                                            ? currentTensionMeta.helper
-                                            : '지금은 한쪽으로 몰렸지만 댓글에서 다시 불붙을 수 있음.'}
+                                            : currentTensionMeta
+                                              ? currentTensionMeta.helper
+                                              : '여기서 선 그어야 한다는 쪽이 우세함.'}
                               </div>
 
                               {!latestOutcome ? (
@@ -13216,14 +13218,14 @@ ${shareUrl}`)
                                         WATCHLIST
                                       </div>
                                       <div className="mt-1 text-[15px] font-black tracking-[-0.01em] text-slate-900">
-                                        👀 이 글 결말이 궁금함?
+                                        👀 너라면 여기서 끝내냐?
                                       </div>
                                       <div className="mt-1 text-[12px] leading-5 text-slate-600">
                                         {currentWatchlisted
                                           ? authUser?.id
                                             ? '내 활동 > 결말궁금 에서 계속 확인 가능'
                                             : '이 기기에는 저장됨 · 로그인하면 계속 이어볼 수 있음'
-                                          : '후기 올라오면 빨간불로 바로 알려줌'}
+                                          : '후기 올라오면 알려줘'}
                                       </div>
                                     </div>
                                     {currentWatchUnread ? (
@@ -13243,8 +13245,8 @@ ${shareUrl}`)
                                     }`}
                                   >
                                     {currentWatchlisted
-                                      ? '결말궁금 저장됨 ✓'
-                                      : '결말궁금 저장'}
+                                      ? '나중에 결말 확인 ✓'
+                                      : '이 글 결말 기다리기'}
                                   </button>
                                 </div>
                               ) : null}
@@ -13260,7 +13262,7 @@ ${shareUrl}`)
                               COMMENT ARENA
                             </div>
                             <div className="mt-1 text-[16px] font-black tracking-[-0.03em] text-slate-950">
-                              댓글 구경이 진짜 본게임
+                              비슷한 경험 댓글
                             </div>
                           </div>
                           <button
@@ -13270,7 +13272,7 @@ ${shareUrl}`)
                             }}
                             className="rounded-full bg-slate-950 px-3 py-2 text-[12px] font-black text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)]"
                           >
-                            댓글 보기
+                            사람들 판단 보기
                           </button>
                         </div>
 
@@ -13293,7 +13295,7 @@ ${shareUrl}`)
                                 “{dopamineTopComment.text}”
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-slate-500">
-                                공감 {dopamineTopCommentScore} · 바로 반박하러
+                                공감 {dopamineTopCommentScore} · 내 기준 말하기
                                 가기
                               </div>
                             </button>
@@ -13334,7 +13336,7 @@ ${shareUrl}`)
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-slate-500">
                                 반박 {dopamineCounterReactionCount} · 대댓글{' '}
-                                {dopamineCounterReplyCount} · 해당 댓글 보기
+                                {dopamineCounterReplyCount} · 반박 달기
                               </div>
                             </button>
                           ) : null}
