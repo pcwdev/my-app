@@ -89,6 +89,13 @@ async function runPublishJob(request: Request) {
     try {
       if (item.target_type === 'post') {
         const postPayload = item.payload ?? {}
+        const fallbackPostAuthorKey = `seed_queue_${item.id}`
+        const postAuthorKey = toSafeString(postPayload.author_key) || fallbackPostAuthorKey
+        const postAuthor = toSafeString(postPayload.author) || '익명'
+        const postCreatedAt = toSafeString(postPayload.created_at) || new Date().toISOString()
+        const postLastActivityAt =
+          toSafeString(postPayload.last_activity_at) || new Date().toISOString()
+
         const { data: insertedPost, error: insertPostError } = await supabaseAdmin
           .from('posts')
           .insert({
@@ -98,10 +105,20 @@ async function runPublishJob(request: Request) {
             content: toSafeString(postPayload.content),
             left_label: toSafeString(postPayload.left_label),
             right_label: toSafeString(postPayload.right_label),
+            left_votes: 0,
+            right_votes: 0,
+            likes: 0,
+            views: 0,
+            reaction_count: 0,
+            outcome_count: 0,
+            author: postAuthor,
+            author_key: postAuthorKey,
             status: 'active',
             hidden: false,
             report_count: 0,
-            author_key: null,
+            created_at: postCreatedAt,
+            updated_at: new Date().toISOString(),
+            last_activity_at: postLastActivityAt,
           })
           .select('id')
           .single()
@@ -113,6 +130,9 @@ async function runPublishJob(request: Request) {
         publishedPostId = Number(insertedPost.id)
       } else {
         const commentPayload = item.payload ?? {}
+        const fallbackCommentAuthorKey = `seed_queue_comment_${item.id}`
+        const commentAuthorKey =
+          toSafeString(commentPayload.author_key) || fallbackCommentAuthorKey
         const resolvedPostId = Number(commentPayload.post_id ?? item.post_id ?? 0)
         if (!Number.isFinite(resolvedPostId) || resolvedPostId <= 0) {
           throw new Error('invalid comment post_id')
@@ -125,7 +145,7 @@ async function runPublishJob(request: Request) {
             content: toSafeString(commentPayload.content),
             hidden: false,
             report_count: 0,
-            author_key: null,
+            author_key: commentAuthorKey,
           })
           .select('id')
           .single()
