@@ -2454,6 +2454,7 @@ function getNextReasonLabel(reasonType?: NextQueueItem['reasonType']) {
 
 const VoteOption = React.memo(function VoteOption({
   active,
+  side = 'left',
   label,
   value,
   showValue = false,
@@ -2463,6 +2464,7 @@ const VoteOption = React.memo(function VoteOption({
   disabled = false,
 }: {
   active: boolean
+  side?: Side
   label: string
   value: number
   showValue?: boolean
@@ -2471,34 +2473,60 @@ const VoteOption = React.memo(function VoteOption({
   onClick: () => void
   disabled?: boolean
 }) {
+  const isLeftSide = side === 'left'
+  const activeClass = isLeftSide
+    ? 'border-blue-300 bg-[linear-gradient(180deg,#ffffff_0%,#eff6ff_100%)] shadow-[0_18px_36px_rgba(59,130,246,0.14)]'
+    : 'border-violet-300 bg-[linear-gradient(180deg,#ffffff_0%,#f5f3ff_100%)] shadow-[0_18px_36px_rgba(124,58,237,0.14)]'
+  const inactiveHoverClass = isLeftSide
+    ? 'hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_16px_34px_rgba(59,130,246,0.10)]'
+    : 'hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_16px_34px_rgba(124,58,237,0.10)]'
+  const accentBarClass = isLeftSide
+    ? 'bg-[linear-gradient(180deg,#3b82f6_0%,#4f7cff_100%)]'
+    : 'bg-[linear-gradient(180deg,#7c3aed_0%,#8b5cf6_100%)]'
+  const chooseLabelClass = isLeftSide ? 'text-blue-500' : 'text-violet-500'
+  const mainLabelClass = isLeftSide ? 'text-blue-950' : 'text-violet-950'
+  const valueClass = isLeftSide ? 'text-blue-900' : 'text-violet-900'
+  const chipClass = isLeftSide
+    ? 'border-blue-200 bg-blue-50 text-blue-700'
+    : 'border-violet-200 bg-violet-50 text-violet-700'
+  const previewClass = isLeftSide
+    ? 'text-blue-600 md:border-blue-100 md:bg-blue-50/70'
+    : 'text-violet-600 md:border-violet-100 md:bg-violet-50/70'
+
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       className={`group relative w-full min-h-[60px] overflow-hidden rounded-2xl border px-3 py-3 text-left transition-all duration-200 md:min-h-[72px] md:px-4 md:py-4 ${
         active
-          ? 'border-slate-950 bg-[linear-gradient(180deg,#ffffff_0%,#f7f7f8_100%)] shadow-[0_18px_36px_rgba(15,23,42,0.14)]'
+          ? activeClass
           : 'border-slate-300 bg-white shadow-[0_12px_26px_rgba(15,23,42,0.10)]'
-      } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)]'}`}
+      } ${disabled ? 'cursor-not-allowed opacity-70' : inactiveHoverClass}`}
     >
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-slate-950 opacity-0 transition-opacity duration-200 group-hover:opacity-60" />
+      <div
+        className={`pointer-events-none absolute inset-y-0 left-0 w-1.5 ${accentBarClass} opacity-0 transition-opacity duration-200 group-hover:opacity-60`}
+      />
       {active ? (
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-slate-950" />
+        <div className={`pointer-events-none absolute inset-y-0 left-0 w-1.5 ${accentBarClass}`} />
       ) : null}
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-black tracking-[0.14em] text-slate-400 md:text-[11px] md:tracking-[0.18em]">
+          <div
+            className={`text-[10px] font-black tracking-[0.14em] md:text-[11px] md:tracking-[0.18em] ${chooseLabelClass}`}
+          >
             CHOOSE
           </div>
-          <div className="mt-0.5 text-[15px] font-black leading-snug tracking-[-0.03em] text-slate-950 md:mt-1 md:text-[17px]">
+          <div
+            className={`mt-0.5 text-[15px] font-black leading-snug tracking-[-0.03em] md:mt-1 md:text-[17px] ${mainLabelClass}`}
+          >
             {label}
           </div>
         </div>
 
         {showValue ? (
           <div className="shrink-0 text-right">
-            <div className="text-[22px] font-black leading-none text-slate-950">
+            <div className={`text-[22px] font-black leading-none ${valueClass}`}>
               {value}%
             </div>
             <div className="mt-1 text-[10px] font-bold text-slate-400">
@@ -2506,7 +2534,9 @@ const VoteOption = React.memo(function VoteOption({
             </div>
           </div>
         ) : (
-          <div className="shrink-0 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[10px] font-black text-slate-700 md:px-3 md:py-1.5 md:text-[11px]">
+          <div
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black md:px-3 md:py-1.5 md:text-[11px] ${chipClass}`}
+          >
             탭 선택
           </div>
         )}
@@ -2514,13 +2544,12 @@ const VoteOption = React.memo(function VoteOption({
 
       {showValue ? (
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-slate-950 transition-all duration-300"
-            style={{ width: `${value}%` }}
-          />
+          <div className={`h-full rounded-full transition-all duration-300 ${accentBarClass}`} style={{ width: `${value}%` }} />
         </div>
       ) : (
-        <div className="mt-1.5 text-[11px] font-semibold leading-4 text-slate-500 md:mt-3 md:rounded-xl md:border md:border-slate-200 md:bg-slate-50 md:px-3 md:py-2 md:text-[12px] md:leading-5 md:text-slate-600">
+        <div
+          className={`mt-1.5 text-[11px] font-semibold leading-4 md:mt-3 md:rounded-xl md:border md:px-3 md:py-2 md:text-[12px] md:leading-5 ${previewClass}`}
+        >
           탭하면 결과 공개
         </div>
       )}
@@ -5643,7 +5672,7 @@ function ShareInboxModal({
                           </div>
                           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                              className="h-full rounded-full bg-violet-500 transition-all duration-500"
                               style={{
                                 width: `${Math.max(getPercentPair(item.overallLeftCount, item.overallRightCount).right, item.overallTotalCount === 0 ? 0 : 8)}%`,
                               }}
@@ -5696,7 +5725,7 @@ function ShareInboxModal({
                           </div>
                           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                              className="h-full rounded-full bg-violet-500 transition-all duration-500"
                               style={{
                                 width: `${Math.max(percentPair.right, item.totalCount === 0 ? 0 : 8)}%`,
                               }}
@@ -13107,6 +13136,7 @@ ${shareUrl}`)
                   </div>
                   <VoteOption
                     active={votes[currentPost.id] === 'left'}
+                    side="left"
                     label={currentPost.leftLabel}
                     value={displayedPercent.left}
                     showValue={!!votes[currentPost.id]}
@@ -13124,6 +13154,7 @@ ${shareUrl}`)
                   </div>
                   <VoteOption
                     active={votes[currentPost.id] === 'right'}
+                    side="right"
                     label={currentPost.rightLabel}
                     value={displayedPercent.right}
                     showValue={!!votes[currentPost.id]}
@@ -13698,7 +13729,7 @@ ${shareUrl}`)
                                     </div>
                                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
                                       <div
-                                        className="h-full rounded-full bg-[#facc15] transition-all duration-500"
+                                        className="h-full rounded-full bg-violet-500 transition-all duration-500"
                                         style={{
                                           width: `${Math.max(getPercentPair(currentPost.leftVotes, currentPost.rightVotes).right, currentPost.leftVotes + currentPost.rightVotes === 0 ? 0 : 8)}%`,
                                         }}
@@ -13763,7 +13794,7 @@ ${shareUrl}`)
                                     </div>
                                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
                                       <div
-                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-[#4f7cff]'}`}
+                                        className={`h-full rounded-full transition-all duration-500 ${sharePulse ? 'bg-emerald-400' : 'bg-violet-500'}`}
                                         style={{
                                           width: `${shareResponseTotal === 0 ? 0 : Math.max(8, Math.round((shareStats.right / shareResponseTotal) * 100))}%`,
                                         }}
