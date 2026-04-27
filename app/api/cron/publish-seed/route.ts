@@ -19,6 +19,11 @@ function toSafeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function toSafeNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 function isAuthorized(request: Request, cronSecret: string): boolean {
   const bearerHeader = request.headers.get('authorization')
   const bearerToken = bearerHeader?.startsWith('Bearer ')
@@ -90,18 +95,17 @@ async function runPublishJob(request: Request) {
     try {
       if (item.target_type === 'post') {
         const postPayload = item.payload ?? {}
-        const fallbackPostAuthorKey = `seed_queue_${item.id}`
-        const postAuthorKey = toSafeString(postPayload.author_key) || fallbackPostAuthorKey
         const postAuthor = toSafeString(postPayload.author) || '익명'
-        const postCreatedAt = toSafeString(postPayload.created_at) || new Date().toISOString()
         const postLastActivityAt =
-          toSafeString(postPayload.last_activity_at) || new Date().toISOString()
+          toSafeString(postPayload.last_activity_at) ||
+          toSafeString(postPayload.created_at) ||
+          new Date().toISOString()
 
         const { data: insertedPost, error: insertPostError } = await supabaseAdmin
           .from('posts')
           .insert({
-            category: toSafeString(postPayload.category),
-            age_group: toSafeString(postPayload.age_group),
+            category: toSafeString(postPayload.category) || null,
+            age_group: toSafeString(postPayload.age_group) || null,
             title: toSafeString(postPayload.title),
             content:
               toSafeString(postPayload.content) ||
@@ -110,19 +114,17 @@ async function runPublishJob(request: Request) {
               '',
             left_label: toSafeString(postPayload.left_label),
             right_label: toSafeString(postPayload.right_label),
-            left_votes: 0,
-            right_votes: 0,
-            likes: 0,
-            views: 0,
-            reaction_count: 0,
-            outcome_count: 0,
+            left_votes: toSafeNumber(postPayload.left_votes, 0),
+            right_votes: toSafeNumber(postPayload.right_votes, 0),
+            likes: toSafeNumber(postPayload.likes, 0),
+            views: toSafeNumber(postPayload.views, 0),
+            reaction_count: toSafeNumber(postPayload.reaction_count, 0),
+            outcome_count: toSafeNumber(postPayload.outcome_count, 0),
             author: postAuthor,
-            author_key: postAuthorKey,
-            status: 'active',
+            author_key: toSafeString(postPayload.author_key) || null,
+            status: toSafeString(postPayload.status) || 'active',
             hidden: false,
             report_count: 0,
-            created_at: postCreatedAt,
-            updated_at: new Date().toISOString(),
             last_activity_at: postLastActivityAt,
           })
           .select('id')
