@@ -17,7 +17,6 @@ type FragmentRow = {
   text: string
 }
 
-const AUTHOR_POOL = ['익명281', '공감442', '현실주의자', '냉정하게봄']
 const FALLBACK_FRAGMENTS: FragmentRow[] = [
   { type: 'starter', category: 'common', side: null, text: '이건 좀 애매한데' },
   { type: 'judgement', category: 'common', side: null, text: '솔직히 저건 서운하지' },
@@ -45,6 +44,21 @@ function toSafeNumber(value: unknown): number {
 function randomPick<T>(items: T[]): T | null {
   if (items.length === 0) return null
   return items[Math.floor(Math.random() * items.length)] ?? null
+}
+
+function randomThreeDigits(): string {
+  return String(Math.floor(Math.random() * 1000)).padStart(3, '0')
+}
+
+function buildAuthorName(): string {
+  const roll = Math.random()
+  if (roll < 0.8) {
+    return `익명${randomThreeDigits()}`
+  }
+  if (roll < 0.95) {
+    return `공감${randomThreeDigits()}`
+  }
+  return randomPick(['팩폭러', '냉정하게봄']) ?? '팩폭러'
 }
 
 function isAuthorized(request: Request, cronSecret: string): boolean {
@@ -278,7 +292,7 @@ async function runFillJob(request: Request) {
     post_id: Number(target.id),
     side: targetSide,
     text,
-    author: randomPick(AUTHOR_POOL) ?? '익명281',
+    author: buildAuthorName(),
     author_key: buildAuthorKey(),
     scheduled_at: buildScheduledAt(),
     status: 'scheduled',
