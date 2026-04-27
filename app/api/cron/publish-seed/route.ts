@@ -103,7 +103,11 @@ async function runPublishJob(request: Request) {
             category: toSafeString(postPayload.category),
             age_group: toSafeString(postPayload.age_group),
             title: toSafeString(postPayload.title),
-            content: toSafeString(postPayload.content),
+            content:
+              toSafeString(postPayload.content) ||
+              toSafeString(postPayload.body) ||
+              toSafeString(postPayload.description) ||
+              '',
             left_label: toSafeString(postPayload.left_label),
             right_label: toSafeString(postPayload.right_label),
             left_votes: 0,
