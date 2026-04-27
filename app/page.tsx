@@ -9258,8 +9258,7 @@ export default function MatnyaApp() {
       const shareText = `너라면 여기서 끝내냐?
 ${item.title}
 
-판단 좀 해줘
-내가 이상한지 봐줘`
+너라면 어떻게 할래?`
 
       void loadOwnerShareInbox(true)
 
@@ -10059,8 +10058,7 @@ ${shareUrl}`)
     const shareText = `너라면 여기서 끝내냐?
 ${currentPost.title}
 
-판단 좀 해줘
-친구 의견 들어보기`
+너라면 어떻게 할래?`
 
     try {
       if (navigator.share) {
