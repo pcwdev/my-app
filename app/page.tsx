@@ -221,6 +221,7 @@ const STORAGE_KEYS = {
   guestName: 'matnya_guest_name',
   shareInboxSeen: 'matnya_share_inbox_seen_v1',
 }
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.matya.kr').replace(/\/$/, '')
 
 const PREFIXES = [
   '익명',
@@ -9253,7 +9254,7 @@ export default function MatnyaApp() {
     async (item: ShareInboxItem) => {
       if (typeof window === 'undefined') return
 
-      const shareUrl = `${window.location.origin}${window.location.pathname}?post=${item.postId}&share=${item.sessionId}`
+      const shareUrl = `${SITE_URL}${window.location.pathname}?post=${item.postId}&share=${item.sessionId}`
       const shareText = `너라면 여기서 끝내냐?
 ${item.title}
 
@@ -10054,12 +10055,12 @@ ${shareUrl}`)
     void loadOwnerShareInbox(true)
     showToast('보낸 공유함에 저장됨 · 친구 답변 오면 빨간불로 알려줌')
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
+    const shareUrl = `${SITE_URL}${window.location.pathname}?post=${currentPost.id}&share=${activeShareId}`
     const shareText = `너라면 여기서 끝내냐?
 ${currentPost.title}
 
 판단 좀 해줘
-친구한테 판결 받기`
+친구 의견 들어보기`
 
     try {
       if (navigator.share) {
