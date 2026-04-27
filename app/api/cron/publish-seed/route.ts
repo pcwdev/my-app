@@ -61,9 +61,10 @@ async function runPublishJob(request: Request) {
     .from('seed_content_queue')
     .select('id, target_type, post_id, payload, scheduled_at')
     .eq('status', 'scheduled')
+    .eq('target_type', 'post')
     .lte('scheduled_at', nowIso)
     .order('scheduled_at', { ascending: true })
-    .limit(50)
+    .limit(1)
 
   if (dueError) {
     return Response.json(
@@ -128,6 +129,40 @@ async function runPublishJob(request: Request) {
         }
 
         publishedPostId = Number(insertedPost.id)
+        const rawComments = Array.isArray(postPayload.comments) ? postPayload.comments : []
+        if (rawComments.length > 0) {
+          const commentRows = rawComments.map((comment, index) => {
+            const commentObject =
+              comment && typeof comment === 'object'
+                ? (comment as Record<string, unknown>)
+                : ({} as Record<string, unknown>)
+            const commentCreatedAt =
+              toSafeString(commentObject.created_at) || new Date().toISOString()
+
+            return {
+              post_id: publishedPostId,
+              author: toSafeString(commentObject.author) || '익명',
+              author_key:
+                toSafeString(commentObject.author_key) || `seed_queue_comment_${item.id}_${index + 1}`,
+              side: toSafeString(commentObject.side),
+              text: toSafeString(commentObject.text),
+              created_at: commentCreatedAt,
+            }
+          })
+
+          const { data: insertedComments, error: insertCommentsError } = await supabaseAdmin
+            .from('comments')
+            .insert(commentRows)
+            .select('id')
+
+          if (insertCommentsError) {
+            throw insertCommentsError
+          }
+
+          if ((insertedComments ?? []).length > 0) {
+            publishedCommentId = Number(insertedComments?.[0]?.id ?? null)
+          }
+        }
       } else {
         const commentPayload = item.payload ?? {}
         const fallbackCommentAuthorKey = `seed_queue_comment_${item.id}`
