@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import MatnyaApp from '@/app/page'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -115,22 +116,5 @@ export default async function PostSeoPage({ params }: PageProps) {
     notFound()
   }
 
-  const title = post.title?.trim() || '제목 없음'
-  const content = post.content?.trim() || '내용 없음'
-
-  return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 text-slate-900">
-      <h1 className="text-2xl font-black tracking-tight">{title}</h1>
-      <p className="mt-3 text-sm text-slate-500">
-        {post.category ? `${post.category} · ` : ''}
-        {post.created_at ? new Date(post.created_at).toLocaleString('ko-KR') : ''}
-      </p>
-      <article className="mt-6 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-5 leading-7 text-slate-800">
-        {content}
-      </article>
-      <p className="mt-6 text-xs text-slate-500">
-        더 많은 반응과 투표는 메인 화면에서 확인할 수 있습니다.
-      </p>
-    </main>
-  )
+  return <MatnyaApp initialPostId={postId} />
 }

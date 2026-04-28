@@ -5869,7 +5869,11 @@ function getNotificationMeta(type: NotificationType) {
   }
 }
 
-export default function MatnyaApp() {
+type MatnyaAppProps = {
+  initialPostId?: number | null
+}
+
+export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
   const [posts, setPosts] = useState<PostItem[]>([])
   const postsRef = useRef<PostItem[]>([])
   const currentPostCardRef = useRef<HTMLDivElement | null>(null)
@@ -8329,15 +8333,22 @@ export default function MatnyaApp() {
     const params = new URLSearchParams(window.location.search)
     const incomingShareId = params.get('share')
     const incomingPostId = params.get('post')
+    const effectivePostId =
+      incomingPostId && !Number.isNaN(Number(incomingPostId))
+        ? Number(incomingPostId)
+        : initialPostId && Number.isFinite(initialPostId)
+          ? Number(initialPostId)
+          : null
 
     if (incomingShareId) {
       setShareId(incomingShareId)
       setSharedEntryActive(true)
     }
-    if (incomingPostId && !Number.isNaN(Number(incomingPostId))) {
-      setSharedPostId(Number(incomingPostId))
+    if (effectivePostId != null) {
+      setSharedPostId(effectivePostId)
+      setSharedEntryActive(true)
     }
-  }, [])
+  }, [initialPostId])
 
   const fetchWatchlist = useCallback(async (actorKey: string | null) => {
     if (!actorKey) {
