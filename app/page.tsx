@@ -5921,6 +5921,7 @@ export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
   const [shareOwnerKey, setShareOwnerKey] = useState<string | null>(null)
   const [sharedPostId, setSharedPostId] = useState<number | null>(null)
   const [sharedEntryActive, setSharedEntryActive] = useState(false)
+  const routePostIdRef = useRef<number | null>(initialPostId)
   const [showOwnerShareResults, setShowOwnerShareResults] = useState(false)
   const [sharePulse, setSharePulse] = useState(false)
   const [ownerShareDelta, setOwnerShareDelta] = useState(0)
@@ -8342,10 +8343,12 @@ export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
 
     if (incomingShareId) {
       setShareId(incomingShareId)
-      setSharedEntryActive(true)
     }
     if (effectivePostId != null) {
+      routePostIdRef.current = effectivePostId
       setSharedPostId(effectivePostId)
+      setSharedEntryActive(true)
+    } else if (incomingShareId) {
       setSharedEntryActive(true)
     }
   }, [initialPostId])
@@ -9146,10 +9149,33 @@ export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
     if (data) {
       setShareId(String(data.id))
       setShareOwnerKey(data.owner_key ?? null)
-      if (data.post_id) setSharedPostId(Number(data.post_id))
-      await loadShareStatsBySessionId(String(data.id))
+      const sessionPostId = Number(data.post_id ?? 0)
+      const expectedPostId =
+        routePostIdRef.current ??
+        sharedPostId ??
+        (typeof window !== 'undefined'
+          ? Number(new URLSearchParams(window.location.search).get('post') ?? 0) || null
+          : null)
+
+      if (sessionPostId > 0) {
+        if (expectedPostId && Number(expectedPostId) !== sessionPostId) {
+          console.error('share session post_id 불일치', {
+            shareId: data.id,
+            expectedPostId,
+            sessionPostId,
+          })
+        } else if (!expectedPostId) {
+          setSharedPostId(sessionPostId)
+        }
+      }
+
+      try {
+        await loadShareStatsBySessionId(String(data.id))
+      } catch (error) {
+        console.error('share stats 조회 실패', error)
+      }
     }
-  }, [shareId, loadShareStatsBySessionId])
+  }, [shareId, loadShareStatsBySessionId, sharedPostId])
 
   const loadShareStats = useCallback(async () => {
     await loadShareStatsBySessionId(shareId)
