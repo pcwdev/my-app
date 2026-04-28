@@ -40,6 +40,12 @@ export const metadata: Metadata = {
     description: "익명으로 선택하고 사람들 의견을 확인해보세요.",
     images: ["/og-image.png"],
   },
+  verification: {
+    other: {
+      "naver-site-verification":
+        "1c1c6e4255b0cbfe4e8dc4d4c85ea5256f0ee82e",
+    },
+  },
 };
 
 export default function RootLayout({
