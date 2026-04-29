@@ -2777,6 +2777,7 @@ function InquiryAdminModal({
   loading,
   onRefresh,
   onUpdateStatus,
+  filter,
 }: {
   open: boolean
   onClose: () => void
@@ -2784,8 +2785,18 @@ function InquiryAdminModal({
   loading: boolean
   onRefresh: () => void
   onUpdateStatus: (id: number, status: InquiryStatus) => void
+  filter: 'all' | 'partnership'
 }) {
   if (!open) return null
+  const filteredItems =
+    filter === 'partnership'
+      ? items.filter((item) => item.inquiry_type === 'partnership')
+      : items
+  const modalTitle = filter === 'partnership' ? '제휴 문의' : '전체 문의함'
+  const modalHelper =
+    filter === 'partnership'
+      ? '제안 및 제휴 접수 목록'
+      : '버그 신고, 운영 문의, 제안 및 제휴 접수 목록'
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/35 px-4 py-6 backdrop-blur-md">
@@ -2796,10 +2807,10 @@ function InquiryAdminModal({
               ADMIN INBOX
             </div>
             <div className="mt-1 text-xl font-black tracking-[-0.03em]">
-              문의함
+              {modalTitle}
             </div>
             <div className="mt-1 text-sm text-slate-500">
-              버그 신고, 운영 문의, 제안 및 제휴 접수 목록
+              {modalHelper}
             </div>
           </div>
           <button
@@ -2820,7 +2831,7 @@ function InquiryAdminModal({
             새로고침
           </button>
           <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-500">
-            {items.length}건
+            {filteredItems.length}건
           </div>
         </div>
 
@@ -2829,12 +2840,12 @@ function InquiryAdminModal({
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
               불러오는 중
             </div>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
               접수된 문의가 없음
             </div>
           ) : (
-            items.map((item) => {
+            filteredItems.map((item) => {
               const statusMeta =
                 inquiryStatusMeta[item.status] ?? inquiryStatusMeta.pending
               return (
@@ -3653,28 +3664,28 @@ function MyActivityModal({
                   onClick={onOpenAdminInquiry}
                   className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
                 >
-                  문의함
+                  전체 문의함
                 </button>
                 <button
                   type="button"
                   onClick={onOpenAdminArchive}
                   className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
                 >
-                  보관함
+                  삭제 보관함
                 </button>
                 <button
                   type="button"
                   onClick={onOpenAdminReportInbox}
                   className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
                 >
-                  운영자 문의 관리
+                  신고함
                 </button>
                 <button
                   type="button"
                   onClick={onOpenAdminPartnerInbox}
                   className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
                 >
-                  제휴 요청 확인
+                  제휴 문의
                 </button>
               </div>
             </div>
@@ -6107,6 +6118,9 @@ export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [inquiryModalKey, setInquiryModalKey] = useState(0)
   const [inquiryAdminOpen, setInquiryAdminOpen] = useState(false)
+  const [inquiryAdminFilter, setInquiryAdminFilter] = useState<
+    'all' | 'partnership'
+  >('all')
   const [inquiryAdminItems, setInquiryAdminItems] = useState<InquiryRow[]>([])
   const [inquiryAdminLoading, setInquiryAdminLoading] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
@@ -12737,6 +12751,7 @@ ${shareUrl}`)
                     {isAdmin ? (
                       <button
                         onClick={() => {
+                          setInquiryAdminFilter('all')
                           setInquiryAdminOpen(true)
                           void loadInquiryAdminItems()
                         }}
@@ -14172,6 +14187,7 @@ ${shareUrl}`)
             onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
             isAdmin={isAdmin}
             onOpenAdminInquiry={() => {
+              setInquiryAdminFilter('all')
               setInquiryAdminOpen(true)
               void loadInquiryAdminItems()
             }}
@@ -14182,6 +14198,7 @@ ${shareUrl}`)
             }}
             onOpenAdminReportInbox={() => void openReportInbox()}
             onOpenAdminPartnerInbox={() => {
+              setInquiryAdminFilter('partnership')
               setInquiryAdminOpen(true)
               void loadInquiryAdminItems()
             }}
@@ -14356,6 +14373,7 @@ ${shareUrl}`)
             onUpdateStatus={(id, status) =>
               void updateInquiryStatus(id, status)
             }
+            filter={inquiryAdminFilter}
           />
 
           <ReportModal
