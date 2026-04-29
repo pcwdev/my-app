@@ -3346,6 +3346,11 @@ function MyActivityModal({
   onMarkAllPostsSeen,
   onMarkAllCommentsSeen,
   onMarkAllWatchlistSeen,
+  isAdmin,
+  onOpenAdminInquiry,
+  onOpenAdminArchive,
+  onOpenAdminReportInbox,
+  onOpenAdminPartnerInbox,
   profile,
   stats,
   badges,
@@ -3365,6 +3370,11 @@ function MyActivityModal({
   onMarkAllPostsSeen: () => void
   onMarkAllCommentsSeen: () => void
   onMarkAllWatchlistSeen: () => void
+  isAdmin: boolean
+  onOpenAdminInquiry: () => void
+  onOpenAdminArchive: () => void
+  onOpenAdminReportInbox: () => void
+  onOpenAdminPartnerInbox: () => void
   profile: ProfileRow | null
   stats: UserStatsRow
   badges: string[]
@@ -3628,6 +3638,47 @@ function MyActivityModal({
               ) : null}
             </button>
           </div>
+
+          {isAdmin ? (
+            <div className="mt-3 rounded-3xl border border-indigo-200/80 bg-[linear-gradient(180deg,#f9fbff_0%,#ffffff_100%)] p-3 shadow-[0_12px_26px_rgba(79,124,255,0.10)]">
+              <div className="text-[11px] font-black tracking-[0.14em] text-indigo-500">
+                ADMIN
+              </div>
+              <div className="mt-1 text-[14px] font-black text-slate-900">
+                운영자 전용 영역
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenAdminInquiry}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
+                >
+                  문의함
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenAdminArchive}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
+                >
+                  보관함
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenAdminReportInbox}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
+                >
+                  운영자 문의 관리
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenAdminPartnerInbox}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-800"
+                >
+                  제휴 요청 확인
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {tab === 'posts' ? (
             <div className="mt-3 rounded-3xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
@@ -8153,10 +8204,11 @@ export default function MatnyaApp({ initialPostId = null }: MatnyaAppProps) {
   }, [])
 
   const openReportInbox = useCallback(async () => {
-    if (!isAdmin || !adminMode) {
-      showToast('관리자 모드에서만 가능')
+    if (!isAdmin) {
+      showToast('관리자 계정만 가능')
       return
     }
+    if (!adminMode) setAdminMode(true)
     await loadReportInbox()
     setReportInboxOpen(true)
   }, [adminMode, isAdmin, loadReportInbox, showToast])
@@ -14118,6 +14170,21 @@ ${shareUrl}`)
             onMarkAllPostsSeen={() => void markAllMyPostsSeen()}
             onMarkAllCommentsSeen={() => void markAllMyCommentsSeen()}
             onMarkAllWatchlistSeen={() => void markAllWatchlistSeen()}
+            isAdmin={isAdmin}
+            onOpenAdminInquiry={() => {
+              setInquiryAdminOpen(true)
+              void loadInquiryAdminItems()
+            }}
+            onOpenAdminArchive={() => {
+              void fetchDeletedItems().then(() => {
+                setDeletedOpen(true)
+              })
+            }}
+            onOpenAdminReportInbox={() => void openReportInbox()}
+            onOpenAdminPartnerInbox={() => {
+              setInquiryAdminOpen(true)
+              void loadInquiryAdminItems()
+            }}
             profile={profile}
             stats={stats}
             badges={badges}
